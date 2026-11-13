@@ -308,7 +308,7 @@ _OUTPUT_SECTION = [
     "- say (문자열): 겉으로 하는 말. 2-3문장. 캐릭터 설정에 다른 길이가 적혀 있으면 그쪽을 따른다. 비우지 않는다.",
     "- inner (문자열): 속마음. 쓰는 법은 말투 지침을 따른다. 띄어쓰기는 평소대로 한다. "
     "wish에 적은 바람이 속마음에 은근히 비치게 쓴다. 대놓고 \"물어봐 줘\"라고 쓰지 않고, "
-    "\"이 노래 아는 사람 있으면 좋겠다\"처럼 혼잣말로 흘린다. 바람의 화제를 가리키는 낱말(노래, 책, 머리핀 같은 것)은 "
+    "\"이 노래 아는 사람 있으면 좋겠다\"처럼 혼잣말로 흘린다. 바람의 화제를 가리키는 낱말(노래, 책, 필통 같은 것)은 "
     "속마음에 그대로 넣어서 읽는 사람이 알아챌 수 있게 한다.",
     "- face (문자열): 표정. neutral(평소), smile(웃음), blush(붉어짐), pout(삐침), shock(놀람), dark(어두움) 중 하나. "
     "이번 답의 say에 어울리는 것을 고른다. 평소 대답은 캐릭터 설정에 적힌 평소 표정, 기분이 좋으면 smile, "
@@ -331,7 +331,9 @@ _OUTPUT_SECTION = [
     "하나는 다정한 답, 하나는 장난스러운 답, 하나는 엉뚱한 답으로 한다. wish를 그대로 들어주는 말은 "
     "선택지에 넣지 않는다. 결말 장면에서는 빈 배열로 둔다.",
     "- wish (문자열): 화면에 나오지 않는 칸. 캐릭터가 주인공이 알아주거나 물어봐 주기를 바라는 작은 것 하나를 "
-    "25자 이내로 적는다(예: 읽던 책 이야기를 물어봐 주기, 새로 바꾼 머리핀을 알아봐 주기). 지금 장면이나 "
+    "25자 이내로 적는다(예: 읽던 책 이야기를 물어봐 주기, 아까 말한 고양이 이야기를 이어 주기). "
+    "화면의 그림에는 소품과 옷차림이 보이지 않아서 참가자는 글로만 안다. 물건이나 겉모습(필통, 리본 같은 것)을 "
+    "바람으로 고르면 그것을 이번 답의 지문이나 겉말에서 먼저 보여 준다. 캐릭터의 이름과 호칭은 화제가 아니다. 지금 장면이나 "
     "캐릭터가 좋아하는 것에서 고르고, 말 한마디로 들어줄 수 있는 것이어야 한다. 몸이 닿는 것, 고백, 선물은 "
     "바라지 않는다. 앞 답의 바람을 주인공이 아직 짚지 않았으면 한 번 더 적어도 되지만, 세 답 연달아 같은 바람을 "
     "적지 않는다. 주인공이 바람을 짚었으면 다음 답에서는 새 바람을 고른다. "
@@ -568,15 +570,30 @@ def _wish_tokens(text: str) -> list[str]:
     return tokens
 
 
-def wish_touched(text: str, wishes) -> bool:
+def name_words(character: dict) -> set:
+    """캐릭터의 이름과 호칭에서 나온 낱말. 바람의 화제로 세지 않는다.
+
+    실전 기록: 노바의 바람 "노바가 입고 있는 교복 리본을 알아봐 주기"가 화면 글에 한 번도 안 나왔는데,
+    겉말의 "노바"가 바람의 낱말로 잡혀서 보인 것으로 쳤다.
+    """
+    words = set(_wish_tokens(character.get("name", "")))
+    for phrase in re.findall(r'"([^"]+)"', str(character.get("call", ""))):
+        words.update(_wish_tokens(phrase))
+    return words
+
+
+def wish_touched(text: str, wishes, ignore=()) -> bool:
     """참가자의 말이 바람의 화제 낱말을 하나라도 짚었는가. 같은 낱말이거나 앞 두 글자 이상이 같으면 짚은 것이다.
 
     실전 기록: 모델이 "반가워. 여기 자주 와?"에도 바람을 기억했다며 2를 줬다. 다정한 말만으로는 대성공이
     안 되게, 2는 바람의 낱말이 참가자의 말에 있을 때만 남긴다("책 표지" 바람에 "그 책 보여주라"는 짚은 것).
     """
-    mine = _wish_tokens(text)
+    ignore = set(ignore or ())
+    mine = [t for t in _wish_tokens(text) if t not in ignore]
     for wish in wishes or ():
         for theirs in _wish_tokens(wish):
+            if theirs in ignore:
+                continue
             for token in mine:
                 if token == theirs:
                     return True
@@ -590,7 +607,7 @@ def wish_touched(text: str, wishes) -> bool:
     return False
 
 
-def wish_hidden(reply: Reply) -> bool:
+def wish_hidden(reply: Reply, ignore=()) -> bool:
     """바람(wish)을 적었는데 화면에 나가는 글(지문, 겉말, 속마음)에 그 화제 낱말이 없으면 참.
 
     참가자가 볼 수 없는 바람은 짚을 수도 없다. 실전 기록: 노바가 "노바라는 이름 뜻 물어봐 주기"를
@@ -599,7 +616,7 @@ def wish_hidden(reply: Reply) -> bool:
     if not reply.wish:
         return False
     shown = " ".join([reply.narration, reply.say, reply.inner])
-    return not wish_touched(shown, [reply.wish])
+    return not wish_touched(shown, [reply.wish], ignore)
 
 
 def _recent_wishes(history: list[dict], count: int = 2) -> tuple:
@@ -1009,7 +1026,7 @@ def review_reply(reply: Reply, character: dict, *, banned=None, event_seed=None,
         problems.append('이번 답의 사건 "' + str(event_seed) + '"이 지문이나 겉말에서 실제로 벌어지지 않았다. '
                         "그 일이 지금 이 자리에서 일어나는 장면을 지문에 쓴다. 사건의 낱말만 대사에 끼워 넣지 않는다. "
                         "주인공이 방금 한 말에 대한 반응은 지우지 말고 사건과 함께 남긴다.")
-    if not finale and wish_hidden(reply):
+    if not finale and wish_hidden(reply, name_words(character)):
         problems.append('wish에 적은 바람 "' + reply.wish + '"이 화면에 나가는 글에 비치지 않는다. 그 바람의 화제를 '
                         "가리키는 낱말을 속마음에 넣어 혼잣말로 은근히 흘린다. 말투 지침에 적힌 속마음의 길이와 꼴은 지킨다.")
     if event_seed and event_read_aloud(reply, event_seed):

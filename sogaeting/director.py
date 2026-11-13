@@ -227,7 +227,8 @@ class Session:
                     reply.delta = min(reply.delta, 1)
                 # +2는 앞 답들이 속마음에 흘린 바람의 낱말을 참가자가 짚었을 때만 남긴다. 다정한 말만으로는
                 # 대성공이 안 되게 하려는 것이다. 실전 기록: 모델이 "반가워. 여기 자주 와?"에도 2를 줬다
-                if reply.delta == 2 and not actor.wish_touched(self.past_inputs[-1], wishes):
+                if reply.delta == 2 and not actor.wish_touched(self.past_inputs[-1], wishes,
+                                                                actor.name_words(self.character)):
                     reply.delta = 1
 
         fx = self._filter_fx(reply.fx, intensity)

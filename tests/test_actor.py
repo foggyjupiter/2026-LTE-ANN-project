@@ -909,6 +909,18 @@ class VarietyTest(unittest.TestCase):
         self.assertIsNone(actor.review_reply(shown, character))
         self.assertIsNone(actor.review_reply(hidden, character, finale=True))  # 결말에는 바람이 없다
 
+    def test_name_is_not_a_wish_topic(self):
+        # 실전 기록: 바람 "노바가 입고 있는 교복 리본을 알아봐 주기"가 화면에 안 나왔는데 이름 "노바"로 보인 것으로 쳤다
+        nova = {"name": "노바", "call": '주인공을 "짝꿍"이라고 부른다. 자기를 "노바"라고 이름으로 부른다.'}
+        self.assertEqual(actor.name_words(nova), {"노바", "짝꿍"})
+        ribbon = parse_reply(raw_reply(narration="노바가 손을 번쩍 들었다.", say="짝꿍! 노바가 기다렸어!",
+                                       inner="어떤 애일까.", wish="노바가 입고 있는 교복 리본을 알아봐 주기"), FX)
+        self.assertTrue(actor.wish_hidden(ribbon, actor.name_words(nova)))
+        self.assertIn("비치지 않는다", actor.review_reply(ribbon, dict(sample_character(), **nova)))
+        wish = ["노바가 입고 있는 교복 리본을 알아봐 주기"]
+        self.assertFalse(actor.wish_touched("노바야, 짝꿍 해 줘서 고마워", wish, actor.name_words(nova)))
+        self.assertTrue(actor.wish_touched("그 리본 예쁘다", wish, actor.name_words(nova)))
+
     def test_stuck_wish_is_changed(self):
         same = raw_reply(wish="급식 메뉴를 물어봐 주기")
         history = [{"role": "user", "content": "말"}, {"role": "assistant", "content": same}] * 2
