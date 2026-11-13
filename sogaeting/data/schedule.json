@@ -1,9 +1,9 @@
 {
-  "opening": {"intensity": 2, "seed": "entrance"},
+  "opening": {"intensity": 1, "seed": "entrance"},
   "replies": [
+    {"intensity": 1, "seed": null},
     {"intensity": 2, "seed": null},
-    {"intensity": 2, "seed": null},
-    {"intensity": 3, "seed": "event"},
+    {"intensity": 2, "seed": "event"},
     {"intensity": 3, "seed": null},
     {"intensity": 3, "seed": null},
     {"intensity": 4, "seed": "event"},

@@ -4,6 +4,7 @@ import io
 import json
 import pathlib
 import random
+import re
 import tempfile
 import unittest
 from unittest import mock
@@ -81,6 +82,10 @@ class ScriptedLlm:
             return answer
         if answer is self.ending:
             return json.dumps(answer, ensure_ascii=False)
+        # 사건 씨앗이 있는 답이면 진짜 모델처럼 지문에 그 사건을 넣는다. 정해 둔 지문이 있으면 그대로 둔다
+        event = re.search(r'사건 씨앗: "([^"]+)"', messages[0]["content"])
+        if event and "narration" not in answer:
+            answer = dict(answer, narration="지문이다. 그때 " + event.group(1) + ".")
         return reply_json(**answer)
 
     def system_of(self, turn):
@@ -288,10 +293,12 @@ class SeedTest(unittest.TestCase):
         fx = content.load_fx()
         schedule = content.load_schedule()
         _, kwargs = self.run_session(1)
-        self.assertEqual([k["intensity"] for k in kwargs], [2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5])
+        # 마음이 천천히 열리게 등장과 첫 답은 강도 1에서 시작한다
+        self.assertEqual([k["intensity"] for k in kwargs], [1, 1, 2, 2, 3, 3, 4, 4, 4, 5, 5])
         self.assertEqual(kwargs[2]["fx_allowed"], fx["light"])
-        self.assertEqual(kwargs[3]["fx_allowed"], fx["light"] + fx["heavy"])
-        self.assertEqual(kwargs[3]["intensity_meaning"], schedule["intensities"]["3"])
+        self.assertEqual(kwargs[3]["fx_allowed"], fx["light"])
+        self.assertEqual(kwargs[5]["fx_allowed"], fx["light"] + fx["heavy"])
+        self.assertEqual(kwargs[5]["intensity_meaning"], schedule["intensities"]["3"])
 
 
 class FxTest(unittest.TestCase):
@@ -304,8 +311,8 @@ class FxTest(unittest.TestCase):
         self.assertEqual(fx[1], ["꽃잎"])  # 답 1은 강도 2
 
     def test_heavy_kept_from_intensity_three(self):
-        fx = self.fx_per_turn({3: {"fx": ["암전"]}}, 3)
-        self.assertEqual(fx[3], ["암전"])  # 답 3은 강도 3
+        fx = self.fx_per_turn({4: {"fx": ["암전"]}}, 4)
+        self.assertEqual(fx[4], ["암전"])  # 답 4가 처음으로 강도 3
 
     def test_same_as_previous_dropped(self):
         fx = self.fx_per_turn({0: {"fx": ["꽃잎"]}, 1: {"fx": ["꽃잎", "반짝이"]}}, 1)
@@ -317,13 +324,13 @@ class FxTest(unittest.TestCase):
         self.assertEqual(fx[1:], [["꽃잎"], [], ["꽃잎"]])  # 답 2에서 버렸으니 답 3에서는 다시 쓸 수 있다
 
     def test_only_two_kept(self):
-        fx = self.fx_per_turn({3: {"fx": ["흔들림", "암전", "번개"]}}, 3)
-        self.assertEqual(fx[3], ["흔들림", "암전"])
+        fx = self.fx_per_turn({4: {"fx": ["흔들림", "암전", "번개"]}}, 4)
+        self.assertEqual(fx[4], ["흔들림", "암전"])
 
     def test_two_kept_after_dropping(self):
-        turns = {2: {"fx": ["꽃잎"]}, 3: {"fx": ["꽃잎", "흔들림", "암전", "번개"]}}
-        fx = self.fx_per_turn(turns, 3)
-        self.assertEqual(fx[3], ["흔들림", "암전"])
+        turns = {3: {"fx": ["꽃잎"]}, 4: {"fx": ["꽃잎", "흔들림", "암전", "번개"]}}
+        fx = self.fx_per_turn(turns, 4)
+        self.assertEqual(fx[4], ["흔들림", "암전"])
 
     def test_filtered_fx_goes_into_history(self):
         session = Session("mistral", llm=ScriptedLlm(turns={1: {"fx": ["암전", "꽃잎"]}}))
@@ -418,7 +425,8 @@ class BannedTest(unittest.TestCase):
         self.lines = content.load_character("mistral")["fallback_lines"]
 
     def assert_replaced(self, bad_reply):
-        session = Session("mistral", llm=ScriptedLlm(turns={1: bad_reply}))
+        # 금지어가 있으면 한 번 고쳐 쓰게 하고(ScriptedLlm은 그 호출을 다음 차례로 센다), 또 있으면 대체 대사
+        session = Session("mistral", llm=ScriptedLlm(turns={1: bad_reply, 2: bad_reply}))
         session.start()
         out = session.reply("안녕")
         self.assertTrue(out["fallback"])
@@ -428,6 +436,17 @@ class BannedTest(unittest.TestCase):
         self.assertEqual(out["choices"], DEFAULT_CHOICES)
         self.assertNotIn(self.word, json.dumps(out, ensure_ascii=False))
         self.assertNotIn(self.word, session.history[-1]["content"])
+
+    def test_banned_word_is_rewritten_once(self):
+        # 실전 기록: "가만 안 둘 거야"가 곧바로 대체 대사가 됐다. 이제는 한 번 고쳐 쓰게 한다
+        llm = ScriptedLlm(turns={1: {"say": f"그건 {self.word} 같은 말이야."}, 2: {"say": "고쳐 쓴 말이야."}})
+        session = Session("mistral", llm=llm)
+        session.start()
+        out = session.reply("안녕")
+        self.assertFalse(out["fallback"])
+        self.assertEqual(out["say"], "고쳐 쓴 말이야.")
+        self.assertIn("쓰면 안 되는 표현", llm.calls[-1][-1]["content"])
+        self.assertNotIn(self.word, llm.calls[-1][-1]["content"])  # 고칠 점에 금지어를 옮겨 쓰지 않는다
 
     def test_banned_word_in_say(self):
         self.assert_replaced({"say": f"그건 {self.word} 같은 말이야.", "delta": 2})

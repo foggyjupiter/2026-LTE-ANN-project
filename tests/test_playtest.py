@@ -2,6 +2,7 @@
 import contextlib
 import io
 import json
+import re
 import os
 import pathlib
 import tempfile
@@ -35,6 +36,12 @@ def play(character_id, backend=fake_backend, **options):
     def factory(banned):
         return playtest.Recorder(backend, banned=banned, **options)
     return playtest.play_character(character_id, factory, progress=lambda text: None)
+
+
+def scene(messages):
+    """사건 씨앗이 있는 답이면 진짜 모델처럼 지문에 그 사건을 넣는다."""
+    match = re.search(r'사건 씨앗: "([^"]+)"', messages[0]["content"])
+    return "그때 " + match.group(1) + "." if match else ""
 
 
 def turn_json(**changes):
@@ -264,7 +271,7 @@ class PlayTest(unittest.TestCase):
         def backend(messages, trace):
             if "epilogue" in messages[0]["content"]:
                 return fake_llm(messages)
-            return next(answers, turn_json())
+            return next(answers, turn_json(narration=scene(messages)))
         game = play("nova", backend)
         opening = game["turns"][0]
         self.assertEqual([c["attempt"] for c in opening["calls"]], [1, 2])

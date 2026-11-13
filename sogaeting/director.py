@@ -167,8 +167,10 @@ class Session:
             extra="" if opening else self.gimmick.extra_instruction(list(self.past_inputs)),
         )
         fx_names = set(self.fx["light"]) | set(self.fx["heavy"])
+        event_seed = seed if seed_kind == "event" else None
         reply = actor.ask_turn(self.llm, messages, fx_names,
-                               review=lambda r: actor.review_reply(r, self.character))
+                               review=lambda r: actor.review_reply(r, self.character, banned=self.banned,
+                                                                   event_seed=event_seed))
 
         # 모델이 답을 못 줬거나, 금지어가 걸리거나, 고쳐 쓰게 했는데도 캐릭터가 모르는 말이
         # 남았으면 대체 대사로 바꾼다

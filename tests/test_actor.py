@@ -801,6 +801,55 @@ class OpeningWordTest(unittest.TestCase):
         self.assertNotIn("[바로 앞 답]", build(history=broken)[0]["content"])
 
 
+class VarietyTest(unittest.TestCase):
+    """같은 상투어와 내일 약속이 판마다 되풀이되던 것, 사건이 흐지부지되던 것, 연출 이름이 새던 것."""
+
+    def history_with(self, *answers):
+        history = [{"role": "user", "content": OPENING_CUE}]
+        for say, inner in answers:
+            history += [{"role": "assistant", "content": raw_reply(say=say, inner=inner)},
+                        {"role": "user", "content": "응"}]
+        return history
+
+    def test_used_phrases_and_tomorrow_are_named(self):
+        history = self.history_with(("심장이 터질 것 같아!", "내일도 볼까"), ("내일 또 와.", "심장 소리"))
+        system = build(history=history)[0]["content"]
+        self.assertIn("이 판에서 이미 쓴 표현: 심장(2번), 터질 것 같다(1번)", system)
+        self.assertIn("내일 이야기를 이미 2번 꺼냈다", system)
+        # 결말에서는 내일 약속을 막지 않는다
+        self.assertNotIn("내일 이야기를 이미", build(history=history, finale=True)[0]["content"])
+
+    def test_nothing_named_on_a_fresh_game(self):
+        system = build(history=self.history_with(("안녕.", "누구지")))[0]["content"]
+        self.assertNotIn("이 판에서 이미 쓴 표현", system)
+        self.assertNotIn("내일 이야기를 이미", system)
+
+    def test_event_keywords(self):
+        self.assertEqual(actor.event_keywords("소나기와 우산 하나"), ["소나기", "우산"])
+        self.assertEqual(actor.event_keywords("고양이 난입"), ["고양이"])
+        self.assertEqual(actor.event_keywords("창가 자리 햇빛"), ["창가", "자리", "햇빛"])
+        self.assertEqual(actor.event_keywords("같은 책에 손이 닿음"), ["책", "손이"])
+
+    def test_event_must_happen(self):
+        character = sample_character()
+        quiet = parse_reply(raw_reply(narration="둘은 조용히 앉아 있다.", say="응.", inner="딴생각"), FX)
+        rainy = parse_reply(raw_reply(narration="갑자기 소나기가 쏟아졌다.", say="응.", inner="딴생각"), FX)
+        self.assertIn("소나기와 우산 하나", actor.review_reply(quiet, character, event_seed="소나기와 우산 하나"))
+        self.assertIsNone(actor.review_reply(rainy, character, event_seed="소나기와 우산 하나"))
+
+    def test_meta_words_are_rewritten_but_not_dropped(self):
+        reply = parse_reply(raw_reply(narration="노바가 줌인된 화면 속에서 웃는다.", say="응.", inner="딴생각"), FX)
+        self.assertEqual(actor.meta_words(reply), ["줌인", "화면 속"])
+        self.assertIn("화면 연출의 이름", actor.review_reply(reply, sample_character()))
+        self.assertFalse(actor.must_drop(reply))
+
+    def test_problems_are_joined_into_one_rewrite(self):
+        reply = parse_reply(raw_reply(narration="줌인.", say="AI가 뭔데?"), FX)
+        problem = actor.review_reply(reply, sample_character())
+        self.assertIn('"AI"', problem)
+        self.assertIn("화면 연출의 이름", problem)
+
+
 class EndingTest(unittest.TestCase):
     def test_build_ending_messages(self):
         character = sample_character()

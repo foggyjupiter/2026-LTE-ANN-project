@@ -35,6 +35,13 @@ _CHOICES = ["좋아, 더 말해줘", "잘 모르겠는데", "물구나무를 서
 
 
 _SHORT_SAY_RE = re.compile(r"겉말은 한 답에 \d+자 이내")
+_EVENT_RE = re.compile(r'사건 씨앗: "([^"]+)"')
+
+
+def _event_note(system: str) -> str:
+    """사건 씨앗이 있는 답이면 지문에 그 사건을 적는다. 진짜 모델에게 시키는 것과 같다."""
+    match = _EVENT_RE.search(system)
+    return f" 그때 {match.group(1)}." if match else ""
 
 
 def _hide_offstage(text: str) -> str:
@@ -83,7 +90,7 @@ def fake_llm(messages: list[dict]) -> str:
         inner = f"가짜 속마음 {turn}번: 글자 수 {len(last_user)} → 점수 {moved}칸"
         reason = f"글자 수가 {len(last_user)}개라서"
     return json.dumps({
-        "narration": "가짜 모델이 등장했다." if turn == 0 else f"가짜 모델의 {turn}번째 답이다.",
+        "narration": "가짜 모델이 등장했다." if turn == 0 else f"가짜 모델의 {turn}번째 답이다." + _event_note(system),
         "say": say,
         "inner": inner,
         "face": _FACE_BY_DELTA[delta],

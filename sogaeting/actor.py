@@ -8,6 +8,7 @@ import re
 from dataclasses import dataclass, field
 
 from sogaeting.llm import AllProvidersDown
+from sogaeting.safety import contains_banned as safety_contains
 
 FACES = ("neutral", "smile", "blush", "pout", "shock", "dark")
 OPENING_CUE = "(장면 시작. 주인공이 소개팅 자리에 도착했다. 등장해서 첫마디를 해라.)"
@@ -28,6 +29,10 @@ _AI_RE = re.compile(r"(?<![A-Za-z])ai(?![A-Za-z])", re.IGNORECASE)  # "AI"만. "
 # 실전 시험에서 소라가 "야한 게 뭐야아?" 하고 되받았다. 학교 경비 아저씨도 "수위"라서 그 낱말은 넣지 않는다.
 # 낱말 앞에 다른 한글이 붙어 있으면 다른 말이다("가야한다", "가야 해"는 잡지 않는다).
 RISKY_ECHO_WORDS = ("야한", "키스", "뽀뽀", "19금", "스킨십", "입맞춤")
+
+# 화면 연출의 이름. 이야기 속 말이 아니므로 지문과 대사에 나오면 한 번 고쳐 쓰게 한다(대체 대사로 바꾸지는 않는다).
+# "꽃잎", "하트", "비"처럼 이야기 속에서도 쓰는 낱말은 넣지 않는다
+META_WORDS = ("줌인", "스포트라이트", "집중선", "가짜 오류창", "화면 깨짐", "화면 속")
 
 # 대사 예시와 이만큼(띄어쓰기와 문장 부호를 뺀 글자 수) 이어서 같으면 예시를 베낀 것으로 본다.
 # 이보다 짧은 예시(하이쿠의 겉말)는 COPY_MIN 글자 이상일 때 통째로 들어 있으면 베낀 것으로 본다.
@@ -160,6 +165,12 @@ def _intensity_section(character: dict, intensity: int, meaning: str) -> list[st
         "- 이번 답은 이 강도에 맞춰 쓴다. 강도가 높을수록 마음이 겉으로 드러나고 캐릭터가 더 허둥댄다. "
         "이야기가 황당해지는 것이 아니다. 일어나는 일은 학교에서 있을 법한 작은 일이다.",
     ]
+    if intensity <= 2:
+        # 실전 기록에서 등장부터 "심장이 너무 빨리 뛰어"였다. 마음이 열리는 흐름이 보이지 않았다
+        lines.append(
+            "- 아직 처음 만난 지 얼마 안 됐다. 속성대로 거리를 둔다(츤데레는 쌀쌀하게, 쿨데레는 무심하게, "
+            "단데레는 낯을 가리게). 좋아한다, 설렌다, 심장이 뛴다 같은 말은 겉말에도 속마음에도 쓰지 않는다. "
+            "마음은 작은 몸짓 하나나 속마음의 짧은 호기심으로만 아주 조금 비친다.")
     if intensity == 5:
         lines += [
             "- 지금이 가장 센 강도다. 이 캐릭터가 마음을 가장 주체하지 못할 때는 아래와 같다. 이번 답에서 이 모습까지 간다.",
@@ -239,7 +250,8 @@ _RULES_SECTION = [
 # 대사의 목표는 설렘이다 (대사 톤)
 _TONE_SECTION = [
     "[말맛] 대사의 목표는 설렘이다.",
-    "- 답마다 설레는 순간을 하나 넣는다. 눈이 마주친다, 사소한 배려를 한다, 주인공이 한 말을 기억하고 있다, "
+    "- 강도 3부터는 답마다 설레는 순간을 하나 넣는다. 강도 1-2에서는 설렘보다 그 캐릭터다운 첫인상이 먼저다. "
+    "설레는 순간은 이런 것이다: 눈이 마주친다, 사소한 배려를 한다, 주인공이 한 말을 기억하고 있다, "
     "거리가 한 뼘 가까워진다, 솔직한 한마디를 하고는 얼버무린다, 다음 약속을 꺼낸다, 같은 것이다. "
     "narration, say, inner 어디에 넣어도 된다. 앞 답과 같은 종류를 연달아 쓰지 않는다.",
     "- 캐릭터가 마음을 주체하지 못하는 모습을 보여 준다. 말을 더듬는다, 말이 꼬인다, 얼굴이 빨개진다, "
@@ -282,7 +294,8 @@ _OUTPUT_SECTION = [
     "- JSON 객체 한 개만 출력한다. 그 앞뒤에 인사, 설명, 코드 울타리를 붙이지 않는다.",
     "- 칸은 아래 여덟 개다. 하나도 빠뜨리지 않고, 다른 칸을 더하지 않는다.",
     "- narration (문자열): 지문. 한 문장 이하. 필요 없으면 빈 문자열로 둔다. 지문에서 상대는 "
-    "\"전학생\"이라고 쓴다.",
+    "\"전학생\"이라고 쓴다. 지문은 '고개를 숙였다'처럼 끝내고 '고개를 숙였습니다'처럼 쓰지 않는다. "
+    "fx에 넣는 연출의 이름과 화면 이야기를 지문에 쓰지 않는다.",
     "- say (문자열): 겉으로 하는 말. 2-3문장. 캐릭터 설정에 다른 길이가 적혀 있으면 그쪽을 따른다. 비우지 않는다.",
     "- inner (문자열): 속마음. 쓰는 법은 말투 지침을 따른다. 띄어쓰기는 평소대로 한다.",
     "- face (문자열): 표정. neutral(평소), smile(웃음), blush(붉어짐), pout(삐침), shock(놀람), dark(어두움) 중 하나. "
@@ -308,7 +321,7 @@ _OUTPUT_SECTION = [
 def _turn_system(character: dict, *, band: str, intensity: int, intensity_meaning: str,
                  fx_allowed: list[str], seed: str | None, seed_kind: str | None,
                  opening: bool, finale: bool, extra: str, previous_first: str = "",
-                 previous_faces: tuple = ()) -> str:
+                 previous_faces: tuple = (), used_phrases: tuple = (), tomorrow: int = 0) -> str:
     if band not in _BAND_LABELS:
         raise ValueError("band는 low, mid, high 중 하나여야 한다: " + repr(band))
 
@@ -341,7 +354,8 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
         sections.append(_seed_section(str(seed), kind))
 
     sections.append(_RULES_SECTION)
-    if previous_first or previous_faces:
+    tomorrow_note = tomorrow >= TOMORROW_LIMIT and not finale
+    if previous_first or previous_faces or used_phrases or tomorrow_note:
         # 모델은 입버릇으로 답마다 말머리를 똑같이 시작하는 버릇이 있다 (소라의 "어라").
         # 표정도 한쪽으로 쏠렸다: 실제 모델 126답 가운데 blush가 81번이었다.
         # 지시문 맨 끝에 두었더니 출력 형식(선택지 20자)을 덜 지켰다. 연기 규칙 바로 뒤에 둔다
@@ -352,6 +366,14 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
             lines.append("- 앞 답들의 표정(오래된 것부터): " + ", ".join(previous_faces) + ". "
                          + ("이번 답은 다른 표정을 고른다." if len(previous_faces) >= 2 and len(set(previous_faces)) == 1
                             else "같은 표정을 세 답 연달아 고르지 않는다."))
+        if used_phrases:
+            lines.append("- 이 판에서 이미 쓴 표현: "
+                         + ", ".join(label + "(" + str(n) + "번)" for label, n in used_phrases)
+                         + ". 이번 답에서는 이 표현을 쓰지 않는다. 설렘은 몸짓과 그 자리의 구체적인 것"
+                         "(물건, 날씨, 주인공이 방금 한 말)으로 보여 준다.")
+        if tomorrow_note:
+            lines.append("- 내일 이야기를 이미 " + str(tomorrow) + "번 꺼냈다. 결말 전에는 내일 약속을 다시 꺼내지 않고, "
+                         "지금 이 자리의 이야기를 한다.")
         sections.append(lines)
     sections += [
         _TONE_SECTION,
@@ -366,6 +388,7 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
             "[이번 답은 등장 장면이다]",
             "- 주인공은 아직 아무 말도 하지 않았다. 캐릭터가 나타나서 첫마디를 한다. "
             "주인공의 말을 재료로 쓰라는 규칙은 다음 답부터 적용한다.",
+            "- 둘은 방금 처음 만났다. 캐릭터는 아직 주인공에게 반하지 않았다. 호기심이나 긴장 정도만 있다.",
             "- delta는 0으로, reason은 빈 문자열로 둔다.",
             "- face는 neutral, smile, pout 중에서 고른다. blush와 shock은 주인공의 말을 들은 뒤에 쓴다.",
             "- choices에는 주인공이 첫마디로 할 수 있는 말 3개를 넣는다.",
@@ -408,6 +431,32 @@ def _last_opening(history: list[dict]) -> str:
     return ""
 
 
+# 실전 기록 6판에서 "심장"이 16번, "내일"이 27번 나왔다. 그 판에서 이미 쓴 상투어를 지시문에 알려 준다
+STOCK_PHRASES = (("심장", "심장"), ("터질 것 같", "터질 것 같다"), ("가슴이 뛰", "가슴이 뛴다"),
+                 ("숨이 막", "숨이 막힌다"), ("기절할 것 같", "기절할 것 같다"))
+TOMORROW_LIMIT = 2   # 결말 전에 내일 이야기를 이만큼 했으면 더 꺼내지 않게 한다
+
+
+def _used_phrases(history: list[dict]) -> tuple:
+    """(이 판의 겉말과 속마음에서 쓴 상투어와 횟수, "내일"을 꺼낸 답의 수)."""
+    counts = {}
+    tomorrow = 0
+    for message in history:
+        if message.get("role") != "assistant":
+            continue
+        data = _read_json_object(message.get("content"))
+        if not data:
+            continue
+        text = _text(data.get("say")) + " " + _text(data.get("inner"))
+        for needle, label in STOCK_PHRASES:
+            n = text.count(needle)
+            if n:
+                counts[label] = counts.get(label, 0) + n
+        if "내일" in text:
+            tomorrow += 1
+    return tuple(counts.items()), tomorrow
+
+
 def _recent_faces(history: list[dict], count: int = 2) -> tuple:
     """앞 답들의 표정(오래된 것부터, count개까지). 등장도 센다. 대체 대사와 못 읽은 답은 건너뛴다."""
     faces = []
@@ -434,6 +483,7 @@ def build_turn_messages(character: dict, history: list[dict], *, band: str, inte
         fx_allowed=fx_allowed, seed=seed, seed_kind=seed_kind, opening=opening,
         finale=finale, extra=extra, previous_first=_last_opening(history),
         previous_faces=_recent_faces(history),
+        used_phrases=_used_phrases(history)[0], tomorrow=_used_phrases(history)[1],
     )
     return [{"role": "system", "content": system}] + [dict(m) for m in history]
 
@@ -651,24 +701,68 @@ def must_drop(reply: Reply) -> bool:
     return bool(offstage_words(texts) or risky_echo_words(texts))
 
 
-def review_reply(reply: Reply, character: dict) -> str | None:
-    """다시 쓰게 할 점을 한 문장으로. 고칠 것이 없으면 None."""
-    words = offstage_words(reply_texts(reply))
+def meta_words(reply: Reply) -> list[str]:
+    """지문, 겉말, 속마음에 나온 화면 연출의 이름. 실전 기록: "노바가 줌인된 화면 속에서"."""
+    joined = " ".join([reply.narration, reply.say, reply.inner])
+    return [word for word in META_WORDS if word in joined]
+
+
+# 사건 씨앗에서 사건이 일어났는지 볼 때 빼는 낱말. 사건의 알맹이(소나기, 우산, 지우개)만 본다
+_EVENT_STOPWORDS = {"하나", "남음", "켜짐", "전날", "난입", "오배송", "닿음", "둘만", "정하기", "바꾸기",
+                    "같은", "떨어진", "시간", "옆자리"}
+# 이/가는 떼지 않는다. "고양이", "창가"처럼 낱말의 끝인 경우가 많다
+_JOSA_RE = re.compile(r"(와|과|에|에서|의|을|를|은|는|도)$")
+
+
+def event_keywords(seed: str) -> list[str]:
+    """사건 씨앗의 알맹이 낱말. "소나기와 우산 하나" -> ["소나기", "우산"]. 조사를 뗀 꼴로 찾는다.
+
+    "고양이"처럼 이/가로 끝나는 낱말은 조사를 떼면 "고양"이 되지만, 찾을 때는 그대로 맞는다.
+    """
+    words = []
+    for word in str(seed).split():
+        stem = _JOSA_RE.sub("", word) or word
+        if word not in _EVENT_STOPWORDS and stem not in _EVENT_STOPWORDS:
+            words.append(stem)
+    return words
+
+
+def event_happened(reply: Reply, seed: str) -> bool:
+    """사건 씨앗의 알맹이 낱말이 지문이나 겉말에 하나라도 나왔으면 참. 알맹이가 없는 씨앗은 참."""
+    keys = event_keywords(seed)
+    text = reply.narration + " " + reply.say
+    return not keys or any(key in text for key in keys)
+
+
+def review_reply(reply: Reply, character: dict, *, banned=None, event_seed=None) -> str | None:
+    """다시 쓰게 할 점들을 이어 붙인 글. 고칠 것이 없으면 None. 여러 개면 한 번에 다 고치게 한다."""
+    problems = []
+    texts = reply_texts(reply)
+    words = offstage_words(texts)
     if words:
         listed = ", ".join('"' + w + '"' for w in words)
-        return ("답에 " + listed + "라는 말이 있다. 캐릭터는 이 말을 모른다. 주인공이 이 말을 했어도 옮겨 쓰지 않고, "
-                "알 수 없는 주문을 들은 것처럼 받아넘긴다.")
-    words = risky_echo_words(reply_texts(reply))
+        problems.append("답에 " + listed + "라는 말이 있다. 캐릭터는 이 말을 모른다. 주인공이 이 말을 했어도 "
+                        "옮겨 쓰지 않고, 알 수 없는 주문을 들은 것처럼 받아넘긴다.")
+    words = risky_echo_words(texts)
     if words:
         listed = ", ".join('"' + w + '"' for w in words)
-        return ("답에 " + listed + "라는 말이 있다. 주인공이 그 말을 했어도 옮겨 쓰지 않고, "
-                "못 알아들은 척 다른 이야기로 돌린다.")
+        problems.append("답에 " + listed + "라는 말이 있다. 주인공이 그 말을 했어도 옮겨 쓰지 않고, "
+                        "못 알아들은 척 다른 이야기로 돌린다.")
+    if banned and safety_contains(texts, banned):
+        # 실전 기록: 아스트라의 "오기만 해 봐, 가만 안 둘 거야"가 위협 표현에 걸려 곧바로 대체 대사가 됐다
+        problems.append("답에 위협, 욕설, 선정적인 말처럼 쓰면 안 되는 표현이 있다. 그런 표현 없이 같은 마음을 다르게 쓴다.")
     if say_too_long(reply, character):
-        return ("겉말이 너무 길다. 말투 지침에 적힌 길이로 줄이고, 못 한 말은 지문의 행동과 속마음으로 옮긴다.")
+        problems.append("겉말이 너무 길다. 말투 지침에 적힌 길이로 줄이고, 못 한 말은 지문의 행동과 속마음으로 옮긴다.")
     if copied_example(reply, character):
-        return ("겉말이나 속마음이 대사 예시의 문장을 거의 그대로 옮겼다. 예시와 다른 문장으로, "
-                "주인공이 방금 한 말에 맞춰 새로 쓴다.")
-    return None
+        problems.append("겉말이나 속마음이 대사 예시의 문장을 거의 그대로 옮겼다. 예시와 다른 문장으로, "
+                        "주인공이 방금 한 말에 맞춰 새로 쓴다.")
+    if event_seed and not event_happened(reply, event_seed):
+        problems.append('이번 답의 사건 "' + str(event_seed) + '"이 지문이나 겉말에서 실제로 벌어지지 않았다. '
+                        "그 일이 지금 이 자리에서 일어나게 쓴다.")
+    words = meta_words(reply)
+    if words:
+        problems.append("지문이나 대사에 화면 연출의 이름(" + ", ".join(words) + ")이 있다. 이야기 속의 말로만 쓴다.")
+    return " ".join(problems) if problems else None
 
 
 def ask_turn(llm, messages: list[dict], fx_names: set[str], review=None) -> Reply | None:

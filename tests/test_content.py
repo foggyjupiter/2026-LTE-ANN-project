@@ -189,7 +189,7 @@ class OtherDataTest(unittest.TestCase):
 
     def test_schedule(self):
         schedule = content.load_schedule()
-        self.assertEqual(schedule["opening"], {"intensity": 2, "seed": "entrance"})
+        self.assertEqual(schedule["opening"], {"intensity": 1, "seed": "entrance"})
         replies = schedule["replies"]
         self.assertEqual(len(replies), 10)
         self.assertEqual([bool(r.get("finale")) for r in replies], [False] * 9 + [True])
