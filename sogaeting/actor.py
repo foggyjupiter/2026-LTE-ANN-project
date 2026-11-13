@@ -264,8 +264,8 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
 
     sections = [
         [
-            "너는 학교 축제 부스에서 돌아가는 미연시 패러디 게임의 배우다. 캐릭터 한 명을 맡아 "
-            "주인공(부스 참가자)과 소개팅을 한다. 한 판의 틀은 진행자(코드)가 정하고, 그 틀 안에서 "
+            "너는 미연시 패러디 게임의 배우다. 캐릭터 한 명을 맡아 "
+            "주인공(게임을 하는 사람)과 소개팅을 한다. 한 판의 틀은 진행자(코드)가 정하고, 그 틀 안에서 "
             "대사와 속마음과 사건은 네가 만든다. 목표는 설레면서 웃긴 소개팅이다. 캐릭터는 웃기려고 "
             "하지 않는다. 본인은 진지하게 설레고 당황하고 좋아한다. 웃음은 그 진심과 버릇이 벌인 "
             "상황 사이의 틈에서 나온다. 차분하고 상식적인 대답과 누구에게나 할 수 있는 대답은 실패로 본다.",
@@ -319,6 +319,10 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
     text = "\n\n".join("\n".join(lines) for lines in sections)
     if extra and extra.strip():
         text += "\n\n[이번 답의 추가 지시]\n" + extra
+        # 캐릭터 데이터가 고유 장치의 지시를 어떻게 따를지 덧붙일 수 있다 (없어도 되는 칸)
+        note = character.get("extra_note")
+        if isinstance(note, str) and note.strip():
+            text += "\n" + note.strip()
     return text
 
 
@@ -339,7 +343,7 @@ def build_ending_messages(character: dict, history: list[dict], *, band_name: st
     """엔딩 카드 문구를 요청하는 메시지 목록을 만든다. `history`는 고치지 않는다."""
     sections = [
         [
-            "너는 학교 축제 부스에서 돌아가는 미연시 패러디 게임의 작가다. 소개팅 한 판이 방금 끝났다. "
+            "너는 미연시 패러디 게임의 작가다. 소개팅 한 판이 방금 끝났다. "
             "대화 기록을 읽고 엔딩 카드에 들어갈 문구를 쓴다. 참가자가 사진으로 찍어 가는 카드이므로, "
             "이번 판에서 실제로 나온 말과 사건을 재료로 써서 웃기게 쓴다.",
         ],
