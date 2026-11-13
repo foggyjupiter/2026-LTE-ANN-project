@@ -322,7 +322,14 @@ def _why_fallback(turn):
         return None
     calls = turn["calls"]
     if calls and calls[-1]["readable"]:
-        return "금지어"  # 답은 읽혔는데 진행자가 버렸다면 금지어다
+        # 답은 읽혔는데 진행자가 버렸다면 금지어나, 고쳐 써도 남은 모르는 말, 아슬아슬한 말이다
+        last = actor.parse_reply(calls[-1]["raw"], set())
+        if last is not None:
+            texts = actor.reply_texts(last)
+            words = actor.risky_echo_words(texts) + actor.offstage_words(texts)
+            if words:
+                return "고쳐 써도 남은 말: " + ", ".join(words)
+        return "금지어"
     if calls and calls[-1]["raw"] is not None:
         return "JSON 못 읽음"
     return "모델 무응답"
@@ -368,12 +375,17 @@ def _checks(game):
     character = content.load_character(game["id"])
     banned = content.load_banned()
     previous = []
+    used = {}
     for turn in game["turns"]:
         out = turn["out"]
         where = "등장" if out["turn"] == 0 else f"답 {out['turn']}"
         event_seed = turn["seed"][1] if turn["seed"] and turn["seed"][0] == "사건" else None
-        rewrite = _rewrite_reason(turn["calls"], character, event_seed, banned, list(previous))
+        rewrite = _rewrite_reason(turn["calls"], character, event_seed, banned, list(previous), dict(used))
         previous += [line for line in (turn["out"]["narration"], turn["out"]["say"]) if line]
+        if not out["fallback"]:
+            spoken = (out["say"] or "") + " " + (out.get("inner") or "")
+            for needle, label in actor.STOCK_PHRASES:
+                used[label] = used.get(label, 0) + spoken.count(needle)
         if rewrite:
             found.append(f"{where}: 첫 답을 고쳐 쓰게 함 ({rewrite})")
         if out["fallback"]:
@@ -424,7 +436,7 @@ def _checks(game):
     return found
 
 
-def _rewrite_reason(calls, character, event_seed=None, banned=None, previous=None):
+def _rewrite_reason(calls, character, event_seed=None, banned=None, previous=None, used=None):
     """첫 답이 읽혔는데 진행자가 고쳐 쓰게 했다면 그 까닭(진행자와 같은 검사). 아니면 None."""
     if len(calls) < 2 or not calls[0]["readable"]:
         return None
@@ -445,6 +457,10 @@ def _rewrite_reason(calls, character, event_seed=None, banned=None, previous=Non
         reasons.append("대사 예시를 베낌")
     if event_seed and not actor.event_happened(first, event_seed):
         reasons.append("사건이 안 일어남")
+    if event_seed and actor.event_read_aloud(first, event_seed):
+        reasons.append("사건 이름을 읽음")
+    if used and actor.repeated_phrases(first, used):
+        reasons.append("상투어 되풀이: " + ", ".join(actor.repeated_phrases(first, used)))
     if actor.grabs_protagonist(first):
         reasons.append("전학생을 잡음")
     if previous and actor.repeats_previous(first, previous):

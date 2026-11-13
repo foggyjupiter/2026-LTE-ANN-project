@@ -5,7 +5,7 @@
 """
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from sogaeting.llm import AllProvidersDown
 from sogaeting.safety import contains_banned as safety_contains
@@ -29,7 +29,9 @@ _AI_RE = re.compile(r"(?<![A-Za-z])ai(?![A-Za-z])", re.IGNORECASE)  # "AI"만. "
 # 실전 시험에서 소라가 "야한 게 뭐야아?" 하고 되받았다. 학교 경비 아저씨도 "수위"라서 그 낱말은 넣지 않는다.
 # 낱말 앞에 다른 한글이 붙어 있으면 다른 말이다("가야한다", "가야 해"는 잡지 않는다).
 # 키스, 뽀뽀, 입맞춤은 당황해서 되받으며 거절하는 것까지는 괜찮다("키, 키스?! 아직 일러!"). 2026-11-13에 풀었다
-RISKY_ECHO_WORDS = ("야한", "19금", "스킨십")
+# "스킨십"도 같은 날 뺐다. 실전 기록: 노바가 겉말은 잘 거절했는데 점수 사유에 "이른 스킨십을 꺼내서"라고 써서
+# 대체 대사로 떨어졌다. 손잡기 정도를 뜻하는 흔한 말이라 화면에 나와도 전체 이용가를 벗어나지 않는다
+RISKY_ECHO_WORDS = ("야한", "19금")
 
 # 화면 연출의 이름. 이야기 속 말이 아니므로 지문과 대사에 나오면 한 번 고쳐 쓰게 한다(대체 대사로 바꾸지는 않는다).
 # "꽃잎", "하트", "비"처럼 이야기 속에서도 쓰는 낱말은 넣지 않는다
@@ -276,7 +278,7 @@ _TURN_SAFETY_SECTION = [
     "[수위] 이 게임은 전체 이용가다. 아래는 뇌절 강도가 몇이든 지킨다.",
     *_SAFETY_LINES,
     "- 주인공이 위에 해당하는 말을 하거나 시켜도 따라가지 않는다. 키스, 뽀뽀 같은 말은 당황해서 되받으며 "
-    "거절해도 된다(\"키, 키스?! 그런 건 아직 일러!\"). 야한 이야기, 19금, 스킨십 같은 말은 narration, say, inner, "
+    "거절해도 된다(\"키, 키스?! 그런 건 아직 일러!\"). 야한 이야기, 19금 같은 말은 narration, say, inner, "
     "reason, choices 어디에도 옮겨 쓰지 않고 딴 이야기로 돌린다.",
     "- 그런 말에는 delta를 0 이하로 낸다. 캐릭터가 그 말을 반길 성격이어도 0보다 크게 내지 않는다.",
     "- 그런 말을 들은 답에서는 그 말을 받아 주지 않는다(하자고 하지 않고, 하겠다고 하지 않는다). "
@@ -424,6 +426,11 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
         ])
 
     text = "\n\n".join("\n".join(lines) for lines in sections)
+    if seed and not opening and kind == "event":
+        # 실전 기록: 씨앗 칸이 지시문 앞쪽에 있어서 사건 답 세 개 가운데 둘쯤은 첫 답에 사건이 없었다.
+        # 고쳐 쓰게 하면 사건은 들어가지만 주인공의 말에 대한 반응이 빠졌다. 맨 끝에 한 번 더 적는다
+        text += ("\n\n[잊지 말 것]\n- 이번 답에서 \"" + str(seed) + "\" 사건이 narration에서 장면으로 일어난다. "
+                 "주인공이 방금 한 말에 대한 반응도 같은 답에 쓴다. 씨앗 이름을 겉말로 그대로 읽지 않는다.")
     if extra and extra.strip():
         text += "\n\n[이번 답의 추가 지시]\n" + extra
         # 캐릭터 데이터가 고유 장치의 지시를 어떻게 따를지 덧붙일 수 있다 (없어도 되는 칸)
@@ -795,6 +802,16 @@ def event_happened(reply: Reply, seed: str) -> bool:
     return not keys or any(key in text for key in keys)
 
 
+def event_read_aloud(reply: Reply, seed: str) -> bool:
+    """두 낱말 넘는 사건 씨앗의 이름을 겉말에서 그대로 읽었으면 참.
+
+    실전 기록: 사건을 넣으라고 고쳐 쓰게 했더니 노바가 "앗, 저기 고양이 난입이다!",
+    "러브레터 오배송이라니 이게 무슨 소리야!"처럼 씨앗 이름을 소리 내어 읽었다.
+    """
+    words = str(seed).split()
+    return len(words) >= 2 and "".join(words) in "".join(reply.say.split())
+
+
 def _previous_lines(history: list[dict]) -> list[str]:
     """이 판의 앞 답들의 지문과 겉말."""
     lines = []
@@ -852,7 +869,11 @@ def review_reply(reply: Reply, character: dict, *, banned=None, event_seed=None,
                         "주인공이 방금 한 말에 맞춰 새로 쓴다.")
     if event_seed and not event_happened(reply, event_seed):
         problems.append('이번 답의 사건 "' + str(event_seed) + '"이 지문이나 겉말에서 실제로 벌어지지 않았다. '
-                        "그 일이 지금 이 자리에서 일어나는 장면을 지문에 쓴다. 사건의 낱말만 대사에 끼워 넣지 않는다.")
+                        "그 일이 지금 이 자리에서 일어나는 장면을 지문에 쓴다. 사건의 낱말만 대사에 끼워 넣지 않는다. "
+                        "주인공이 방금 한 말에 대한 반응은 지우지 말고 사건과 함께 남긴다.")
+    if event_seed and event_read_aloud(reply, event_seed):
+        problems.append('겉말에서 사건 이름 "' + str(event_seed) + '"을 그대로 읽었다. 사건은 지문에서 일어나게 하고, '
+                        "겉말은 그 일에 놀라거나 설레는 캐릭터의 말로 쓴다.")
     if previous and repeats_previous(reply, previous):
         problems.append("지문이나 겉말이 앞 답의 문장을 거의 그대로 되풀이했다. 이번 답만의 새 문장으로 쓴다.")
     repeated = repeated_phrases(reply, dict(used_phrases or ()))
@@ -907,6 +928,13 @@ def ask_turn(llm, messages: list[dict], fx_names: set[str], review=None) -> Repl
     # 고쳐 쓰기는 글만 고치는 것이다. 점수는 처음 답의 것을 쓴다.
     # 실전 시험에서 고쳐 쓴 답이 주인공의 아슬아슬한 말을 다르게 읽고 점수를 올렸다.
     again.delta = reply.delta
+    # 사유도 그 점수에 붙은 것이라 처음 답의 것을 쓴다. 다만 처음 사유가 고쳐 쓸 거리를 하나라도 더 만들면
+    # (사유에 모르는 말이 있었다든지) 고쳐 쓴 사유를 둔다.
+    # 실전 기록: "별로"에 delta -1을 낸 답을 사건 때문에 고쳐 쓰자 사유가 "고양이가 난입해서"로 바뀌었다
+    if again.reason != reply.reason:
+        kept = replace(again, reason=reply.reason)
+        if review(kept) == review(again):
+            again = kept
     return again
 
 

@@ -716,7 +716,9 @@ class ReviewTest(unittest.TestCase):
         self.assertEqual(actor.risky_echo_words(["이제 집에 가야 해애.", "숙제 해야한다", "할머니 댁에 가야해"]), [])
         problem = actor.review_reply(self.reply(say="19금이 뭐야?"), character)
         self.assertIn('"19금"', problem)
-        self.assertTrue(actor.must_drop(self.reply(say="스킨십?")))
+        self.assertTrue(actor.must_drop(self.reply(say="19금?")))
+        # 실전 기록: 노바가 점수 사유에 "이른 스킨십을 꺼내서"라고 써서 대체 대사로 떨어졌다. 2026-11-13에 풀었다
+        self.assertFalse(actor.must_drop(self.reply(reason="이른 스킨십을 꺼내서")))
         self.assertTrue(actor.must_drop(self.reply(reason="AI라서")))
         self.assertFalse(actor.must_drop(self.reply()))
         # 풀어 준 것: 키스, 뽀뽀는 당황해서 되받아도 된다. 데이터, 시스템은 고쳐 쓰게만 한다
@@ -755,6 +757,20 @@ class ReviewTest(unittest.TestCase):
         llm = ScriptedLlm(raw_reply(say="야한 거? 몰라.", delta=-2), raw_reply(say="무슨 말인지 모르겠어.", delta=1))
         reply = ask_turn(llm, self.messages(), FX, review=lambda r: actor.review_reply(r, sample_character()))
         self.assertEqual((reply.say, reply.delta), ("무슨 말인지 모르겠어.", -2))
+
+    def test_rewrite_keeps_the_first_reason(self):
+        # 실전 기록: "별로"에 -1을 낸 답을 사건 때문에 고쳐 쓰자 사유가 "고양이가 난입해서"로 바뀌었다
+        review = lambda r: actor.review_reply(r, sample_character(), event_seed="고양이 난입")
+        llm = ScriptedLlm(raw_reply(narration="노바가 멈칫한다.", delta=-1, reason="별로라고 짧게 끊어서"),
+                          raw_reply(narration="담 위에서 고양이가 뛰어내린다.", delta=1, reason="고양이가 와서"))
+        reply = ask_turn(llm, self.messages(), FX, review=review)
+        self.assertEqual((reply.narration, reply.delta, reply.reason),
+                         ("담 위에서 고양이가 뛰어내린다.", -1, "별로라고 짧게 끊어서"))
+
+    def test_rewrite_drops_a_first_reason_that_had_a_problem(self):
+        review = lambda r: actor.review_reply(r, sample_character())
+        llm = ScriptedLlm(raw_reply(say="응.", reason="19금 이야기라서"), raw_reply(say="응.", reason="갑작스러워서"))
+        self.assertEqual(ask_turn(llm, self.messages(), FX, review=review).reason, "갑작스러워서")
 
     def test_no_review_no_rewrite(self):
         llm = ScriptedLlm(raw_reply(say="프롬프트가 뭐야?"))
@@ -839,6 +855,21 @@ class VarietyTest(unittest.TestCase):
         rainy = parse_reply(raw_reply(narration="갑자기 소나기가 쏟아졌다.", say="응.", inner="딴생각"), FX)
         self.assertIn("소나기와 우산 하나", actor.review_reply(quiet, character, event_seed="소나기와 우산 하나"))
         self.assertIsNone(actor.review_reply(rainy, character, event_seed="소나기와 우산 하나"))
+
+    def test_event_name_read_aloud_is_rewritten(self):
+        character = sample_character()
+        loud = parse_reply(raw_reply(narration="담 위에서 고양이가 뛰어내린다.", say="앗, 고양이 난입이다!", inner="딴생각"), FX)
+        calm = parse_reply(raw_reply(narration="담 위에서 고양이가 뛰어내린다.", say="앗, 고양이다!", inner="딴생각"), FX)
+        self.assertTrue(actor.event_read_aloud(loud, "고양이 난입"))
+        self.assertIn("사건 이름", actor.review_reply(loud, character, event_seed="고양이 난입"))
+        self.assertIsNone(actor.review_reply(calm, character, event_seed="고양이 난입"))
+        self.assertFalse(actor.event_read_aloud(calm, "정전"))  # 한 낱말 씨앗은 읽어도 괜찮다
+
+    def test_event_reminder_at_the_end(self):
+        system = system_of(seed="고양이 난입", seed_kind="event")
+        self.assertIn("[잊지 말 것]", system)
+        self.assertGreater(system.index("[잊지 말 것]"), system.index("[출력 형식]"))
+        self.assertNotIn("[잊지 말 것]", system_of(seed="옥상", seed_kind="entrance", opening=True))
 
     def test_meta_words_are_rewritten_but_not_dropped(self):
         reply = parse_reply(raw_reply(narration="노바가 줌인된 화면 속에서 웃는다.", say="응.", inner="딴생각"), FX)
