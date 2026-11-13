@@ -2,8 +2,11 @@
   "opening": {"intensity": 2, "seed": "entrance"},
   "replies": [
     {"intensity": 2, "seed": null},
-    {"intensity": 3, "seed": null},
+    {"intensity": 2, "seed": null},
     {"intensity": 3, "seed": "event"},
+    {"intensity": 3, "seed": null},
+    {"intensity": 3, "seed": null},
+    {"intensity": 4, "seed": "event"},
     {"intensity": 4, "seed": null},
     {"intensity": 4, "seed": "event"},
     {"intensity": 5, "seed": null},

@@ -1,4 +1,4 @@
-"""진행자: 한 판(등장, 답 7번, 엔딩)의 틀을 쥔다.
+"""진행자: 한 판(등장, 답 10번, 엔딩)의 틀을 쥔다. 답의 수는 data/schedule.json이 정한다.
 
 배우(actor)에게 지시문을 보내고, 받은 답을 규칙대로 다듬어 dict로 돌려준다.
 돌려주는 값은 전부 JSON으로 바꿀 수 있어서 서버와 화면이 그대로 받아 쓴다.
@@ -12,7 +12,9 @@ from . import actor, content, gimmicks, safety
 from .llm import call_llm
 
 START_SCORE = 50
-STEP = 7  # delta 1칸에 움직이는 점수
+# delta 1칸에 움직이는 점수. 한 판이 답 7번일 때는 7이었다. 10번으로 늘리면서 5로 줄여
+# 한 판에 움직일 수 있는 폭(답 수 x 1칸)과 등급에 닿는 어려움을 예전과 비슷하게 맞췄다
+STEP = 5
 
 
 def band_of(score: int) -> str:

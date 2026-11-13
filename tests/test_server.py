@@ -19,6 +19,8 @@ from sogaeting import content, llm, server
 from sogaeting.director import Session
 from sogaeting.fake_llm import fake_llm
 
+TOTAL = len(content.load_schedule()["replies"])  # 한 판의 답 수
+
 ORDER = ["giulhee", "oeun", "anna", "relu", "haru", "boxhyun"]
 CARD_KEYS = {"id", "name", "attribute", "motif", "color"}
 RESULT_KEYS = {
@@ -208,14 +210,14 @@ class FullGameTest(ServerCase):
         self.assertEqual(created["character"]["motif"], "들키면 귀여운 허세")
         opening = created["turn"]
         self.assertEqual((opening["kind"], opening["turn"], opening["finale"]), ("turn", 0, False))
-        self.assertEqual(opening["total_turns"], 7)
+        self.assertEqual(opening["total_turns"], TOTAL)
 
-        for n in range(1, 8):
+        for n in range(1, TOTAL + 1):
             res = self.reply(sid, f"{n}번째로 하는 말")
             self.assertEqual(res.status, 200, res.raw)
             turn = res.json()
             self.assertEqual((turn["kind"], turn["turn"]), ("turn", n))
-            self.assertEqual(turn["finale"], n == 7)  # 마지막 답만 finale이다
+            self.assertEqual(turn["finale"], n == TOTAL)  # 마지막 답만 finale이다
             self.assertIn(f"{n}번째로 하는 말", turn["say"])
         self.assertEqual(self.result_files(), [])  # finish 전에는 저장하지 않는다
 
@@ -322,11 +324,11 @@ class ErrorTest(ServerCase):
         self.assert_error(self.reply(sid, "한마디만 더"), 409)
         self.assertEqual(len(self.result_files()), 1)
 
-    def test_eighth_reply_is_409(self):
+    def test_reply_after_the_last_is_409(self):
         sid, _ = self.new_game()
-        for n in range(7):
+        for n in range(TOTAL):
             self.assertEqual(self.reply(sid).status, 200)
-        self.assert_error(self.reply(sid, "여덟 번째"), 409)
+        self.assert_error(self.reply(sid, "한 번 더"), 409)
         self.assertEqual(self.post(f"/api/session/{sid}/finish").status, 200)  # 엔딩은 볼 수 있다
 
     def test_result_of_unfinished_game_is_404(self):

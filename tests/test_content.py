@@ -178,8 +178,13 @@ class OtherDataTest(unittest.TestCase):
         schedule = content.load_schedule()
         self.assertEqual(schedule["opening"], {"intensity": 2, "seed": "entrance"})
         replies = schedule["replies"]
-        self.assertEqual(len(replies), 7)
-        self.assertEqual([bool(r.get("finale")) for r in replies], [False] * 6 + [True])
+        self.assertEqual(len(replies), 10)
+        self.assertEqual([bool(r.get("finale")) for r in replies], [False] * 9 + [True])
+        # 사건은 세 번, 강도는 줄지 않고, 마지막 두 답이 가장 세다
+        self.assertEqual([i for i, r in enumerate(replies, 1) if r["seed"] == "event"], [3, 6, 8])
+        levels = [r["intensity"] for r in replies]
+        self.assertEqual(levels, sorted(levels))
+        self.assertEqual(levels[-2:], [5, 5])
         # 진행표에 나오는 강도마다 뜻이 적혀 있고, 씨앗 칸은 없음이거나 사건이다
         for step in [schedule["opening"]] + replies:
             self.assertIn(str(step["intensity"]), schedule["intensities"])

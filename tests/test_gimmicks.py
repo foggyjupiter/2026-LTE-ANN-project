@@ -3,7 +3,7 @@ import random
 import unittest
 from unittest import mock
 
-from sogaeting import gimmicks, safety
+from sogaeting import content, gimmicks, safety
 from sogaeting.gimmicks import Gimmick, get_gimmick
 
 TAG = " [출처 필요]"
@@ -52,6 +52,12 @@ class ExplodingPopupTest(unittest.TestCase):
     def test_last_reply_is_nan(self):
         self.assertEqual(self.popup(turn=7, total_turns=7, change=14), {"popup": "NaN"})
 
+    def test_ten_reply_game_grows_only_in_the_last_six(self):
+        # 답 10번짜리 판: 앞의 넷은 그대로, 다섯째부터 10배씩, 마지막은 NaN. 가장 커도 10만 배다
+        shown = [self.popup(turn=t, total_turns=10, change=10)["popup"] for t in range(1, 11)]
+        self.assertEqual(shown, ["+10", "+10", "+10", "+10", "+100", "+1,000", "+10,000",
+                                 "+100,000", "+1,000,000", "NaN"])
+
     def test_opening_has_no_popup(self):
         self.assertEqual(self.popup(turn=0, change=0), {})
 
@@ -84,7 +90,8 @@ class QuoteMemoryTest(unittest.TestCase):
         self.assertEqual(text, text.strip())
 
     def test_quotes_only_on_set_turns(self):
-        inputs = ["떡볶이 좋아해", "사실 떡볶이는 그냥 그래", "응", "비 온다", "우산 있어?", "고마워", "갈게"]
+        inputs = ["떡볶이 좋아해", "사실 떡볶이는 그냥 그래", "응", "비 온다", "우산 있어?", "고마워",
+                  "매점 갈래?", "내일도 보자", "좋아", "갈게"]
         for count in range(1, len(inputs) + 1):
             text = self.gimmick.extra_instruction(inputs[:count])
             if count in gimmicks.QUOTE_TURNS:
@@ -94,7 +101,9 @@ class QuoteMemoryTest(unittest.TestCase):
                 # 인용하지 않는 답에서는 기록을 주지 않고, 되읽지 말라고 한다
                 self.assertNotIn("떡볶이", text)
                 self.assertIn("따옴표에 넣어 옮기지 않는다", text)
-        self.assertEqual(gimmicks.QUOTE_TURNS, (3, 7))
+        self.assertEqual(gimmicks.QUOTE_TURNS, (3, 6, 10))
+        # 마지막 인용은 헤어지는 답(진행표의 마지막 답)이다
+        self.assertEqual(gimmicks.QUOTE_TURNS[-1], len(content.load_schedule()["replies"]))
 
     def test_instruction_does_not_change_the_list(self):
         inputs = ["떡볶이 좋아해", "응"]

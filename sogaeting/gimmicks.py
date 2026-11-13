@@ -21,7 +21,8 @@ CITATION_TAG = " [출처 필요]"    # 앞에 공백 하나가 붙는다
 CITATION_LIMIT = 1               # 한 답에 붙이는 딱지의 최대 개수. 여러 개면 대사가 지저분해진다
 DROPOUT_RATE = 0.3
 MIN_QUOTE_LENGTH = 2             # 이보다 짧은 입력에는 형광펜을 칠하지 않는다
-QUOTE_TURNS = (3, 7)             # quote_memory가 주인공의 말을 꺼내는 답 (몇 번째 답인지). 7은 헤어지는 답
+QUOTE_TURNS = (3, 6, 10)         # quote_memory가 주인공의 말을 꺼내는 답 (몇 번째 답인지). 10은 헤어지는 답
+EXPLODE_STEPS = 6                # exploding_popup이 10배씩 키우는 답의 수. 그 뒤 마지막 답에서 NaN
 
 # 숫자 덩어리(소수점과 천 단위 쉼표 포함)와 "연구" 같은 낱말을 찾는다.
 # 딱지는 찾은 자리가 든 낱말이 끝나는 곳에 붙인다. 낱말 가운데를 가르지 않으려는 것이다.
@@ -74,6 +75,8 @@ class ExplodingPopup(Gimmick):
     """기울기 폭발. 팝업의 변화량이 답마다 10배씩 커지고 마지막 답에서 NaN이 된다.
 
     바뀌는 것은 팝업에 뜨는 글자뿐이다. 실제 점수는 진행자가 정상으로 계산한다.
+    커지는 것은 마지막 답 바로 앞 EXPLODE_STEPS번이다(1배에서 10만 배). 그 앞의 답은 그대로 뜬다.
+    처음부터 키우면 답 10번짜리 판에서 숫자가 1억 배를 넘어 팝업 칸을 벗어난다.
     """
 
     name = "exploding_popup"
@@ -85,7 +88,9 @@ class ExplodingPopup(Gimmick):
         if turn == ctx.get("total_turns"):
             return {"popup": "NaN"}
         change = int(ctx.get("change", 0) or 0)
-        return {"popup": _signed(change * 10 ** (turn - 1))}
+        total = int(ctx.get("total_turns", 0) or 0)
+        power = max(0, turn - max(1, total - EXPLODE_STEPS))
+        return {"popup": _signed(change * 10 ** power)}
 
 
 class QuoteMemory(Gimmick):

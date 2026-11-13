@@ -84,7 +84,7 @@ testcase sg_flow:
     pause 0.5
     click id "sg_advance" until id "sg_input"
 
-    ## 답 4-7: 선택지
+    ## 답 4-10: 선택지
     click "좋아, 더 말해줘"
     pause until eval (sg_turn_no == 4)
     pause 0.5
@@ -100,8 +100,20 @@ testcase sg_flow:
     pause until eval (sg_turn_no == 6)
     pause 0.5
     click id "sg_advance" until id "sg_input"
-    click "좋아, 더 말해줘"
+    click "잘 모르겠는데"
     pause until eval (sg_turn_no == 7)
+    pause 0.5
+    click id "sg_advance" until id "sg_input"
+    click "좋아, 더 말해줘"
+    pause until eval (sg_turn_no == 8)
+    pause 0.5
+    click id "sg_advance" until id "sg_input"
+    click "좋아, 더 말해줘"
+    pause until eval (sg_turn_no == 9)
+    pause 0.5
+    click id "sg_advance" until id "sg_input"
+    click "좋아, 더 말해줘"
+    pause until eval (sg_turn_no == 10)
     pause 0.5
     click id "sg_advance"
     pause 1.6

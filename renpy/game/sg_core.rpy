@@ -26,9 +26,9 @@ default sg_result = None          # 마지막 서버 호출의 결과 (SgResult)
 default sg_end_view = None        # 엔딩을 화면용으로 바꾼 값 (sg_build_ending)
 
 default sg_place = ""             # 등장 장소. 첫 턴에만 온다
-default sg_progress = "등장"      # 진행 표시: "등장", "답 3/7"
+default sg_progress = "등장"      # 진행 표시: "등장", "답 3/10"
 default sg_turn_no = 0
-default sg_total_turns = 7
+default sg_total_turns = 10
 default sg_score_shown = 50       # 게이지에 보이는 호감도
 default sg_finale = False         # 마지막 답까지 왔는가
 
@@ -303,7 +303,7 @@ init -5 python:
         fallback = bool(turn.get("fallback"))
         finale = bool(turn.get("finale"))
         turn_no = max(0, sg_int(turn.get("turn")))
-        total = max(1, sg_int(turn.get("total_turns"), 7))
+        total = max(1, sg_int(turn.get("total_turns"), 10))
 
         narration = sg_str(turn.get("narration")).strip()
         heard = sg_str(turn.get("heard")).strip()

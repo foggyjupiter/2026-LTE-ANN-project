@@ -213,7 +213,10 @@ class PlayTest(unittest.TestCase):
         opening_choices = game["turns"][0]["out"]["choices"]
         self.assertEqual(game["turns"][1]["typed"], opening_choices[script[0]["pick"] - 1])
         for turn, line in zip(game["turns"][2:], script[1:]):
-            self.assertEqual(turn["typed"], line["text"])
+            if line["pick"] is None:
+                self.assertEqual(turn["typed"], line["text"])
+            else:  # 선택지 고르기는 바로 앞 답이 준 선택지에서 고른다
+                self.assertIn(turn["typed"], game["turns"][turn["out"]["turn"] - 1]["out"]["choices"])
         self.assertTrue(game["turns"][-1]["out"]["finale"])
         self.assertEqual(game["result"]["character_id"], "haru")
 
@@ -311,7 +314,8 @@ class PlayTest(unittest.TestCase):
         self.assertIn("답 1: 20자를 넘는 선택지 1개", checks)
         self.assertIn("답 1: 이모지나 하트 기호가 있음", checks)
         self.assertTrue(any("사유가 15자를 넘음" in c for c in checks))
-        self.assertIn("답 7: 결말인데 모델이 선택지를 냄 (화면에는 안 나감)", checks)
+        last = len(content.load_schedule()["replies"])
+        self.assertIn(f"답 {last}: 결말인데 모델이 선택지를 냄 (화면에는 안 나감)", checks)
         self.assertFalse(any(c.startswith("답 2: 칭찬") for c in checks))
 
 
