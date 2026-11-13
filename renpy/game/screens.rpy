@@ -61,6 +61,9 @@ screen say(who, what):
     frame:
         id "window"
         style "sg_textbox"
+        xpos 50
+        ypos 538
+        ysize 168
         background Frame("images/ui/gal_textbox.png", 56, 56)
 
         text what id "what" style "sg_say_text"

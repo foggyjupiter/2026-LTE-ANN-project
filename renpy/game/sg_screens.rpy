@@ -208,11 +208,12 @@ transform sg_stamp_in:
 
 ## 대사창 -------------------------------------------------------------------------
 
+## 대사창은 반투명하고, 높이는 글이 차지하는 만큼만 잡는다. (가장 길 때 166)
+## 아래쪽에 붙어 있고 글이 길수록 위로 자란다. 자리는 sg_textbox 화면이 정한다.
 style sg_textbox:
-    xpos 50
-    ypos 536
-    xysize (1180, 168)
-    padding (44, 36, 44, 20)
+    xsize 1180
+    yminimum 122
+    padding (44, 34, 44, 20)
 
 style sg_say_text:
     font gui.interface_text_font
@@ -222,17 +223,17 @@ style sg_say_text:
     xsize 1092
     slow_abortable True
     # 첫째는 투명한 테두리다. 형광펜 자리에서만 색이 들어온다 (sg_core.rpy 의 SG_HL_OPEN).
-    # 둘째는 글자 밑의 옅은 그림자다.
-    outlines [ (absolute(4), "#00000000", absolute(0), absolute(0)), (absolute(0), "#ffffffd0", absolute(1), absolute(1.5)) ]
+    # 둘째는 흰 테두리다. 대사창이 반투명해서 뒤에 무엇이 비쳐도 글이 읽히게 한다.
+    outlines [ (absolute(4), "#00000000", absolute(0), absolute(0)), (absolute(2), "#fffffff2", absolute(0), absolute(0)) ]
 
 style sg_narration_text:
     font gui.text_font
     size 24
-    color "#7a5676"
+    color "#6a4666"
     line_spacing 6
     xsize 1092
     slow_abortable True
-    outlines [ (absolute(0), "#ffffffd0", absolute(1), absolute(1.5)) ]
+    outlines [ (absolute(2), "#fffffff2", absolute(0), absolute(0)) ]
 
 style sg_nametag:
     padding (44, 6, 44, 14)
@@ -252,7 +253,8 @@ style sg_tagnote:
 style sg_tagnote_text:
     font gui.interface_text_font
     size 16
-    color gui.sg_pink_deep
+    color "#c23a72"
+    outlines [ (absolute(2), "#ffffffe6", absolute(0), absolute(0)) ]
 
 style sg_hint_text:
     font gui.text_font
@@ -270,6 +272,7 @@ style sg_pill_text:
     font gui.sg_cute_font
     size 21
     color gui.sg_plum
+    outlines [ (absolute(2), "#ffffffe6", absolute(0), absolute(0)) ]
     yalign 0.5
 
 style sg_pill_num is sg_pill_text:
@@ -286,6 +289,7 @@ style sg_sign:
 style sg_sign_text:
     size 20
     color "#2c5d96"
+    outlines [ (absolute(2), "#ffffffe6", absolute(0), absolute(0)) ]
     yalign 0.5
 
 style sg_ghost_button:
@@ -298,8 +302,9 @@ style sg_ghost_button:
 style sg_ghost_button_text:
     font gui.sg_cute_font
     size 17
-    color "#9a7896"
+    color "#8a6486"
     hover_color gui.sg_pink_deep
+    outlines [ (absolute(2), "#ffffffe6", absolute(0), absolute(0)) ]
     yalign 0.5
 
 ## 하트 열 개짜리 호감도 게이지. 채운 하트 줄을 점수만큼만 잘라서 빈 하트 줄 위에 보인다.
@@ -333,6 +338,7 @@ style sg_chip_text:
     font gui.interface_text_font
     size 17
     color gui.sg_plum
+    outlines [ (absolute(2), "#ffffffe6", absolute(0), absolute(0)) ]
     xmaximum 262
 
 style sg_note:
@@ -382,7 +388,7 @@ style sg_choice_text:
     size 21
     color gui.sg_plum
     hover_color gui.sg_pink_deep
-    outlines [ (absolute(0), "#ffffffd0", absolute(1), absolute(1.5)) ]
+    outlines [ (absolute(2), "#fffffff2", absolute(0), absolute(0)) ]
     xalign 0.5
     textalign 0.5
     yalign 0.5
@@ -731,33 +737,40 @@ screen sg_shades():
 ## name과 note는 이미 안전하게 만든 글이어야 한다. raw_name은 글꼴을 고르는 데만 쓴다.
 screen sg_textbox(name="", color="#8f96b8", note="", raw_name=""):
 
-    frame:
-        style "sg_textbox"
-        background sg_textbox_bg(color)
+    vbox:
+        xpos 50
+        yanchor 1.0
+        ypos 706
+        spacing -22
+        order_reverse True      # 먼저 적은 이름표가 대사창 위에 그려진다
 
-        transclude
+        if name:
+            hbox:
+                xoffset 22
+                spacing 6
 
-    if name:
-        hbox:
-            xpos 72
-            ypos 504
-            spacing 6
-
-            frame:
-                style "sg_nametag"
-                background sg_nametag_bg(color)
-
-                hbox:
-                    spacing 7
-                    yalign 0.5
-
-                    add sg_icon("heart", 15, sg_ink_on(color), 0.9) yalign 0.5
-                    text name style "sg_nametag_text" font sg_cute(raw_name or name) color sg_ink_on(color)
-
-            if note:
                 frame:
-                    style "sg_tagnote"
-                    text note style "sg_tagnote_text"
+                    style "sg_nametag"
+                    background sg_nametag_bg(color)
+
+                    hbox:
+                        spacing 7
+                        yalign 0.5
+
+                        add sg_icon("heart", 15, sg_ink_on(color), 0.9) yalign 0.5
+                        text name style "sg_nametag_text" font sg_cute(raw_name or name) color sg_ink_on(color)
+
+                if note:
+                    frame:
+                        style "sg_tagnote"
+                        text note style "sg_tagnote_text"
+
+        frame:
+            style "sg_textbox"
+            background sg_textbox_bg(color)
+            top_padding (34 if name else 24)
+
+            transclude
 
 
 ################################################################################
@@ -1040,17 +1053,16 @@ screen sg_wait_reply(line):
 
         use sg_dots(gui.sg_pink, 14)
 
-    use sg_textbox("나", "#8f96b8"):
+    frame:
+        style "sg_tagnote"
+        xpos 790
+        ypos 222
+        yanchor 0.0
+        at sg_after(6.0)
+        text "조금만 기다려 주세요. 길면 30초쯤 걸립니다." style "sg_tagnote_text"
+
+    use sg_textbox("나", "#8f96b8", name + "의 대답을 기다리는 중"):
         text sg_esc(line) style "sg_say_text"
-
-    hbox:
-        xalign 1.0
-        xoffset -110
-        ypos 664
-        spacing 10
-
-        text "조금만 기다려 주세요. 길면 30초쯤 걸립니다." style "sg_hint_text" at sg_after(6.0)
-        text (name + "의 대답을 기다리는 중") style "sg_hint_text"
 
 
 ################################################################################
