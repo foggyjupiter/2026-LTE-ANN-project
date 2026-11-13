@@ -182,18 +182,34 @@ class CallLlmTest(LlmTestCase):
             llm.call_llm([])
         self.assertEqual(llm._blocked_until[FIRST], self.clock.now + llm.BUSY_COOLDOWN_MAX_SEC)
 
-    def test_timeout_rests_the_provider_longer_than_a_503(self):
+    def test_timeout_rests_only_briefly_and_is_retried_in_the_same_call(self):
+        # 실전 기록: 느린 요청은 끝까지 안 오지만, 다시 보내면 대개 바로 왔다
+        answers = {FIRST: [TimeoutError("timed out"), "다시 보내니 옴"], SECOND: [TimeoutError("timed out")],
+                   THIRD: [TimeoutError("timed out")], FOURTH: [TimeoutError("timed out")]}
+
         def post(p, *a):
-            if p["name"] == FIRST:
-                raise TimeoutError("timed out")
+            result = answers[p["name"]].pop(0)
+            if isinstance(result, Exception):
+                raise result
+            return result
+        self.patch_post(post, takes=1.0)
+        self.assertEqual(llm.call_llm([]), "다시 보내니 옴")
+        self.assertEqual(self.names(), [FIRST, SECOND, THIRD, FOURTH, FIRST])
+        self.assertLess(llm.SLOW_COOLDOWN_SEC, llm.TURN_BUDGET_SEC)
+
+    def test_timeout_does_not_bench_the_main_model_for_the_next_answer(self):
+        results = [TimeoutError("timed out"), TimeoutError("timed out")]
+
+        def post(p, *a):
+            if p["name"] == FIRST and results:
+                raise results.pop(0)
             return "답"
         self.patch_post(post)
         llm.call_llm([])
-        self.assertEqual(llm._blocked_until[FIRST], 1000.0 + llm.SLOW_COOLDOWN_SEC)
-        self.assertGreater(llm.SLOW_COOLDOWN_SEC, llm.TURN_BUDGET_SEC)  # 같은 턴에 또 기다리지 않는다
+        self.clock.now += 10  # 손님이 다음 말을 쓰는 동안
         self.calls.clear()
-        llm.call_llm([])
-        self.assertEqual(self.names(), [SECOND])
+        self.assertEqual(llm.call_llm([]), "답")
+        self.assertEqual(self.names()[0], FIRST)  # 다음 답에서는 주 모델을 먼저 부른다
 
     def test_success_resets_busy_streak(self):
         results = [http_error(503), "답", http_error(503)]
@@ -246,9 +262,9 @@ class CallLlmTest(LlmTestCase):
         self.patch_post(post, takes=6.0)
         with self.assertRaises(llm.AllProvidersDown):
             llm.call_llm([])
-        self.assertEqual(self.names(), [FIRST, SECOND])
-        self.assertEqual(self.timeouts, [6, 4.0])  # 둘째는 남은 4초만 기다린다
-        self.assertEqual(self.clock.slept, [])     # 시간 초과가 난 제공자를 기다리지 않는다
+        self.assertEqual(self.names(), [FIRST, SECOND, THIRD])
+        self.assertEqual(self.timeouts, [5, 4, 3.0])  # 셋째는 남은 3초만 기다린다
+        self.assertEqual(self.clock.slept, [])
 
     def test_last_usable_provider_gets_the_rest_of_the_budget(self):
         # 부스 PC처럼 Gemini 키만 있을 때: 주 모델이 한도(429)로 곧바로 거절하면 예비 모델이 남은 시간을 다 쓴다
@@ -260,7 +276,7 @@ class CallLlmTest(LlmTestCase):
         self.patch_post(post, takes=0.5)
         self.assertEqual(llm.call_llm([]), "답")
         self.assertEqual(self.names(), [FIRST, SECOND])
-        self.assertEqual(self.timeouts, [6, 4])  # 뒤에 셋째 Gemini 모델이 있어서 둘째는 제 시간만 쓴다
+        self.assertEqual(self.timeouts, [5, 4])  # 뒤에 셋째 Gemini 모델이 있어서 둘째는 제 시간만 쓴다
         # 둘째도 쉬는 중이면 셋째가 마지막이라 남은 시간을 다 쓴다
         llm._blocked_until[FIRST] = llm._blocked_until[SECOND] = 2000.0
         self.timeouts.clear()
@@ -270,7 +286,7 @@ class CallLlmTest(LlmTestCase):
     def test_provider_with_others_behind_keeps_its_own_timeout(self):
         self.patch_post(lambda p, *a: "답")
         llm.call_llm([])
-        self.assertEqual(self.timeouts, [6])
+        self.assertEqual(self.timeouts, [llm.PROVIDERS[0]["timeout"]])
         llm._blocked_until[FIRST] = 2000.0  # 주 모델이 쉬는 중이면 둘째가 맨 앞이지만 뒤에 Groq가 있다
         self.timeouts.clear()
         llm.call_llm([])
@@ -321,13 +337,21 @@ class CallLlmTest(LlmTestCase):
     def test_all_down_raises(self):
         def post(p, *a):
             raise TimeoutError("timed out")
-        self.patch_post(post)
+        self.patch_post(post, takes=1.0)
         with self.assertRaises(llm.AllProvidersDown):
             llm.call_llm([])
-        self.assertEqual(len(self.calls), len(llm.PROVIDERS))
-        self.assertEqual(llm.stats["failures"], len(llm.PROVIDERS))
-        self.calls.clear()
-        with self.assertRaises(llm.AllProvidersDown):  # 전부 길게 쉬는 중이면 부르지 않고 바로 끝난다
+        # 시간 초과는 잠깐만 쉬므로 한 바퀴 넘게 다시 해 보고, 정해 둔 시간 안에서 포기한다
+        self.assertGreater(len(self.calls), len(llm.PROVIDERS))
+        self.assertEqual(llm.stats["failures"], len(self.calls))
+        self.assertLessEqual(self.clock.now - 1000.0, llm.TURN_BUDGET_SEC)
+
+    def test_all_resting_long_ends_at_once(self):
+        # 전부 길게 쉬는 중이면(한도 초과 같은 것) 부르지 않고 바로 끝난다
+        self.patch_post(lambda p, *a: "답")
+        for p in llm.PROVIDERS:
+            for slot, _ in llm._slots(p):
+                llm._blocked_until[slot] = 1000.0 + 600
+        with self.assertRaises(llm.AllProvidersDown):
             llm.call_llm([])
         self.assertEqual(self.calls, [])
         self.assertEqual(self.clock.slept, [])

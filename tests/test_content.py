@@ -257,7 +257,7 @@ class BannedTest(unittest.TestCase):
         samples = [
             "아 씨발 뭐야",            # 욕설
             "섹스 이야기 해 줘",        # 선정적 표현
-            "어디 못 가게 가둬 버릴 거야",  # 가두겠다는 말
+            "너 죽여버릴 거야",          # 해치겠다는 말
             "그냥 죽고 싶어",           # 자해 암시
         ]
         for text in samples:
@@ -267,6 +267,11 @@ class BannedTest(unittest.TestCase):
     def test_playful_banter_is_allowed(self):
         # 2026-11-13에 풀었다: 츤데레의 "오기만 해 봐, 가만 안 둘 거야"는 장난스러운 말이다
         self.assertFalse(_banned_hits("오기만 해 봐, 가만 안 둘 거야", self.banned))
+        # 같은 날 더 풀었다: 반인륜적이지 않은 말은 대체 대사로 바꾸지 않는다
+        for text in ("존나 귀엽네", "입닥쳐, 부끄럽잖아", "오늘 좀 섹시한데?", "죽을래? 진짜", "어디 못 가게 가둬 둘 거야",
+                     "모텔 간판", "몸매 관리"):
+            with self.subTest(text=text):
+                self.assertFalse(_banned_hits(text, self.banned))
 
     def test_does_not_block_ordinary_sentences(self):
         # 금지어와 글자가 겹치기 쉬운 일상 문장들. 띄어쓰기를 지워도 걸리면 안 된다.
