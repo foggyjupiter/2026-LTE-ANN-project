@@ -439,3 +439,33 @@ testcase sg_locked:
     assert eval (sg_turn_no == 0 and not renpy.get_screen("sg_select"))
     screenshot "locked_still_talking.png"
     exit
+
+
+## 대표색이 밝든 어둡든 이름표 리본과 속성 리본의 글자가 읽히는지 본다.
+## 서버가 주는 색과 상관없이 새 배역의 대표색을 화면 쪽에서 덮어쓰고 캡처한다.
+testsuite sg_colors:
+
+    setup:
+        pause until screen "sg_select"
+        python:
+            for sg_test_card in sg_cards:
+                sg_test_card["color"] = {
+                    "giulhee": "#4050C8", "oeun": "#8C9BEA", "anna": "#7CCBF2",
+                    "relu": "#F5A623", "haru": "#EE5A2A", "boxhyun": "#D97757",
+                }.get(sg_test_card["id"], sg_test_card["color"])
+            renpy.restart_interaction()
+        pause 0.8
+        screenshot "colors_select.png"
+
+    teardown:
+        exit
+
+    testcase tag:
+        parameter who = [ "아스트라", "젬마", "소라", "노바", "미스트랄", "하이쿠" ]
+        pause until screen "sg_select"
+        click expression who
+        pause until screen "sg_talk"
+        click id "sg_advance"
+        pause 1.6
+        screenshot f"colors_tag_{who}.png"
+        run Jump("sg_select")
