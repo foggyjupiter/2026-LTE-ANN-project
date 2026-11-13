@@ -853,6 +853,10 @@ class VarietyTest(unittest.TestCase):
         self.assertFalse(actor.grabs_protagonist(own))     # 자기 옷은 괜찮다
         self.assertFalse(actor.grabs_protagonist(brush))   # 손끝이 스치는 정도는 괜찮다
         self.assertIn("잡지 않고", actor.review_reply(grab, sample_character()))
+        hands = parse_reply(raw_reply(narration="", say="내일 같이 손잡고 갈까?", inner="딴생각"), FX)
+        handle = parse_reply(raw_reply(narration="노바가 문 손잡이를 돌린다.", say="응.", inner="딴생각"), FX)
+        self.assertTrue(actor.grabs_protagonist(hands))
+        self.assertFalse(actor.grabs_protagonist(handle))  # 문 손잡이는 괜찮다
 
     def test_problems_are_joined_into_one_rewrite(self):
         reply = parse_reply(raw_reply(narration="줌인.", say="AI가 뭔데?"), FX)

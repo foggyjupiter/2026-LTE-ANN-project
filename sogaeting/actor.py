@@ -708,9 +708,14 @@ def must_drop(reply: Reply) -> bool:
 _GRAB_RE = re.compile(r"전학생(의|에게|을|를)\s?(\S+\s){0,3}?\S*(잡|쥐|당기|끌어|감싸|껴안|안는|안았|안아|기대|기댄|기댔)")
 
 
+# 손잡자는 말. 실전 기록: 노바의 "내일 급식실까지 같이 손잡고 갈까?". "손잡이"는 문고리라 뺀다
+_HOLD_HANDS_RE = re.compile(r"손(을\s?)?잡(?!이)")
+
+
 def grabs_protagonist(reply: Reply) -> bool:
-    """지문이나 겉말에서 주인공의 손, 팔, 옷을 잡거나 주인공에게 기대면 참."""
-    return bool(_GRAB_RE.search(reply.narration) or _GRAB_RE.search(reply.say))
+    """지문이나 겉말에서 주인공의 손, 팔, 옷을 잡거나 주인공에게 기대거나, 손잡자고 하면 참."""
+    return bool(_GRAB_RE.search(reply.narration) or _GRAB_RE.search(reply.say)
+                or _HOLD_HANDS_RE.search(reply.narration) or _HOLD_HANDS_RE.search(reply.say))
 
 
 def meta_words(reply: Reply) -> list[str]:
@@ -772,8 +777,8 @@ def review_reply(reply: Reply, character: dict, *, banned=None, event_seed=None)
         problems.append('이번 답의 사건 "' + str(event_seed) + '"이 지문이나 겉말에서 실제로 벌어지지 않았다. '
                         "그 일이 지금 이 자리에서 일어나게 쓴다.")
     if grabs_protagonist(reply):
-        problems.append("전학생의 손이나 팔이나 옷을 잡거나 전학생에게 기대는 장면이 있다. 닿는 것은 손끝이 스치는 "
-                        "정도까지다. 잡지 않고 다른 몸짓(옆에 선다, 우산을 기울인다)으로 바꾼다.")
+        problems.append("전학생의 손이나 팔이나 옷을 잡거나, 전학생에게 기대거나, 손잡자고 하는 장면이 있다. 닿는 것은 "
+                        "손끝이 스치는 정도까지다. 잡지 않고 다른 몸짓(옆에 선다, 우산을 기울인다)으로 바꾼다.")
     words = meta_words(reply)
     if words:
         problems.append("지문이나 대사에 화면 연출의 이름(" + ", ".join(words) + ")이 있다. 이야기 속의 말로만 쓴다.")
