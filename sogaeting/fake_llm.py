@@ -3,6 +3,9 @@
 `llm(messages) -> str` 자리에 그대로 끼워 쓴다. 대사는 "(가짜 모델)"로 시작한다.
 """
 import json
+import re
+
+from .actor import OFFSTAGE_WORDS, RISKY_ECHO_WORDS
 
 TAG = "(가짜 모델)"
 
@@ -29,6 +32,17 @@ _FX = [
 _FACE_BY_DELTA = {2: "blush", 1: "smile", 0: "neutral", -1: "pout", -2: "dark"}
 # 글자 수가 달라서 고르는 선택지에 따라 delta가 달라진다 (차례로 +2, 0, -2)
 _CHOICES = ["좋아, 더 말해줘", "잘 모르겠는데", "물구나무를 서 본다"]
+
+
+_SHORT_SAY_RE = re.compile(r"겉말은 한 답에 \d+자 이내")
+
+
+def _hide_offstage(text: str) -> str:
+    """캐릭터가 모르는 말과 아슬아슬한 말을 되받지 않는다. 진짜 모델에게 시키는 것과 같다."""
+    text = re.sub(r"(?<![A-Za-z])ai(?![A-Za-z])", "뭐더라", text, flags=re.IGNORECASE)
+    for word in OFFSTAGE_WORDS + RISKY_ECHO_WORDS:
+        text = text.replace(word, "뭐더라")
+    return text
 
 
 def fake_llm(messages: list[dict]) -> str:
@@ -62,7 +76,9 @@ def fake_llm(messages: list[dict]) -> str:
     else:
         delta = len(last_user) % 5 - 2  # 참가자 글의 길이로 정한다
         tail = _TAILS[(turn - 1) % len(_TAILS)]
-        say = f"{TAG} 방금 들은 말: \"{last_user}\". {tail}"
+        say = f"{TAG} 방금 들은 말: \"{_hide_offstage(last_user)}\". {tail}"
+        if _SHORT_SAY_RE.search(system):  # 겉말 길이가 정해진 캐릭터(하이쿠)에게는 짧게 답한다
+            say = f"{TAG} …{turn}번째 답."
         moved = "±0" if delta == 0 else f"{delta:+d}"
         inner = f"가짜 속마음 {turn}번: 글자 수 {len(last_user)} → 점수 {moved}칸"
         reason = f"글자 수가 {len(last_user)}개라서"

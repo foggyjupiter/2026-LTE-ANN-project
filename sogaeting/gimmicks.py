@@ -16,10 +16,12 @@ import re
 WORD_MASK = "■■"                 # dropout이 낱말 하나를 가릴 때 쓰는 글자
 CHAR_MASK = "■"                  # blackbox가 글자 하나를 가릴 때 쓰는 글자
 RELU_NOTE = "싫은 소리에도 기죽지 않는다"
+RELU_THRESHOLD = 1               # relu가 delta에서 빼는 문턱
 CITATION_TAG = " [출처 필요]"    # 앞에 공백 하나가 붙는다
 CITATION_LIMIT = 1               # 한 답에 붙이는 딱지의 최대 개수. 여러 개면 대사가 지저분해진다
 DROPOUT_RATE = 0.3
 MIN_QUOTE_LENGTH = 2             # 이보다 짧은 입력에는 형광펜을 칠하지 않는다
+QUOTE_TURNS = (3, 7)             # quote_memory가 주인공의 말을 꺼내는 답 (몇 번째 답인지). 7은 헤어지는 답
 
 # 숫자 덩어리(소수점과 천 단위 쉼표 포함)와 "연구" 같은 낱말을 찾는다.
 # 딱지는 찾은 자리가 든 낱말이 끝나는 곳에 붙인다. 낱말 가운데를 가르지 않으려는 것이다.
@@ -87,13 +89,22 @@ class ExplodingPopup(Gimmick):
 
 
 class QuoteMemory(Gimmick):
-    """과적합. 주인공이 한 말을 통째로 외워서 글자 그대로 인용한다."""
+    """과적합. 주인공이 한 말을 통째로 외워서 글자 그대로 인용한다.
+
+    인용은 QUOTE_TURNS에 적힌 답에서만 시킨다. 모델에게 "가끔"이라고 맡겼더니 거의 답마다
+    주인공의 말을 따옴표로 되읽었다. 다른 답에서는 되읽지 말라고 적는다.
+    """
 
     name = "quote_memory"
 
     def extra_instruction(self, past_inputs: list[str]) -> str:
         if not past_inputs:
             return ""
+        if len(past_inputs) not in QUOTE_TURNS:
+            return (
+                "이번 답에서는 주인공이 한 말을 따옴표에 넣어 옮기지 않는다. 방금 한 말을 그대로 되풀이하지도 않는다. "
+                "그 말에는 캐릭터 자기 말과 작은 몸짓으로 답한다."
+            )
         lines = [
             "[주인공 발언 기록]",
             "주인공이 지금까지 한 말의 원문이다. 번호는 몇 번째 답에서 한 말인지를 뜻한다.",
@@ -102,13 +113,12 @@ class QuoteMemory(Gimmick):
         for number, text in enumerate(past_inputs, start=1):
             lines.append(f"{number}. {text}")
         lines.append(
-            "캐릭터는 이 말들을 기억하고 있다. 가끔, 세 답에 한 번쯤, 그 가운데 사소한 말 하나를 수줍게 떠올려 "
-            "say에서 꺼낸다. 매번 하지 않는다. 꺼낼 때는 짧은 말이면 통째로, 긴 말이면 한 토막만 "
-            "작은따옴표(' ') 안에 넣고, 따옴표 안의 글자와 띄어쓰기는 원문 그대로 둔다. "
-            "길게 되읽거나 따지지 않는다."
+            "캐릭터는 이 말들을 기억하고 있다. 이번 답에서는 그 가운데 사소한 말 하나를 수줍게 떠올려 "
+            "say에서 한 번 꺼낸다. 짧은 말이면 통째로, 긴 말이면 한 토막만 작은따옴표(' ') 안에 넣고, "
+            "따옴표 안의 글자와 띄어쓰기는 원문 그대로 둔다. 길게 되읽거나 따지지 않는다."
         )
         if len(past_inputs) >= 2:
-            lines.append("방금 한 말보다 예전에 한 말을 꺼낼 때 더 설렌다.")
+            lines.append("방금 한 말보다 예전에 한 말을 고른다. 그쪽이 더 설렌다.")
         return "\n".join(lines)
 
     def decorate(self, reply: dict, ctx: dict) -> dict:
@@ -140,14 +150,18 @@ class Dropout(Gimmick):
 
 
 class Relu(Gimmick):
-    """ReLU. 음수는 0이 되고 나머지는 그대로 지나간다."""
+    """ReLU. 음수는 0이 된다. 문턱(RELU_THRESHOLD)을 넘은 만큼만 지나간다: max(0, delta - 문턱).
+
+    점수가 내려가지 않으니 문턱 없이는 무슨 말을 해도 90점을 넘었다(실전 시험 92-100점).
+    문턱이 1이면 +2는 +1, +1은 0이 된다. 노바를 정말 설레게 한 말만 점수가 된다.
+    """
 
     name = "relu"
 
     def adjust_delta(self, delta: int) -> tuple[int, str | None]:
         if delta < 0:
             return 0, RELU_NOTE
-        return delta, None
+        return max(0, delta - RELU_THRESHOLD), None
 
 
 class CitationNeeded(Gimmick):

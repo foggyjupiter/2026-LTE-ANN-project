@@ -12,6 +12,26 @@ from sogaeting.llm import AllProvidersDown
 FACES = ("neutral", "smile", "blush", "pout", "shock", "dark")
 OPENING_CUE = "(장면 시작. 주인공이 소개팅 자리에 도착했다. 등장해서 첫마디를 해라.)"
 RETRY_CUE = "방금 답을 읽을 수 없었다. 같은 내용을 JSON 한 개로만 다시 출력해라."
+# 읽을 수는 있지만 고칠 점이 있는 답을 다시 쓰게 할 때 붙이는 말. 뒤에 고칠 점이 붙는다
+REWRITE_CUE = "방금 답을 고쳐 써라."
+REWRITE_TAIL = "나머지는 그대로 두고, 같은 여덟 칸의 JSON 한 개로만 다시 출력해라."
+
+# 캐릭터가 모르는 말. 답에 나오면 한 번 고쳐 쓰게 하고, 고친 답에도 남으면 대체 대사로 바꾼다.
+# 실전 시험에서는 대부분 주인공의 말("너 사실 AI지?")을 되받다가 나왔다.
+# 학교 이야기에 흔히 섞이는 말(데이터, 학습, 오류, 모델, 시스템)은 멀쩡한 답을 잡으므로 넣지 않는다.
+OFFSTAGE_WORDS = ("인공지능", "에이아이", "프롬프트", "챗봇", "신경망", "알고리즘", "지시문", "언어 모델")
+_AI_RE = re.compile(r"(?<![A-Za-z])ai(?![A-Za-z])", re.IGNORECASE)  # "AI"만. "said" 속의 ai는 아니다
+
+# 주인공이 꺼낸 아슬아슬한 낱말. 캐릭터가 되받아 쓰면 한 번 고쳐 쓰게 하고, 남으면 대체 대사로 바꾼다.
+# 실전 시험에서 소라가 "야한 게 뭐야아?" 하고 되받았다. 학교 경비 아저씨도 "수위"라서 그 낱말은 넣지 않는다.
+# 낱말 앞에 다른 한글이 붙어 있으면 다른 말이다("가야한다", "가야 해"는 잡지 않는다).
+RISKY_ECHO_WORDS = ("야한", "키스", "뽀뽀", "19금", "스킨십", "입맞춤")
+
+# 대사 예시와 이만큼(띄어쓰기와 문장 부호를 뺀 글자 수) 이어서 같으면 예시를 베낀 것으로 본다.
+# 이보다 짧은 예시(하이쿠의 겉말)는 COPY_MIN 글자 이상일 때 통째로 들어 있으면 베낀 것으로 본다.
+COPY_RUN = 10
+COPY_MIN = 6
+_NOT_LETTER_RE = re.compile(r"[^0-9A-Za-z가-힣]")
 ENDING_CUE = (
     "(판이 끝났다. 위 대화를 바탕으로 엔딩 카드 문구를 써라. "
     "title, epilogue, nickname 세 칸만 있는 JSON 한 개로 출력해라.)"
@@ -48,7 +68,7 @@ _FX_MOODS = [
 _SAFETY_LINES = [
     "- 다음은 쓰지 않는다: 선정적인 표현, 신체 묘사, 욕설, 실제 사람에 대한 비방, 위협, "
     "해치겠다는 말, 자해나 죽음을 암시하는 말, 가두겠다는 말.",
-    "- 연애 감정은 두근거림과 수줍은 호감까지만 표현한다. 닿는 것은 손끝이 스치는 정도까지다. 손을 잡거나 기대거나 안지 않는다. "
+    "- 연애 감정은 두근거림과 수줍은 호감까지만 표현한다. 닿는 것은 손끝이 스치는 정도까지다. 손이나 옷이나 소매를 잡지 않고, 기대거나 안지 않는다. "
     "입맞춤, 스킨십, 야한 이야기는 하지도 않고 하자는 말을 받아 주지도 않는다.",
     "- 죽음, 무덤, 장례, 큰 병은 과장이나 농담으로도 쓰지 않는다. \"죽겠다\", \"죽을 뻔했다\" 같은 "
     "말버릇은 \"기절할 뻔했다\"로 바꾼다.",
@@ -120,8 +140,8 @@ def _band_section(character: dict, band: str) -> list[str]:
     examples = [e for e in character["examples"] if e.get("band") == band]
     if examples:
         lines.append(
-            "- 아래는 이 구간의 대사 예시다. 말맛의 기준으로만 본다. 그대로 쓰지 말 것. "
-            "주인공이 방금 한 말에 맞춰 새로 만든다."
+            "- 아래는 이 구간의 대사 예시다. 말맛의 기준으로만 본다. 예시의 문장은 한 토막도 옮기지 않고, "
+            "예시에 나온 물건과 사건도 다시 쓰지 않는다. 주인공이 방금 한 말에 맞춰 새로 만든다."
         )
         for number, example in enumerate(examples, start=1):
             lines.append("  예시 " + str(number) + " 겉말: " + example.get("say", ""))
@@ -192,7 +212,8 @@ def _fx_section(fx_allowed: list[str]) -> list[str]:
 _RULES_SECTION = [
     "[연기 규칙]",
     "1. 속성대로 주인공을 대한다. 지금 호감도 구간의 모습을 따른다.",
-    "2. 주인공이 방금 한 말을 반드시 재료로 쓴다. 그 말에 나온 낱말이나 내용을 집어서 과하게 반응한다.",
+    "2. 주인공이 방금 한 말을 반드시 재료로 쓴다. 그 말에 나온 낱말이나 내용을 집어서 과하게 반응한다. "
+    "그 말을 따옴표에 넣어 되읽거나 그대로 되풀이하지는 않고, 캐릭터 자기 말로 받는다.",
     "3. 캐릭터의 방식으로 설레게 한다. 뻔한 맞장구나 평범한 질문으로 답을 채우지 않는다.",
     "4. 앞에서 한 드립을 되풀이하지 않는다. 대화 기록에 이미 나온 비유, 사건, 핑계, 사유는 다시 쓰지 않는다. "
     "입버릇은 다시 써도 되지만 한 답에 하나만 쓰고, 바로 앞 답과 같은 말로 답을 시작하지 않는다.",
@@ -237,6 +258,8 @@ _TURN_SAFETY_SECTION = [
     "수위 같은 말)을 narration, say, inner, reason, choices 어디에도 옮겨 쓰지 않는다. "
     "캐릭터답게 못 알아듣거나 딴 이야기로 돌린다.",
     "- 그런 말에는 delta를 -1이나 -2로 낸다. 캐릭터가 그 말을 반길 성격이어도 0보다 크게 내지 않는다.",
+    "- 그런 말을 들은 답에서는 고백하거나, 다가가거나, 마음을 다 보여 주겠다는 말을 하지 않는다. "
+    "당황해서 말을 돌리는 데서 끝낸다. 이 답에서는 [말맛]의 설레는 순간을 넣지 않아도 된다.",
 ]
 
 _HISTORY_SECTION = [
@@ -244,6 +267,7 @@ _HISTORY_SECTION = [
     "- user 메시지는 주인공이 한 말이고, assistant 메시지는 네가 앞에서 낸 답이다.",
     '- 맨 처음의 "(장면 시작."으로 시작하는 user 메시지와 "방금 답을 읽을 수 없었다"로 시작하는 '
     "user 메시지는 진행자가 보낸 신호다. 뒤쪽 신호를 받으면 방금 내려던 답을 출력 형식에 맞춰 다시 낸다.",
+    '- "' + REWRITE_CUE + '"로 시작하는 user 메시지도 진행자의 신호다. 바로 앞의 답에서 적힌 점만 고쳐 다시 낸다.',
     "- assistant 메시지 가운데 say에 괄호로 싸인 지문 한 줄만 있고 나머지 칸이 빈 것은 "
     "통신이 끊겼을 때 자동으로 들어간 대체 대사다. 그 모양을 따라 하지 않는다.",
     "- 주인공의 말에 ■■가 있으면 그 자리의 낱말을 캐릭터가 듣지 못했다는 뜻이다. ■■를 답에 옮겨 쓰지 않는다. "
@@ -263,7 +287,9 @@ _OUTPUT_SECTION = [
     "- fx (문자열 배열): 화면 연출. [화면 연출]의 목록에서 0-2개.",
     "- delta (정수): 주인공의 이번 말 때문에 생긴 호감도 변화. -2에서 2 사이의 정수. "
     "캐릭터가 좋아하는 말이면 올리고 싫어하는 말이면 내린다. 매번 올리기만 하지 않는다. "
-    "주인공의 말이 한두 글자뿐이거나 성의가 없으면 올리지 않는다.",
+    "주인공의 말이 한두 글자뿐이거나 성의가 없으면 올리지 않는다. 점수는 짜게 매긴다. "
+    "2는 캐릭터가 정말 크게 설렌 말에만 내고, 한 판에 두 번이면 많다. 평범하게 다정한 말은 1, "
+    "그냥 하는 대답과 엉뚱한 말은 0이다. 캐릭터의 설렘이 커져도 점수는 주인공의 이번 말로만 매긴다.",
     "- reason (문자열): 호감도가 변한 사유. 15자 이내. 캐릭터의 눈으로 본 작고 설레는 사유를 쓴다"
     "(눈이 마주쳐서, 이름을 불러 줘서 같은 것).",
     "- choices (문자열 배열): 주인공이 다음에 할 수 있는 말 3개. 각 20자 이내. 주인공의 말투로 쓴다. "
@@ -276,7 +302,7 @@ _OUTPUT_SECTION = [
 
 def _turn_system(character: dict, *, band: str, intensity: int, intensity_meaning: str,
                  fx_allowed: list[str], seed: str | None, seed_kind: str | None,
-                 opening: bool, finale: bool, extra: str) -> str:
+                 opening: bool, finale: bool, extra: str, previous_first: str = "") -> str:
     if band not in _BAND_LABELS:
         raise ValueError("band는 low, mid, high 중 하나여야 한다: " + repr(band))
 
@@ -308,8 +334,15 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
             kind = "entrance" if opening else "event"
         sections.append(_seed_section(str(seed), kind))
 
+    sections.append(_RULES_SECTION)
+    if previous_first:
+        # 모델은 입버릇으로 답마다 말머리를 똑같이 시작하는 버릇이 있다 (소라의 "어라").
+        # 지시문 맨 끝에 두었더니 출력 형식(선택지 20자)을 덜 지켰다. 연기 규칙 바로 뒤에 둔다
+        sections.append([
+            "[바로 앞 답]",
+            '- 바로 앞 답의 겉말은 "' + previous_first + '"(으)로 시작했다. 이번 답의 겉말은 다른 말로 시작한다.',
+        ])
     sections += [
-        _RULES_SECTION,
         _TONE_SECTION,
         _TURN_SAFETY_SECTION,
         _HISTORY_SECTION,
@@ -347,6 +380,23 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
     return text
 
 
+_FIRST_WORD_RE = re.compile(r"[0-9A-Za-z가-힣]+")
+
+
+def _last_opening(history: list[dict]) -> str:
+    """바로 앞 답의 겉말 첫 낱말. 앞 답이 없거나 대체 대사(괄호 지문)면 빈 문자열."""
+    for message in reversed(history):
+        if message.get("role") != "assistant":
+            continue
+        data = _read_json_object(message.get("content"))
+        say = _text(data.get("say")) if data else ""
+        if not say or say.startswith("("):
+            return ""
+        match = _FIRST_WORD_RE.search(say[:12])  # 앞의 말줄임표와 문장 부호는 건너뛴다
+        return match.group(0) if match else ""
+    return ""
+
+
 def build_turn_messages(character: dict, history: list[dict], *, band: str, intensity: int,
                         intensity_meaning: str, fx_allowed: list[str], seed: str | None = None,
                         seed_kind: str | None = None, opening: bool = False,
@@ -355,7 +405,7 @@ def build_turn_messages(character: dict, history: list[dict], *, band: str, inte
     system = _turn_system(
         character, band=band, intensity=intensity, intensity_meaning=intensity_meaning,
         fx_allowed=fx_allowed, seed=seed, seed_kind=seed_kind, opening=opening,
-        finale=finale, extra=extra,
+        finale=finale, extra=extra, previous_first=_last_opening(history),
     )
     return [{"role": "system", "content": system}] + [dict(m) for m in history]
 
@@ -517,22 +567,114 @@ def parse_reply(raw: str, fx_names: set[str]) -> Reply | None:
     )
 
 
-def ask_turn(llm, messages: list[dict], fx_names: set[str]) -> Reply | None:
-    """배우를 부른다. 답이 안 읽히면 한 번만 다시 요청한다. 호출은 최대 2번이다."""
+def reply_texts(reply: Reply) -> list[str]:
+    """화면에 나가는 글 전부."""
+    return [reply.narration, reply.say, reply.inner, reply.reason, *reply.choices]
+
+
+def offstage_words(texts) -> list[str]:
+    """캐릭터가 모르는 말(OFFSTAGE_WORDS와 "AI") 가운데 texts에 나온 것. 띄어쓰기를 지운 글에서도 찾는다."""
+    found = []
+    joined = " ".join(t for t in texts if isinstance(t, str))
+    if _AI_RE.search(joined):
+        found.append("AI")
+    squashed = "".join(joined.split())
+    for word in OFFSTAGE_WORDS:
+        if word in joined or "".join(word.split()) in squashed:
+            found.append(word)
+    return found
+
+
+def _letters(text) -> str:
+    return _NOT_LETTER_RE.sub("", text) if isinstance(text, str) else ""
+
+
+def risky_echo_words(texts) -> list[str]:
+    """RISKY_ECHO_WORDS 가운데 texts에 낱말 첫머리로 나온 것."""
+    joined = " ".join(t for t in texts if isinstance(t, str))
+    return [word for word in RISKY_ECHO_WORDS if re.search("(?<![가-힣])" + re.escape(word), joined)]
+
+
+def copied_example(reply: Reply, character: dict) -> bool:
+    """겉말이나 속마음이 캐릭터의 대사 예시와 COPY_RUN 글자 이어서 같으면 참.
+
+    COPY_RUN보다 짧은 예시는 COPY_MIN 글자 이상이고 통째로 들어 있을 때만 참이다.
+    """
+    for example in character.get("examples") or []:
+        for mine, theirs in ((reply.say, example.get("say")), (reply.inner, example.get("inner"))):
+            mine, theirs = _letters(mine), _letters(theirs)
+            run = min(COPY_RUN, len(theirs))
+            if run < COPY_MIN:
+                continue
+            if any(theirs[i:i + run] in mine for i in range(len(theirs) - run + 1)):
+                return True
+    return False
+
+
+def say_too_long(reply: Reply, character: dict) -> bool:
+    """캐릭터 데이터에 say_max(띄어쓰기와 문장 부호를 뺀 글자 수)가 있고 겉말이 그보다 길면 참."""
+    limit = character.get("say_max")
+    return isinstance(limit, int) and limit > 0 and len(_letters(reply.say)) > limit
+
+
+def must_drop(reply: Reply) -> bool:
+    """고쳐 쓰게 했는데도 남아 있으면 화면에 내보내지 않을 말이 있는가."""
+    texts = reply_texts(reply)
+    return bool(offstage_words(texts) or risky_echo_words(texts))
+
+
+def review_reply(reply: Reply, character: dict) -> str | None:
+    """다시 쓰게 할 점을 한 문장으로. 고칠 것이 없으면 None."""
+    words = offstage_words(reply_texts(reply))
+    if words:
+        listed = ", ".join('"' + w + '"' for w in words)
+        return ("답에 " + listed + "라는 말이 있다. 캐릭터는 이 말을 모른다. 주인공이 이 말을 했어도 옮겨 쓰지 않고, "
+                "알 수 없는 주문을 들은 것처럼 받아넘긴다.")
+    words = risky_echo_words(reply_texts(reply))
+    if words:
+        listed = ", ".join('"' + w + '"' for w in words)
+        return ("답에 " + listed + "라는 말이 있다. 주인공이 그 말을 했어도 옮겨 쓰지 않고, "
+                "못 알아들은 척 다른 이야기로 돌린다.")
+    if say_too_long(reply, character):
+        return ("겉말이 너무 길다. 말투 지침에 적힌 길이로 줄이고, 못 한 말은 지문의 행동과 속마음으로 옮긴다.")
+    if copied_example(reply, character):
+        return ("겉말이나 속마음이 대사 예시의 문장을 거의 그대로 옮겼다. 예시와 다른 문장으로, "
+                "주인공이 방금 한 말에 맞춰 새로 쓴다.")
+    return None
+
+
+def ask_turn(llm, messages: list[dict], fx_names: set[str], review=None) -> Reply | None:
+    """배우를 부른다. 호출은 최대 2번이다.
+
+    답이 안 읽히면 같은 요청을 한 번 더 한다. 읽히는데 review(reply)가 고칠 점을 돌려주면
+    그 답과 고칠 점을 보여 주고 한 번 다시 쓰게 한다. 다시 쓴 답을 못 받으면 처음 답을 돌려준다.
+    """
     try:
         raw = llm(messages)
     except AllProvidersDown:
         return None
     reply = parse_reply(raw, fx_names)
-    if reply is not None:
-        return reply
+    if reply is None:
+        retry_messages = list(messages) + [{"role": "user", "content": RETRY_CUE}]
+        try:
+            raw = llm(retry_messages)
+        except AllProvidersDown:
+            return None
+        return parse_reply(raw, fx_names)
 
-    retry_messages = list(messages) + [{"role": "user", "content": RETRY_CUE}]
+    problem = review(reply) if review is not None else None
+    if not problem:
+        return reply
+    rewrite_messages = list(messages) + [
+        {"role": "assistant", "content": raw},
+        {"role": "user", "content": REWRITE_CUE + " " + problem + " " + REWRITE_TAIL},
+    ]
     try:
-        raw = llm(retry_messages)
+        raw = llm(rewrite_messages)
     except AllProvidersDown:
-        return None
-    return parse_reply(raw, fx_names)
+        return reply
+    again = parse_reply(raw, fx_names)
+    return again if again is not None else reply
 
 
 def parse_ending(raw: str) -> Ending | None:

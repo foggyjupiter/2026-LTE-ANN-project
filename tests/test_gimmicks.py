@@ -83,6 +83,19 @@ class QuoteMemoryTest(unittest.TestCase):
         self.assertIn("따옴표", text)
         self.assertEqual(text, text.strip())
 
+    def test_quotes_only_on_set_turns(self):
+        inputs = ["떡볶이 좋아해", "사실 떡볶이는 그냥 그래", "응", "비 온다", "우산 있어?", "고마워", "갈게"]
+        for count in range(1, len(inputs) + 1):
+            text = self.gimmick.extra_instruction(inputs[:count])
+            if count in gimmicks.QUOTE_TURNS:
+                self.assertIn("1. 떡볶이 좋아해", text)
+                self.assertIn("작은따옴표", text)
+            else:
+                # 인용하지 않는 답에서는 기록을 주지 않고, 되읽지 말라고 한다
+                self.assertNotIn("떡볶이", text)
+                self.assertIn("따옴표에 넣어 옮기지 않는다", text)
+        self.assertEqual(gimmicks.QUOTE_TURNS, (3, 7))
+
     def test_instruction_does_not_change_the_list(self):
         inputs = ["떡볶이 좋아해", "응"]
         self.gimmick.extra_instruction(inputs)
@@ -172,8 +185,11 @@ class ReluTest(unittest.TestCase):
     def test_zero_passes_without_note(self):
         self.assertEqual(self.gimmick.adjust_delta(0), (0, None))
 
-    def test_positive_passes_without_note(self):
-        self.assertEqual(self.gimmick.adjust_delta(2), (2, None))
+    def test_positive_passes_above_the_threshold(self):
+        # 점수가 내려가지 않는 대신 문턱 1을 넘은 만큼만 오른다
+        self.assertEqual(gimmicks.RELU_THRESHOLD, 1)
+        self.assertEqual(self.gimmick.adjust_delta(2), (1, None))
+        self.assertEqual(self.gimmick.adjust_delta(1), (0, None))
 
 
 class CitationNeededTest(unittest.TestCase):

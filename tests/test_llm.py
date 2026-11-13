@@ -144,6 +144,22 @@ class CallLlmTest(LlmTestCase):
         llm.call_llm([])
         self.assertEqual(llm._blocked_until[FIRST], 1000.0 + llm.COOLDOWN_SEC)
 
+    def test_429_daily_quota_rests_long(self):
+        # 2026-11-13에 실제로 받은 본문의 모양 (줄임)
+        body = ('[{"error": {"code": 429, "status": "RESOURCE_EXHAUSTED", "details": [{"violations": '
+                '[{"quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier", "quotaValue": "500"}]}, '
+                '{"retryDelay": "9462s"}]}}]').encode()
+
+        def post(p, *a):
+            if p["name"] == FIRST:
+                raise http_error(429, body=body)
+            return "답"
+        self.patch_post(post)
+        trace = []
+        self.assertEqual(llm.call_llm([], trace=trace), "답")
+        self.assertEqual(llm._blocked_until[FIRST], 1000.0 + llm.DAILY_COOLDOWN_SEC)
+        self.assertIn("하루 한도", trace[0]["error"])
+
     def test_503_rests_the_provider_and_doubles_when_repeated(self):
         def post(p, *a):
             if p["name"] == FIRST:

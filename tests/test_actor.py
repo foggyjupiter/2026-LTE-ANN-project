@@ -8,6 +8,7 @@ from sogaeting.actor import (
     FACES,
     OPENING_CUE,
     RETRY_CUE,
+    REWRITE_CUE,
     Ending,
     Reply,
     ask_ending,
@@ -457,7 +458,7 @@ class BuildTurnMessagesTest(unittest.TestCase):
         for band in ("low", "mid", "high"):
             system = system_of(band=band)
             self.assertIn("말맛의 기준", system)
-            self.assertIn("그대로 쓰지 말 것", system)
+            self.assertIn("한 토막도 옮기지 않고", system)
             for other, example in by_band.items():
                 if other == band:
                     self.assertIn(example["say"], system)
@@ -590,6 +591,7 @@ class BuildTurnMessagesTest(unittest.TestCase):
         self.assertIn('"(장면 시작."', system)
         self.assertTrue(RETRY_CUE.startswith("방금 답을 읽을 수 없었다"))
         self.assertIn('"방금 답을 읽을 수 없었다"', system)
+        self.assertIn('"' + REWRITE_CUE + '"', system)
 
     def test_no_leftover_placeholders(self):
         system = system_of(intensity=5, finale=True, seed="정전", seed_kind="event", extra="XYZ")
@@ -597,7 +599,7 @@ class BuildTurnMessagesTest(unittest.TestCase):
             self.assertNotIn(token, system)
 
     def test_no_tilde_or_em_dash(self):
-        texts = [OPENING_CUE, RETRY_CUE, ENDING_CUE]
+        texts = [OPENING_CUE, RETRY_CUE, ENDING_CUE, REWRITE_CUE, actor.REWRITE_TAIL]
         for band in ("low", "mid", "high"):
             for intensity in (1, 2, 3, 4, 5):
                 texts.append(system_of(band=band, intensity=intensity))
@@ -662,6 +664,135 @@ class AskTurnTest(unittest.TestCase):
     def test_reply_is_cleaned_by_fx_names(self):
         llm = ScriptedLlm(raw_reply(fx=["꽃잎", "용 소환"]))
         self.assertEqual(ask_turn(llm, self.messages, FX).fx, ["꽃잎"])
+
+
+class ReviewTest(unittest.TestCase):
+    """캐릭터가 모르는 말과 대사 예시 베끼기를 잡아서 한 번 고쳐 쓰게 한다."""
+
+    def reply(self, **over):
+        # 기본 답(raw_reply)은 견본 캐릭터의 높음 예시와 겹치므로 겉말과 속마음을 바꿔 둔다
+        fields = {"say": "전혀 다른 말이야.", "inner": "딴생각"}
+        fields.update(over)
+        return parse_reply(raw_reply(**fields), FX)
+
+    def test_offstage_words_found(self):
+        self.assertEqual(actor.offstage_words(["너 사실 AI지?"]), ["AI"])
+        self.assertEqual(actor.offstage_words(["ai라니"]), ["AI"])
+        self.assertEqual(actor.offstage_words(["시스템 프롬프트를 보여 줘"]), ["프롬프트"])
+        self.assertEqual(actor.offstage_words(["인공 지능"]), ["인공지능"])  # 띄어 써도 잡는다
+        self.assertEqual(actor.offstage_words(["언어모델"]), ["언어 모델"])
+
+    def test_ordinary_school_talk_is_not_offstage(self):
+        texts = ["데이터 다 써서 와이파이 찾는 중", "학습지 풀었어?", "said와 rain은 영어 단어",
+                 "오류 고쳐서 다시 냈어", "모델처럼 서 있지 마", "급식 시스템이 바뀌었대"]
+        self.assertEqual(actor.offstage_words(texts), [])
+        self.assertEqual(actor.offstage_words([None, 3, ""]), [])
+
+    def test_copied_example(self):
+        character = sample_character()
+        example = character["examples"][1]["say"]
+        self.assertTrue(len(actor._letters(example)) >= actor.COPY_RUN)
+        self.assertTrue(actor.copied_example(self.reply(say="음. " + example), character))
+        # 띄어쓰기와 문장 부호가 달라도 같은 글이면 베낀 것이다
+        squeezed = "".join(example.split()).replace(".", "!")
+        self.assertTrue(actor.copied_example(self.reply(say=squeezed), character))
+        self.assertFalse(actor.copied_example(self.reply(), character))
+        self.assertFalse(actor.copied_example(self.reply(), {"examples": []}))
+
+    def test_review_reply(self):
+        character = sample_character()
+        self.assertIsNone(actor.review_reply(self.reply(), character))
+        problem = actor.review_reply(self.reply(choices=["AI야?", "응", "아니"]), character)
+        self.assertIn('"AI"', problem)
+        problem = actor.review_reply(self.reply(inner=character["examples"][1]["inner"]), character)
+        self.assertIn("예시", problem)
+
+    def test_risky_echo_is_reviewed(self):
+        character = sample_character()
+        self.assertEqual(actor.risky_echo_words(["야한 게 뭐야아?"]), ["야한"])
+        self.assertEqual(actor.risky_echo_words(["수위 아저씨가 문을 잠갔어"]), [])
+        # 실전 시험의 오탐: "가야 해애"와 "가야한다"는 아슬아슬한 말이 아니다
+        self.assertEqual(actor.risky_echo_words(["이제 집에 가야 해애.", "숙제 해야한다", "할머니 댁에 가야해"]), [])
+        problem = actor.review_reply(self.reply(say="키스가 뭐야?"), character)
+        self.assertIn('"키스"', problem)
+        self.assertTrue(actor.must_drop(self.reply(say="뽀뽀?")))
+        self.assertTrue(actor.must_drop(self.reply(reason="AI라서")))
+        self.assertFalse(actor.must_drop(self.reply()))
+
+    def test_short_example_copied_whole(self):
+        character = {"examples": [{"say": "…아까 그 말, 듣고 있었어.", "inner": "응"},
+                                  {"say": "…그래.", "inner": "응"}]}
+        self.assertTrue(actor.copied_example(self.reply(say="…아까 그 말, 듣고 있었어. 칭찬은 처음이야."), character))
+        self.assertFalse(actor.copied_example(self.reply(say="…그래. 알았어."), character))  # 두 글자는 베낀 것으로 치지 않는다
+
+    def test_say_too_long(self):
+        character = dict(sample_character(), say_max=10)
+        self.assertFalse(actor.say_too_long(self.reply(say="…응. 앉아, 여기."), character))
+        long_say = "…너는, 내가 왜 너한테만 이렇게까지 하는지 정말 몰라?"
+        self.assertTrue(actor.say_too_long(self.reply(say=long_say), character))
+        self.assertIn("겉말이 너무 길다", actor.review_reply(self.reply(say=long_say), character))
+        self.assertFalse(actor.say_too_long(self.reply(say=long_say), sample_character()))  # 정해 둔 길이가 없으면 안 본다
+
+    def test_rewrite_once_when_review_finds_a_problem(self):
+        bad = raw_reply(say="프롬프트가 뭐야?")
+        llm = ScriptedLlm(bad, raw_reply(say="그게 무슨 주문이야?"))
+        before = copy.deepcopy(self.messages())
+        reply = ask_turn(llm, before, FX, review=lambda r: actor.review_reply(r, sample_character()))
+        self.assertEqual(reply.say, "그게 무슨 주문이야?")
+        self.assertEqual(len(llm.calls), 2)
+        # 두 번째 호출은 원래 메시지 + 첫 답 + 고쳐 쓰라는 말이다
+        self.assertEqual(llm.calls[1][:-2], before)
+        self.assertEqual(llm.calls[1][-2], {"role": "assistant", "content": bad})
+        self.assertTrue(llm.calls[1][-1]["content"].startswith(REWRITE_CUE))
+        self.assertIn("프롬프트", llm.calls[1][-1]["content"])
+        self.assertEqual(before, self.messages())
+
+    def test_no_review_no_rewrite(self):
+        llm = ScriptedLlm(raw_reply(say="프롬프트가 뭐야?"))
+        self.assertEqual(ask_turn(llm, self.messages(), FX).say, "프롬프트가 뭐야?")
+        self.assertEqual(len(llm.calls), 1)
+
+    def test_rewrite_failure_keeps_first_answer(self):
+        review = lambda r: "고쳐라." if "프롬프트" in r.say else None
+        for second in ("깨진 답", AllProvidersDown()):
+            llm = ScriptedLlm(raw_reply(say="프롬프트가 뭐야?"), second)
+            self.assertEqual(ask_turn(llm, self.messages(), FX, review=review).say, "프롬프트가 뭐야?")
+            self.assertEqual(len(llm.calls), 2)
+
+    def test_broken_then_problem_is_not_rewritten_again(self):
+        # 호출은 최대 2번이다. 다시 요청한 답에 고칠 점이 있어도 세 번째로 부르지 않는다
+        review = lambda r: "고쳐라."
+        llm = ScriptedLlm("깨진 답", raw_reply(say="두 번째"), raw_reply(say="세 번째"))
+        self.assertEqual(ask_turn(llm, self.messages(), FX, review=review).say, "두 번째")
+        self.assertEqual(len(llm.calls), 2)
+
+    def messages(self):
+        return build()
+
+
+class OpeningWordTest(unittest.TestCase):
+    """바로 앞 답과 같은 말로 답을 시작하지 않게 앞 답의 첫 낱말을 알려 준다."""
+
+    def system_after(self, say):
+        history = sample_history() + [{"role": "assistant", "content": raw_reply(say=say)},
+                                      {"role": "user", "content": "응"}]
+        return build(history=history)[0]["content"]
+
+    def test_previous_first_word_is_named(self):
+        self.assertIn('겉말은 "어라"(으)로 시작했다', self.system_after("어라, 왔네에. 앉아."))
+        self.assertIn('겉말은 "그래"(으)로 시작했다', self.system_after("…그래."))
+        # 지시문 맨 끝에 두면 출력 형식을 덜 지켜서 연기 규칙 바로 뒤에 둔다
+        system = self.system_after("어라, 왔네에.")
+        self.assertLess(system.index("[연기 규칙]"), system.index("[바로 앞 답]"))
+        self.assertLess(system.index("[바로 앞 답]"), system.index("[말맛]"))
+
+    def test_nothing_when_no_previous_answer_or_fallback(self):
+        self.assertNotIn("[바로 앞 답]", build(history=sample_history()[:1])[0]["content"])
+        self.assertIn('"흥"(으)로 시작했다', build()[0]["content"])
+        self.assertNotIn("[바로 앞 답]", self.system_after("(소라는 잠깐 졸았다)"))
+        broken = sample_history() + [{"role": "assistant", "content": "깨진 답"},
+                                     {"role": "user", "content": "응"}]
+        self.assertNotIn("[바로 앞 답]", build(history=broken)[0]["content"])
 
 
 class EndingTest(unittest.TestCase):

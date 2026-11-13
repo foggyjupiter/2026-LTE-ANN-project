@@ -98,9 +98,10 @@ class Session:
         messages = actor.build_ending_messages(
             self.character, list(self.history), band_name=grade["name"], score=self.score)
         ending = actor.ask_ending(self.llm, messages)
-        if ending is not None and safety.contains_banned(
-                [ending.title, ending.epilogue, ending.nickname], self.banned):
-            ending = None
+        if ending is not None:
+            texts = [ending.title, ending.epilogue, ending.nickname]
+            if safety.contains_banned(texts, self.banned) or actor.offstage_words(texts):
+                ending = None
         if ending is None:
             title, epilogue, nickname = f"{grade['name']} 엔딩", "", ""
         else:
@@ -163,13 +164,23 @@ class Session:
             extra="" if opening else self.gimmick.extra_instruction(list(self.past_inputs)),
         )
         fx_names = set(self.fx["light"]) | set(self.fx["heavy"])
-        reply = actor.ask_turn(self.llm, messages, fx_names)
+        reply = actor.ask_turn(self.llm, messages, fx_names,
+                               review=lambda r: actor.review_reply(r, self.character))
 
-        # 모델이 답을 못 줬거나 금지어가 걸리면 대체 대사로 바꾼다
+        # 모델이 답을 못 줬거나, 금지어가 걸리거나, 고쳐 쓰게 했는데도 캐릭터가 모르는 말이
+        # 남았으면 대체 대사로 바꾼다
         fallback = reply is None or safety.contains_banned(
-            [reply.narration, reply.say, reply.inner, reply.reason, *reply.choices], self.banned)
+            actor.reply_texts(reply), self.banned) or actor.must_drop(reply)
         if fallback:
             reply = actor.Reply(say=self._next_fallback_line())
+
+        if not fallback:
+            # 모델이 지시문을 "주인공"이라는 말 그대로 옮겨 쓸 때가 있다. 이야기 속 이름으로 바꾼다
+            for name in ("narration", "say", "inner", "reason"):
+                setattr(reply, name, getattr(reply, name).replace("주인공", "전학생"))
+            # 설정을 버리라는 입력에는 점수를 올리지 않는다 (연기 규칙 7). 모델이 올려도 여기서 내린다
+            if not opening and safety.looks_like_override(self.past_inputs[-1]):
+                reply.delta = min(reply.delta, -1)
 
         fx = self._filter_fx(reply.fx, intensity)
 

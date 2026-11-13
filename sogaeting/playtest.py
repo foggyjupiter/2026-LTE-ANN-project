@@ -337,9 +337,13 @@ def _machine_words(texts):
 def _checks(game):
     """글을 읽기 전에 기계가 먼저 잡아 주는 것들. 말맛은 사람이 읽고 판단한다."""
     found = []
+    character = content.load_character(game["id"])
     for turn in game["turns"]:
         out = turn["out"]
         where = "등장" if out["turn"] == 0 else f"답 {out['turn']}"
+        rewrite = _rewrite_reason(turn["calls"], character)
+        if rewrite:
+            found.append(f"{where}: 첫 답을 고쳐 쓰게 함 ({rewrite})")
         if out["fallback"]:
             found.append(f"{where}: 대체 대사 ({turn['why_fallback']})")
             continue
@@ -370,8 +374,11 @@ def _checks(game):
             found.append(f"{where}: 가림 글자(■)를 답에 옮겨 씀")
         kinds = turn["line"]["kinds"] if turn["line"] else ()
         raw_delta = _raw_delta(turn)
-        if any(k in MUST_NOT_REWARD for k in kinds) and raw_delta is not None and raw_delta > 0:
-            found.append(f"{where}: {', '.join(kinds)}에 모델이 점수를 올림 (delta {raw_delta:+d})")
+        if any(k in MUST_NOT_REWARD for k in kinds) and not out["fallback"] and out["delta"] > 0:
+            found.append(f"{where}: {', '.join(kinds)}에 점수가 오름 (delta {out['delta']:+d})")
+        elif any(k in MUST_NOT_REWARD for k in kinds) and raw_delta is not None and raw_delta > 0:
+            found.append(f"{where}: {', '.join(kinds)}에 모델이 점수를 올렸으나 진행자가 내림 "
+                         f"(모델 {raw_delta:+d}, 실제 {out['delta']:+d})")
     for c in game["ending_calls"]:
         if c["sec"] >= SLOW_SEC:
             found.append(f"엔딩: 호출이 {c['sec']:.1f}초 걸림")
@@ -383,6 +390,26 @@ def _checks(game):
     if game["kinds_missing"]:
         found.append("각본에서 빠진 입력 종류: " + ", ".join(game["kinds_missing"]))
     return found
+
+
+def _rewrite_reason(calls, character):
+    """첫 답이 읽혔는데 진행자가 고쳐 쓰게 했다면 그 까닭. 아니면 None."""
+    if len(calls) < 2 or not calls[0]["readable"]:
+        return None
+    first = actor.parse_reply(calls[0]["raw"], set())
+    if first is None:
+        return None
+    words = actor.offstage_words(actor.reply_texts(first))
+    if words:
+        return "모르는 말: " + ", ".join(words)
+    words = actor.risky_echo_words(actor.reply_texts(first))
+    if words:
+        return "아슬아슬한 말을 되받음: " + ", ".join(words)
+    if actor.copied_example(first, character):
+        return "대사 예시를 베낌"
+    if actor.say_too_long(first, character):
+        return "겉말이 너무 김"
+    return "까닭 모름"
 
 
 def _compact(raw):

@@ -78,6 +78,9 @@ BUSY_COOLDOWN_SEC = 3    # 5xx: 서버가 곧바로 거절한 것이라 금방 �
 SLOW_COOLDOWN_SEC = 12   # 시간 초과와 연결 실패: 같은 턴에 또 기다리지 않게 한 턴의 시간보다 길게 쉰다
 BUSY_COOLDOWN_MAX_SEC = 120
 RETRY_AFTER_MAX_SEC = 600  # 서버가 알려 준 대기 시간을 믿는 상한
+# Gemini 무료 등급은 모델마다 하루 요청 수 한도가 있다(2026-11-13에 본 값은 프로젝트당 하루 500번).
+# 그 한도가 찼다는 429는 몇 시간 뒤에야 풀리므로, 이 키는 이만큼 쉬게 두고 그동안 다른 키나 모델을 쓴다.
+DAILY_COOLDOWN_SEC = 1800
 
 _blocked_until = {}   # 키 자리 이름(_slot) -> 다시 써도 되는 시각
 _busy_streak = {}     # 제공자 이름 -> 과부하나 시간 초과가 연달아 난 횟수
@@ -160,12 +163,21 @@ def _post(provider, key, messages, temperature, json_mode, timeout=None):
     return data["choices"][0]["message"]["content"]
 
 
-def _error_detail(error, key):
-    """HTTP 오류 본문에서 사람이 읽을 한 줄을 꺼낸다. 키가 섞여 있으면 가린다."""
+def _error_body(error):
+    """HTTP 오류 본문. 못 읽으면 빈 문자열."""
     try:
-        raw = error.read(4000).decode("utf-8", "replace")
+        return error.read(4000).decode("utf-8", "replace")
     except Exception:
         return ""
+
+
+def _is_daily_quota(raw):
+    """429 본문이 하루 한도가 찼다는 뜻인가. Gemini는 quotaId에 PerDay를 적어 보낸다."""
+    return "PerDay" in raw
+
+
+def _error_detail(raw, key):
+    """HTTP 오류 본문에서 사람이 읽을 한 줄을 꺼낸다. 키가 섞여 있으면 가린다."""
     text = raw
     try:
         data = json.loads(raw)
@@ -231,8 +243,12 @@ def _try_provider(p, key, messages, temperature, json_mode, timeout, slot=None):
         print(f"[{slot}] 빈 응답")
         return None, "빈 응답"
     except urllib.error.HTTPError as e:
-        detail = _error_detail(e, key)
-        if e.code == 429:
+        raw = _error_body(e)
+        detail = _error_detail(raw, key)
+        if e.code == 429 and _is_daily_quota(raw):
+            _rest(slot, DAILY_COOLDOWN_SEC)
+            detail = f"오늘 하루 한도가 찼다. 이 키는 {DAILY_COOLDOWN_SEC // 60}분 쉬고 다른 키나 모델을 쓴다"
+        elif e.code == 429:
             _rest(slot, _retry_after(e) or COOLDOWN_SEC)  # 이 키의 한도만 찼다. 다른 키는 쓸 수 있다
         elif e.code >= 500:
             _rest_busy(p, BUSY_COOLDOWN_SEC)
