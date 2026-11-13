@@ -61,10 +61,9 @@ init -3 python:
 
 ## 대사 속 " [출처 필요]" 자리에 끼우는 딱지. 글줄 위쪽에 작게 붙는다.
 image sg_cite = Fixed(
-    Transform(sg_box(8, "#8fd0ff", 0.24), xysize=(68, 21)),
-    Transform(sg_box(8, "#8fd0ff", 0.9, "_line"), xysize=(68, 21)),
-    Text("출처 필요", size=13, color="#bfe6ff", font="fonts/Pretendard-Bold.otf", xpos=34, xanchor=0.5, ypos=2),
-    xysize=(74, 30))
+    Transform(sg_box(8, "#9fd8ff"), xysize=(84, 25), xpos=3),
+    Text("출처 필요", size=16, color="#12305a", font="fonts/Pretendard-Bold.otf", xpos=45, xanchor=0.5, ypos=2),
+    xysize=(92, 31))
 
 
 ################################################################################
@@ -576,9 +575,9 @@ screen sg_card(c):
 
 screen sg_hud():
 
-    zorder 0
-
-    add "images/ui/shade_top.png" xysize (1280, 130)
+    ## 대화 화면(sg_talk)보다 위에 둔다. 아래에 두면 화면 전체를 덮는 "눌러서 넘기기"
+    ## 단추에 가려서 "엔딩 보러 가기"가 눌리지 않는다.
+    zorder 10
 
     ## 왼쪽: 진행 표시, 장소, 그만두기
     hbox:
@@ -635,6 +634,13 @@ screen sg_hud():
 ## 대화: 대사창
 ################################################################################
 
+## 화면 위아래에 까는 옅은 그늘.
+screen sg_shades():
+
+    add "images/ui/shade_top.png" xysize (1280, 130)
+    add "images/ui/shade_bottom.png" xysize (1280, 320) ypos 400
+
+
 ## 아래쪽 대사창과 이름표. 글은 부르는 쪽이 블록으로 넣는다.
 ## name과 note는 이미 안전하게 만든 글이어야 한다.
 screen sg_textbox(name="", color="#5a6288", note=""):
@@ -686,8 +692,8 @@ screen sg_talk(v, first):
     $ color = sg_char["color"]
     $ talking = stage in ("say", "choices", "finale")
 
-    ## 대사창 뒤를 어둡게 받쳐서 글이 잘 읽히게 한다.
-    add "images/ui/shade_bottom.png" xysize (1280, 320) ypos 400
+    ## 위쪽 표시와 대사창 뒤를 어둡게 받쳐서 글이 잘 읽히게 한다.
+    use sg_shades
 
     ## 화면 어디를 눌러도 다음 단계로 넘어간다. 대사가 나오는 중이면 먼저 대사가 다 나온다.
     if nxt:
@@ -864,11 +870,15 @@ screen sg_wait(message, dim=True):
 
     frame:
         style "sg_modal_panel"
+        xminimum 420
 
         vbox:
+            xalign 0.5
             spacing 18
 
-            use sg_dots(gui.sg_pink, 14)
+            hbox:
+                xalign 0.5
+                use sg_dots(gui.sg_pink, 14)
 
             text message style "sg_modal_text"
 
@@ -913,7 +923,7 @@ screen sg_wait_reply(line):
 
     $ name = sg_esc(sg_char["name"])
 
-    add "images/ui/shade_bottom.png" xysize (1280, 320) ypos 400
+    use sg_shades
 
     frame:
         xpos 800
@@ -953,6 +963,7 @@ screen sg_confirm_panel(message, yes_label, yes_action, no_label, no_action):
         xminimum 460
 
         vbox:
+            xalign 0.5
             spacing 26
 
             text message style "sg_modal_text"
@@ -988,6 +999,7 @@ screen sg_error(message, buttons):
         xminimum 520
 
         vbox:
+            xalign 0.5
             spacing 20
 
             text "연결에 문제가 생겼어요" style "sg_modal_title"
