@@ -55,6 +55,16 @@ art/
   manifest.json          어떤 요청문과 씨앗으로 만들었는지 기록
 ```
 
+## 다른 도구로 뽑은 그림 넣기 (ChatGPT 등)
+
+캐릭터 그림은 이 스크립트로 뽑지 못했다. Cloudflare의 안전 필터가 캐릭터 요청을 걸렀다(아래 "실제로 돌려 본 결과"). 그래서 캐릭터는 ChatGPT 같은 도구에서 직접 뽑아 넣는다.
+
+1. `docs/art-prompts-gpt.md` 의 요청문을 붙여 넣어 그림을 받는다.
+2. 받은 그림을 `art/raw/<캐릭터 id>/<표정>.png` 로 저장한다. 예: `art/raw/giulhee/neutral.png`
+3. `python tools/make_art.py --recut` 을 실행한다. 투명 배경 그림은 그대로 두고, 단색 배경 그림은 그 색을 지운 뒤 크기를 맞춰 `art/sprites/` 에 넣는다.
+
+요청문 문서는 `python tools/make_art.py --gpt-doc` 으로 다시 만든다. `tools/art_prompts.json` 을 고쳤으면 꼭 다시 만든다(시험이 검사한다).
+
 ## 그림 고치기
 
 요청문은 전부 `tools/art_prompts.json`에 있다. 코드는 건드리지 않는다.
@@ -101,7 +111,7 @@ Gemini `gemini-nano-banana-2.1`은 무료 한도가 없다(Free Tier: Not availa
 
 ## 문서로 확인한 것과 아직 모르는 것
 
-이 스크립트는 가짜 서버로만 시험했다. 진짜 API로는 한 번도 돌려 보지 못했다. 2026-11-13에 Cloudflare와 Google의 공식 문서를 읽고 맞춘 것은 아래와 같다.
+2026-11-13에 Cloudflare와 Google의 공식 문서를 읽고 맞춘 것은 아래와 같다. Cloudflare klein은 같은 날 진짜 API로도 돌려 봤다(아래 "실제로 돌려 본 결과"). schnell과 Gemini는 가짜 서버로만 시험했다.
 
 - Cloudflare: 모델 이름 둘, 요청 주소, klein의 multipart 칸 이름(prompt, width, height, seed, input_image_0부터 3)과 크기 범위(256에서 1920), schnell의 JSON 칸(prompt, steps), 응답 모양(`result.image`에 base64), 오류 번호(3036 하루 한도, 3040 자리 없음, 3007 시간 초과 등), 값.
 - Gemini: 모델 이름, 요청 주소(`v1beta/interactions`), 요청과 응답 모양, 오류 모양, 값.
@@ -112,6 +122,13 @@ Gemini `gemini-nano-banana-2.1`은 무료 한도가 없다(Free Tier: Not availa
 - 하루에 몇 장까지 되는지는 계산값이다. 한 칸이 안 되는 넓이를 올려서 세는지가 문서에 없다.
 - 참고 그림 한도의 문장은 "must be smaller than 512x512"다. 긴 쪽이 딱 512인 그림이 되는지는 알 수 없어서 511로 줄였다.
 - schnell이 seed를 받는지가 문서 안에서 엇갈린다(예시는 seed를 보내는데 입력 스키마에는 없다). 스크립트는 seed를 보내 보고, 거절되면 빼고 다시 보낸다.
-- 그림이 걸러졌을 때 Cloudflare가 어떤 번호를 주는지는 공식 오류 표에 없다. 스크립트는 3030이라는 번호나 rejected, flagged, nsfw라는 낱말이 보이면 씨앗을 바꿔 다시 해 본다.
+- 그림이 걸러졌을 때의 번호는 공식 오류 표에 없지만, 실제로는 HTTP 400에 번호 3030, 문장 "Your output has been flagged"가 왔다. 스크립트는 이 번호나 rejected, flagged, nsfw라는 낱말이 보이면 씨앗을 바꿔 다시 해 본다.
 - klein의 요청문 길이 한도와 돌려주는 그림의 형식(PNG인지 JPEG인지)은 문서에 없다. 스크립트는 어느 형식이든 받는다.
 - 실제와 다른 곳이 있으면 서버가 준 오류 문장이 그대로 찍힌다.
+
+## 실제로 돌려 본 결과 (2026-11-13, Cloudflare klein)
+
+- 배경 8장은 전부 한 번에 나왔다. 한 장에 7-9초. 요청과 응답 형식이 문서대로였고 그림은 JPEG로 왔다. 사람과 글자가 없는 깔끔한 미연시 배경이 나와서 그대로 쓴다.
+- 캐릭터 그림은 한 장도 받지 못했다. 요청 6번(요청문 네 가지)이 전부 번호 3030으로 걸러졌다. 요청문에서 "high school student"와 "school"을 빼도 같았다.
+- 시험 삼아 "adult"라고 적어 보낸 요청 3번은 통과했다. 다만 다른 조건도 함께 달랐기 때문에 그 낱말이 원인이라고 확정하지는 못했다. 필터를 피할 말을 찾는 시험은 하지 않기로 했다.
+- 그래서 캐릭터 그림은 다른 도구에서 직접 뽑아 넣는다(위 "다른 도구로 뽑은 그림 넣기").

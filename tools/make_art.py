@@ -37,6 +37,7 @@ except ImportError:  # pragma: no cover - 설치 여부에 따라 갈린다
     Image = None
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+GPT_DOC_PATH = ROOT / "docs" / "art-prompts-gpt.md"
 PROMPTS_PATH = pathlib.Path(__file__).resolve().with_name("art_prompts.json")
 
 CF_BASE = "https://api.cloudflare.com/client/v4"
@@ -569,6 +570,98 @@ def sprite_prompt(cfg, char_id, face, *, variant=False):
     return " ".join(parts)
 
 
+def gpt_sprite_prompt(cfg, char_id):
+    """ChatGPT 같은 대화형 도구에 붙여 넣을 기준 그림(neutral) 요청문."""
+    sprite = cfg["sprite"]
+    char = cfg["characters"][char_id]
+    expression = char.get("faces", {}).get("neutral") or cfg["faces"]["neutral"]
+    key_words = cfg["keys"][char["key"]]["words"]
+    return "\n".join([
+        "Draw one character sprite for a visual novel game.",
+        f"Art style: {sprite['style']}",
+        f"Framing: {sprite['framing']}",
+        f"Character: {char['look']} {sprite['uniform']}",
+        f"Expression: {expression}.",
+        f"Content: {sprite['safety']}",
+        "Background: fully transparent (PNG with alpha). If a transparent background is not "
+        f"possible, fill the whole background with one flat {key_words} color, "
+        "with no gradient, shadow, floor or objects.",
+        f"No text, no watermark, no border. Portrait image, aspect ratio {sprite['aspect']}.",
+    ])
+
+
+def gpt_variant_prompt(cfg, char_id, face):
+    """기준 그림을 붙인 채로 보내는 표정 바꾸기 요청문."""
+    char = cfg["characters"][char_id]
+    expression = char.get("faces", {}).get(face) or cfg["faces"][face]
+    return (
+        f"{cfg['sprite']['variant']} New expression: {expression}. "
+        "Keep the same background and the same image size."
+    )
+
+
+def gpt_doc(cfg):
+    """docs/art-prompts-gpt.md 의 내용. 요청문은 art_prompts.json에서 가져온다."""
+    lines = [
+        "# GPT로 캐릭터 그림 뽑기",
+        "",
+        "ChatGPT 같은 대화형 그림 도구에 붙여 넣을 요청문이다. 캐릭터 6명, 표정 6장씩 36장.",
+        "",
+        "이 글은 `python tools/make_art.py --gpt-doc` 이 만든다. 직접 고치지 말고 "
+        "`tools/art_prompts.json`을 고친 뒤 같은 명령으로 다시 만든다.",
+        "",
+        "## 순서",
+        "",
+        "1. 캐릭터마다 새 대화를 연다. \"기준 그림\" 요청문을 붙여 넣어 한 장을 받는다. "
+        "마음에 들 때까지 다시 뽑는다.",
+        "2. 같은 대화에서 표정 요청문을 하나씩 보낸다. 기준 그림이 대화에 없으면 첨부한다. "
+        "얼굴, 머리, 옷이 기준 그림과 같은지 본다.",
+        "3. 받은 그림을 `art/raw/<캐릭터 id>/<표정>.png` 로 저장한다. "
+        "예: `art/raw/giulhee/neutral.png`. jpg와 webp도 된다.",
+        "4. `python tools/make_art.py --recut` 을 실행한다. 배경을 지우고(이미 투명이면 그대로 두고) "
+        f"{cfg['sprite']['width']}x{cfg['sprite']['height']} 크기로 맞춰 `art/sprites/` 에 넣는다. "
+        "`art/preview.png` 도 다시 만든다.",
+        "5. `art/preview.png` 를 열어 여섯 표정이 같은 얼굴인지, 머리가 잘리지 않았는지, "
+        "배경이 깨끗이 지워졌는지 본다.",
+        "6. 게임은 `run_booth.py` 로 켤 때 `art/` 의 그림을 가져다 쓴다. "
+        "그림이 없는 캐릭터와 표정은 자리표시 그림이 나온다.",
+        "",
+        "## 지킬 것",
+        "",
+        "- 캐릭터는 전원 동갑 고2이고 전체 이용가다. 교복을 단정하게 입은 허리 위 그림만 쓴다. "
+        "선정적으로 나온 그림은 쓰지 않는다.",
+        "- 그림에 글자나 워터마크가 들어가면 다시 뽑는다.",
+        "- 배경이 투명하게 안 나오면 요청문에 적힌 단색 배경으로 받는다. "
+        "`--recut` 이 그 색을 지운다.",
+        "- 표정 이름: " + ", ".join(FACES) + ".",
+        "",
+        "## 캐릭터별 요청문",
+    ]
+    for char_id, char in cfg["characters"].items():
+        lines += [
+            "",
+            f"### {char['name']} ({char_id})",
+            "",
+            f"기준 그림. 저장할 곳: `art/raw/{char_id}/neutral.png`",
+            "",
+            "```",
+            gpt_sprite_prompt(cfg, char_id),
+            "```",
+        ]
+        for face in FACES:
+            if face == "neutral":
+                continue
+            lines += [
+                "",
+                f"표정 {face}. 저장할 곳: `art/raw/{char_id}/{face}.png`",
+                "",
+                "```",
+                gpt_variant_prompt(cfg, char_id, face),
+                "```",
+            ]
+    return "\n".join(lines) + "\n"
+
+
 def bg_prompt(cfg, place):
     background = cfg["background"]
     return " ".join([background["style"], cfg["backgrounds"][place]["prompt"], background["rules"]])
@@ -665,14 +758,31 @@ def normalize_sprite(image, size, *, top_margin=0.04, max_scale=1.5):
     return canvas
 
 
+def has_transparency(image):
+    """받은 그림이 이미 투명 배경인가. 위쪽과 양옆 테두리의 절반 이상이 투명하면 그렇다고 본다."""
+    if image.mode not in ("RGBA", "LA") and "transparency" not in image.info:
+        return False
+    alpha = image.convert("RGBA").getchannel("A")
+    width, height = alpha.size
+    edge = list(alpha.crop((0, 0, width, 1)).getdata())
+    edge += list(alpha.crop((0, 0, 1, height)).getdata())
+    edge += list(alpha.crop((width - 1, 0, width, height)).getdata())
+    clear = sum(1 for value in edge if value < 16)
+    return clear * 2 >= len(edge)
+
+
 def finish_sprite(raw_path, out_path, cfg, char_id):
     """받은 그림에서 배경을 지워 투명 PNG로 저장한다. 경고 문장 또는 None을 돌려준다."""
     cut = cfg.get("cut", {})
     with Image.open(raw_path) as source:
-        image, warning = cut_background(
-            source, cfg["characters"][char_id]["key"],
-            low=cut.get("low", 40), high=cut.get("high", 0.75),
-        )
+        if has_transparency(source):
+            # 직접 그렸거나 다른 도구로 뽑은 그림. 이미 투명 배경이면 지울 것이 없다
+            image, warning = source.convert("RGBA"), None
+        else:
+            image, warning = cut_background(
+                source, cfg["characters"][char_id]["key"],
+                low=cut.get("low", 40), high=cut.get("high", 0.75),
+            )
     if warning is None and cut.get("normalize", True):
         size = (cfg["sprite"]["width"], cfg["sprite"]["height"])
         placed = normalize_sprite(
@@ -891,6 +1001,9 @@ def build_parser():
     parser.add_argument("--recut", action="store_true",
                         help="새로 받지 않고, 받아 둔 그림으로 배경 지우기와 미리보기만 다시 한다")
     parser.add_argument("--list", action="store_true", help="이름과 진행 상황을 보여 준다")
+    parser.add_argument("--gpt-doc", nargs="?", const=str(GPT_DOC_PATH), metavar="파일",
+                        help="ChatGPT 같은 도구에 붙여 넣을 요청문 문서를 만들고 끝낸다 "
+                             "(기본: docs/art-prompts-gpt.md)")
     parser.add_argument("--out", default=str(ROOT / "art"), help="그림을 둘 폴더 (기본: art)")
     return parser
 
@@ -928,6 +1041,12 @@ def run(args, cfg):
         say(str(err))
         return 2
 
+    if args.gpt_doc:
+        target = pathlib.Path(args.gpt_doc)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(gpt_doc(cfg), encoding="utf-8")
+        say(f"요청문 문서: {target}")
+        return 0
     if args.list:
         _show_list(out, cfg)
         return 0

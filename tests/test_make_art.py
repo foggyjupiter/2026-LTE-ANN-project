@@ -443,6 +443,35 @@ class Unit(unittest.TestCase):
         self.assertNotIn(EM_DASH, text)
 
 
+class GptDoc(unittest.TestCase):
+    def setUp(self):
+        self.cfg = make_art.load_config()
+        self.doc = make_art.gpt_doc(self.cfg)
+
+    def test_every_character_and_face_has_a_prompt(self):
+        for char_id, char in self.cfg["characters"].items():
+            self.assertIn(f"### {char['name']} ({char_id})", self.doc)
+            self.assertIn(char["look"], self.doc)
+            for face in make_art.FACES:
+                self.assertIn(f"`art/raw/{char_id}/{face}.png`", self.doc)
+
+    def test_prompts_keep_the_all_ages_line_and_style(self):
+        for char_id in self.cfg["characters"]:
+            prompt = make_art.gpt_sprite_prompt(self.cfg, char_id)
+            self.assertIn(self.cfg["sprite"]["safety"], prompt)
+            self.assertIn(self.cfg["sprite"]["style"], prompt)
+            self.assertIn("transparent", prompt)
+
+    def test_no_forbidden_marks(self):
+        self.assertNotIn(TILDE, self.doc)
+        self.assertNotIn(EM_DASH, self.doc)
+
+    def test_committed_doc_is_up_to_date(self):
+        # art_prompts.json을 고치면 문서도 다시 만들어야 한다
+        saved = (ROOT / "docs" / "art-prompts-gpt.md").read_text(encoding="utf-8")
+        self.assertEqual(saved, self.doc, "python tools/make_art.py --gpt-doc 을 다시 실행하세요")
+
+
 @unittest.skipIf(Image is None, "Pillow가 없으면 건너뛴다")
 class Cutting(unittest.TestCase):
     def _cut(self, key, key_rgb, hair, as_jpeg=False):
@@ -486,6 +515,25 @@ class Cutting(unittest.TestCase):
         cut, warning = make_art.cut_background(image, "green")
         self.assertIn("단색", warning)
         self.assertEqual(cut.getpixel((2, 2))[3], 255)
+
+    def test_already_transparent_image_is_kept_as_is(self):
+        # 다른 도구로 뽑은 투명 배경 그림: 색을 지우지 않고 크기만 맞춘다
+        image = Image.new("RGBA", (400, 600), (0, 0, 0, 0))
+        ImageDraw.Draw(image).rectangle((100, 100, 299, 599), fill=(0, 255, 0, 255))  # 초록 옷
+        self.assertTrue(make_art.has_transparency(image))
+        self.assertFalse(make_art.has_transparency(Image.new("RGB", (40, 60), (0, 255, 0))))
+        self.assertFalse(make_art.has_transparency(Image.new("RGBA", (40, 60), (0, 255, 0, 255))))
+        with tempfile.TemporaryDirectory() as tmp:
+            raw = pathlib.Path(tmp) / "neutral.png"
+            out = pathlib.Path(tmp) / "out" / "neutral.png"
+            image.save(raw)
+            cfg = make_art.load_config()
+            self.assertIsNone(make_art.finish_sprite(raw, out, cfg, "giulhee"))
+            with Image.open(out) as done:
+                self.assertEqual(done.size, (cfg["sprite"]["width"], cfg["sprite"]["height"]))
+                center = done.getpixel((done.width // 2, done.height - 10))
+                self.assertEqual(center, (0, 255, 0, 255))   # 초록 옷이 지워지지 않았다
+                self.assertEqual(done.getpixel((2, 2))[3], 0)
 
     def test_normalize_puts_figure_bottom_center(self):
         image = Image.new("RGBA", (400, 400), (0, 0, 0, 0))
