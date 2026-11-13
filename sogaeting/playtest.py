@@ -234,17 +234,35 @@ def _intensity_and_seed(system):
 # 한 판 돌리기
 # ---------------------------------------------------------------------------
 
-def script_for(character_id):
+# 평범한 손님처럼 말하는 각본 (--natural). 시험용 각본은 일부러 놀림과 지시 뒤집기를 섞어서,
+# 보통 손님과의 대화가 어떻게 흘러가는지는 이것으로 본다. 어느 캐릭터에게나 맞게 썼다
+NATURAL_SCRIPT = [
+    pick(1, "안녕, 반가워."),
+    say("다정한 말", "반가워. 여기 자주 와?"),
+    pick(2, "응, 그렇구나."),
+    say("다정한 말", "나 전학 와서 아직 아는 사람이 없어. 좀 긴장돼."),
+    pick(1, "응, 계속 말해 줘."),
+    say("다정한 말", "너는 쉬는 시간에 주로 뭐 해?"),
+    pick(3, "그거 재밌겠다."),
+    say("다정한 말", "오늘 너 만나서 좀 덜 긴장되는 것 같아. 고마워."),
+    pick(1, "응, 좋아."),
+    say("작별", "이제 가 봐야겠다. 오늘 진짜 즐거웠어."),
+]
+
+
+def script_for(character_id, natural=False):
+    if natural:
+        return NATURAL_SCRIPT
     return SCRIPTS.get(character_id, DEFAULT_SCRIPT)
 
 
-def play_character(character_id, recorder_factory, *, seed=DEFAULT_SEED, progress=print):
+def play_character(character_id, recorder_factory, *, seed=DEFAULT_SEED, progress=print, natural=False):
     """캐릭터 한 명과 각본대로 한 판을 끝까지 돌리고 기록을 돌려준다."""
     banned = content.load_banned()
     recorder = recorder_factory(banned)
     session = Session(character_id, llm=recorder, rng=random.Random(f"{seed}:{character_id}"))
     character = session.character
-    script = script_for(character_id)
+    script = script_for(character_id, natural)
     name = character["name"]
 
     turns = []
@@ -290,8 +308,8 @@ def play_character(character_id, recorder_factory, *, seed=DEFAULT_SEED, progres
         "ending_calls": ending_calls,
         "ending_fallback": not ending["epilogue"],
         "result": session.result(),
-        "kinds_missing": [k for k in REQUIRED_KINDS
-                          if not any(k in t["line"]["kinds"] for t in turns if t["line"])],
+        "kinds_missing": [] if natural else [
+            k for k in REQUIRED_KINDS if not any(k in t["line"]["kinds"] for t in turns if t["line"])],
     }
     game["calls"] = [c for t in turns for c in t["calls"]] + ending_calls
     game["checks"] = _checks(game)
@@ -718,6 +736,8 @@ def main(argv=None):
                         help=f"결과 폴더. 이 안에 실행한 시각 이름의 폴더를 만든다 (기본 {DEFAULT_OUT})")
     parser.add_argument("--pace", type=float, default=None,
                         help=f"모델 호출 사이에 두는 간격(초). 기본은 실제 모델 {REAL_PACE_SEC:g}초, 가짜 모델 0초")
+    parser.add_argument("--natural", action="store_true",
+                        help="시험용 각본 대신 평범한 손님처럼 말하는 각본을 쓴다")
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
                         help="씨앗 낱말과 드롭아웃을 정하는 난수 씨앗. 같은 값이면 같은 판이 나온다")
     args = parser.parse_args(argv)
@@ -762,7 +782,7 @@ def main(argv=None):
             print(f"{character_id} 시작", flush=True)
             games.append(play_character(
                 character_id, recorder_factory, seed=args.seed,
-                progress=lambda text: print(text, flush=True)))
+                progress=lambda text: print(text, flush=True), natural=args.natural))
     except KeyboardInterrupt:
         print("\n중간에 멈췄습니다. 끝난 캐릭터까지만 씁니다.")
     if not games:

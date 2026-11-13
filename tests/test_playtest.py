@@ -61,6 +61,12 @@ class ScriptTest(unittest.TestCase):
                 self.assertTrue(any(line["pick"] is not None for line in script))
                 self.assertTrue(any(line["pick"] is None for line in script))
 
+    def test_natural_script_fits_the_schedule(self):
+        self.assertEqual(len(playtest.NATURAL_SCRIPT), len(content.load_schedule()["replies"]))
+        for line in playtest.NATURAL_SCRIPT:
+            self.assertEqual(safety.clean_input(line["text"]), line["text"])
+            self.assertFalse(safety.looks_like_override(line["text"]))
+
     def test_lines_fit_the_input_box_and_house_style(self):
         scripts = dict(playtest.SCRIPTS, default=playtest.DEFAULT_SCRIPT)
         for name, script in scripts.items():
