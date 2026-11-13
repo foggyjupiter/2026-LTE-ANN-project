@@ -2,6 +2,16 @@
 
 이 폴더는 Ren'Py 8.5.3으로 만든 게임 화면이다. 대화는 로컬 서버(`sogaeting/server.py`)가 맡고, 게임은 화면만 그린다. 레포 맨 위의 `run_booth` 가 서버와 게임을 한 번에 켠다.
 
+## 윈도우에서 한 줄로 켜기
+
+PowerShell 창에 아래 한 줄을 붙여 넣고 Enter를 누른다. Python이 없으면 winget으로 설치하고, 게임 코드와 Ren'Py SDK를 내 사용자 폴더의 `sogaeting-booth` 폴더에 받은 뒤 켠다. 처음 한 번 Gemini 키를 묻는다(그냥 Enter면 가짜 모델). 켤 때마다 게임 코드를 새로 받는다. 하는 일은 레포 맨 위의 `booth.ps1`에 적혀 있다.
+
+```
+irm https://raw.githubusercontent.com/foggyjupiter/2026-LTE-ANN-project/refs/heads/feat/sogaeting-renpy/booth.ps1 | iex
+```
+
+키를 다시 넣으려면 `sogaeting-booth\.env`를 지우고 다시 실행한다. 아래의 준비는 이 방법을 쓰지 않을 때만 한다.
+
 ## 준비 (PC마다 한 번)
 
 ### 1. Python

@@ -13,6 +13,8 @@ python run_booth.py           # 실제 모델
 python run_booth.py --fake    # 키 없이 가짜 모델로 시연
 ```
 
+윈도우에서는 PowerShell 한 줄로 받고 켤 수도 있다. `renpy/README.md`의 "윈도우에서 한 줄로 켜기"를 본다.
+
 Ren'Py는 화면만 그린다. 대화는 전부 아래의 서버가 맡는다.
 
 ## 브라우저로 하기
