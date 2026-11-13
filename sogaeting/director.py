@@ -228,6 +228,8 @@ class Session:
             "extras": extras,
             "fallback": fallback,
             "finale": finale,
+            # 등장 장소. 화면이 배경을 고를 때 쓴다. 등장이 아닌 답에서는 None이다
+            "place": seed if opening and seed_kind == "entrance" else None,
         }
 
     def _pick_seed(self, kind):

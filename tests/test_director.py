@@ -17,7 +17,7 @@ ENDING = {"title": "시험 엔딩", "epilogue": "후일담 첫 문장이다. 둘
 EIGHT_KEYS = {"narration", "say", "inner", "face", "fx", "delta", "reason", "choices"}
 TURN_KEYS = EIGHT_KEYS | {
     "kind", "turn", "total_turns", "change", "score", "band", "popup",
-    "notes", "heard", "extras", "fallback", "finale",
+    "notes", "heard", "extras", "fallback", "finale", "place",
 }
 ENDING_KEYS = {
     "kind", "character_id", "character_name", "band_id", "band_name", "title",
@@ -132,6 +132,12 @@ class FlowTest(unittest.TestCase):
         self.assertIsNone(out["popup"])
         self.assertIsNone(out["heard"])
         self.assertEqual(out["notes"], [])
+
+    def test_place_is_the_entrance_seed_on_opening_only(self):
+        session = Session("haru", llm=ScriptedLlm())
+        opening = session.start()
+        self.assertIn(opening["place"], content.load_seeds()["entrance"])
+        self.assertIsNone(session.reply("하나")["place"])
 
     def test_reply_popup_shows_change(self):
         session = Session("haru", llm=ScriptedLlm(turns={1: {"delta": 1}, 2: {"delta": -1}, 3: {"delta": 0}}))
