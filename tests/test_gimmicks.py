@@ -184,7 +184,7 @@ class CitationNeededTest(unittest.TestCase):
     def test_keyword_and_percent_get_one_tag_each(self):
         marked = self.mark("연구에 따르면 130%야")
         self.assertEqual(marked.count("[출처 필요]"), 2)
-        self.assertEqual(marked, "연구 [출처 필요]에 따르면 130% [출처 필요]야")
+        self.assertEqual(marked, "연구에 [출처 필요] 따르면 130%야 [출처 필요]")
 
     def test_at_most_three_tags(self):
         marked = self.mark("연구 논문 교칙 통계 연구")
@@ -198,11 +198,11 @@ class CitationNeededTest(unittest.TestCase):
     def test_number_with_unit_is_one_match(self):
         for token in ("130%", "100퍼센트", "2021년", "3배", "5명", "1위", "3.5배", "1,400명", "42"):
             with self.subTest(token=token):
-                self.assertEqual(self.mark(f"알다시피 {token}이야"), f"알다시피 {token}{TAG}이야")
+                self.assertEqual(self.mark(f"알다시피 {token}이야"), f"알다시피 {token}이야{TAG}")
 
     def test_tags_never_double_up(self):
         marked = self.mark("2021년 통계로는 400% 올랐어")
-        self.assertEqual(marked, "2021년 [출처 필요] 통계 [출처 필요]로는 400% [출처 필요] 올랐어")
+        self.assertEqual(marked, "2021년 [출처 필요] 통계로는 [출처 필요] 400% [출처 필요] 올랐어")
         self.assertNotIn("[출처 필요] [출처 필요]", marked)
 
     def test_existing_tag_is_not_repeated(self):
@@ -330,17 +330,28 @@ class CitationSkipsNonStatNumbersTest(unittest.TestCase):
         out = self.mark("2학년 3반 신입, 심박수가 400% 올라간다는 연구가 2019년 논문에 있어")
         self.assertEqual(out.count("[출처 필요]"), 3)
         self.assertIn("400% [출처 필요]", out)
-        self.assertIn("연구 [출처 필요]", out)
+        self.assertIn("연구가 [출처 필요]", out)
         self.assertIn("2019년 [출처 필요]", out)
 
     def test_rank_claim_is_tagged(self):
-        self.assertEqual(self.mark("전교 1등인 나"), "전교 1등 [출처 필요]인 나")
+        self.assertEqual(self.mark("전교 1등인 나"), "전교 1등인 [출처 필요] 나")
 
     def test_unit_followed_by_particle(self):
-        self.assertEqual(self.mark("흡수율이 130%야"), "흡수율이 130% [출처 필요]야")
+        self.assertEqual(self.mark("흡수율이 130%야"), "흡수율이 130%야 [출처 필요]")
 
     def test_bare_number(self):
         self.assertEqual(self.mark("답은 42."), "답은 42 [출처 필요].")
+
+    def test_tag_never_splits_a_word(self):
+        # 실제 모델 대사에서 나온 꼴들. 딱지는 낱말이 끝난 자리에 붙는다
+        self.assertEqual(self.mark("독서량이 987톤에 달해서"), "독서량이 987톤에 [출처 필요] 달해서")
+        self.assertEqual(self.mark("그건 통계적으로…… 표본이"), "그건 통계적으로 [출처 필요]…… 표본이")
+        self.assertEqual(self.mark("우리 연구소 말이야"), "우리 연구소 [출처 필요] 말이야")
+        self.assertEqual(self.mark("2021년통계야"), "2021년통계야 [출처 필요]")
+
+    def test_numbered_article_is_not_split_or_tagged(self):
+        self.assertEqual(self.mark("조례 제5,100조에 있거든"), "조례 제5,100조에 있거든")
+        self.assertEqual(self.mark("조례 제5조에 있거든"), "조례 제5조에 있거든")
 
 
 if __name__ == "__main__":

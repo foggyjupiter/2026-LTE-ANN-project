@@ -21,15 +21,17 @@ CITATION_LIMIT = 3               # 한 답에 붙이는 딱지의 최대 개수
 DROPOUT_RATE = 0.3
 MIN_QUOTE_LENGTH = 2             # 이보다 짧은 입력에는 형광펜을 칠하지 않는다
 
-# 숫자 덩어리(소수점과 천 단위 쉼표 포함)와 바로 뒤에 붙은 단위는 한 덩어리로 잡는다.
-# 그래서 "130%"나 "2021년"에는 딱지가 단위 뒤에 한 번만 붙는다.
+# 숫자 덩어리(소수점과 천 단위 쉼표 포함)와 "연구" 같은 낱말을 찾는다.
+# 딱지는 찾은 자리가 든 낱말이 끝나는 곳에 붙인다. 낱말 가운데를 가르지 않으려는 것이다.
+# ("987톤에" 뒤, "통계적으로" 뒤, "1등인" 뒤. 문장 부호와 공백 앞에서 낱말이 끝난다.)
 # 학년, 반처럼 번호를 매기는 말이 붙은 숫자("2학년", "3반")는 통계가 아니므로 건너뛴다.
-_CITATION_UNITS = "%|퍼센트|년|배|명|위|등|개|번|점|원|회|건|편|권|살|초|분|시간|쌍"
+# 숫자는 통째로만 잡는다. 그러지 않으면 "5,100조"에서 "5"만 떼어 잡게 된다.
 _CITATION_SKIP = "학년|반|학기|교시|층|호|월|일|시(?!간)|조|차|단계|번째|대"
 _CITATION_RE = re.compile(
-    r"(?<![\d.,])\d+(?:[.,]\d+)*(?!\d)(?!" + _CITATION_SKIP + r")(?:" + _CITATION_UNITS + r")?"
+    r"(?<![\d.,])(?=(\d+(?:[.,]\d+)*))\1(?!\d)(?!" + _CITATION_SKIP + r")"
     r"|연구|논문|교칙|통계"
 )
+_WORD_CHAR_RE = re.compile(r"[0-9A-Za-z%가-힣ㄱ-ㅎㅏ-ㅣ]")
 
 
 def _text(value) -> str:
@@ -158,10 +160,13 @@ class CitationNeeded(Gimmick):
         pieces: list[str] = []
         cursor = 0
         tagged = 0
-        for match in _CITATION_RE.finditer(say):
-            if tagged >= CITATION_LIMIT:
+        while tagged < CITATION_LIMIT:
+            match = _CITATION_RE.search(say, cursor)
+            if match is None:
                 break
             end = match.end()
+            while end < len(say) and _WORD_CHAR_RE.match(say[end]):
+                end += 1   # 낱말이 끝나는 곳까지 간다
             pieces.append(say[cursor:end])
             cursor = end
             tagged += 1
