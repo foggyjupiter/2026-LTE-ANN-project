@@ -120,10 +120,15 @@ python -m sogaeting.server --fake
 
 ```
 python3 -m sogaeting.server --fake --port 8101 &
-RENPY_SDK=/path/to/renpy-8.5.3-sdk renpy/dev/rtest.sh smoke 8101
+RENPY_SDK=/path/to/renpy-8.5.3-sdk renpy/dev/rtest.sh sg_flow 8101
 ```
 
-- 첫째 값은 시험 이름이다. `renpy/game/` 의 `.rpy` 파일에 `testcase <이름>:` 으로 적은 것이다. `smoke` 는 `game/smoke_test.rpy` 에 있다.
+- 첫째 값은 시험 이름이다. `renpy/game/` 의 `.rpy` 파일에 `testcase <이름>:` 으로 적은 것이다.
+  - `sg_flow`: 고르기부터 엔딩까지 한 판 (`game/sg_tests.rpy`)
+  - `sg_gimmicks`: 캐릭터 여섯 명의 고유 장치 표시 (`game/sg_tests.rpy`)
+  - `sg_fx_demo`: 연출 15가지. 서버가 필요 없다 (`game/sg_fx_demo.rpy`)
+  - `sg_tests.rpy` 의 나머지 시험(기다림, 오류, 긴 글 등)은 일부러 느리거나 고장 난 임시 서버가 있어야 해서 이 한 줄로는 돌릴 수 없다.
+- 시험이 300초 안에 끝나지 않으면 끈다. `RTEST_TIMEOUT=600` 처럼 바꿀 수 있다.
 - 둘째 값은 서버 포트다. 안 적으면 8000이다. 서버는 따로 켜 두어야 한다.
 - `RENPY_SDK` 는 꼭 적는다. 이 도구는 SDK를 알아서 찾지 않는다.
 - 캡처는 `renpy/tests/screenshots/` 에 생긴다. 시험 안에서 `screenshot "이름.png"` 로 찍은 것이다.
@@ -133,4 +138,12 @@ RENPY_SDK=/path/to/renpy-8.5.3-sdk renpy/dev/rtest.sh smoke 8101
 
 ```
 xvfb-run -a python3 run_booth.py --fake --windowed
+```
+
+## 연출 그림 다시 만들기
+
+연출이 쓰는 그림(`game/images/fx/*.png`)은 `dev/make_fx_art.py` 가 만든다. Pillow가 있어야 한다.
+
+```
+python3 renpy/dev/make_fx_art.py renpy/game/images/fx
 ```

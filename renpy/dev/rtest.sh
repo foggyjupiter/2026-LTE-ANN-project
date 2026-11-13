@@ -13,4 +13,5 @@ port="${2:-8000}"
 save="$(mktemp -d)"
 export SOGAETING_URL="http://127.0.0.1:${port}"
 cd "$sdk"
-exec xvfb-run -a -s "-screen 0 1280x720x24" ./renpy.sh --savedir "$save" "$here" test "$name" --overwrite-screenshots
+# 시험이 실패하면 게임 창이 꺼지지 않고 남는다. RTEST_TIMEOUT초(기본 300)가 지나면 끈다.
+exec timeout "${RTEST_TIMEOUT:-300}" xvfb-run -a -s "-screen 0 1280x720x24" ./renpy.sh --savedir "$save" "$here" test "$name" --overwrite-screenshots
