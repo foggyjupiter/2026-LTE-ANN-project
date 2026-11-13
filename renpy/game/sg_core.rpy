@@ -33,6 +33,7 @@ default sg_score_shown = 50       # 게이지에 보이는 호감도
 default sg_finale = False         # 마지막 답까지 왔는가
 
 default sg_inner_log = [ ]        # 턴마다, 속마음이 가려져 나왔으면 그 가려진 글(서버가 준 그대로), 아니면 None
+default sg_score_log = [ ]        # 턴마다(등장이 0번) 그 턴을 반영한 호감도. 엔딩의 호감도 곡선에 쓴다
 default sg_masked_seen = False    # 가려진 속마음이 한 번이라도 나왔는가
 
 default sg_typed = ""             # 직접 말하기 입력칸의 글
@@ -271,17 +272,31 @@ init -5 python:
                 out.append("{image=sg_cite}")
         return "".join(out)
 
+    def sg_text_height(markup, style, width, size):
+        """글을 width 폭에 size 크기로 썼을 때의 높이."""
+        try:
+            return Text(markup, style=style, size=size).size(width, 4096)[1]
+        except Exception:
+            # 크기를 잴 수 없으면 글자 수로 어림한다
+            return (len(markup) * size / float(width) + 1) * size * 1.5
+
     def sg_fit_size(markup, style, width, height, sizes):
         """글이 width x height 안에 들어가는 가장 큰 글자 크기를 sizes에서 고른다."""
         for size in sizes:
-            try:
-                h = Text(markup, style=style, size=size).size(width, 4096)[1]
-            except Exception:
-                # 크기를 잴 수 없으면 글자 수로 어림한다
-                h = (len(markup) * size / float(width) + 1) * size * 1.5
-            if h <= height:
+            if sg_text_height(markup, style, width, size) <= height:
                 return size
         return sizes[-1]
+
+    def sg_curve_height(epilogue, epilogue_size, best, best_size):
+        """엔딩 카드에 넣을 호감도 곡선의 높이. 후일담과 명대사가 길수록 낮춰서 아래 단추와 부딪치지 않게 한다.
+
+        기준: 후일담 두 줄(62)과 명대사 한 줄(29)일 때 곡선 아래에 217픽셀까지 쓸 수 있었다(단추까지 20 남김).
+        후일담은 112, 명대사는 78을 넘지 않게 글자 크기를 고르므로 가장 길 때도 98픽셀은 남는다.
+        """
+        epi_h = sg_text_height(epilogue, "sg_end_text", 660, epilogue_size) if epilogue else 0
+        best_h = sg_text_height(best, "sg_end_text", 620, best_size) if best else 0
+        extra = max(0, epi_h - 62) + max(0, best_h - 29)
+        return int(max(80, min(170, 197 - extra)))
 
     def sg_popup_look(popup, wild):
         """호감도 변화 글자의 색과 크기."""
@@ -413,6 +428,14 @@ init -5 python:
             "best_size": sg_fit_size(best, "sg_end_text", 620, 78, (18, 16, 14, 12)),
             "early": bool(ending.get("early")),
             "reveal": reveal,
+            "curve": [ max(0, min(100, sg_int(s, 50))) for s in store.sg_score_log ],
+            "total": max(1, sg_int(store.sg_total_turns, 10)),
+            # 곡선 그림은 엔딩마다 한 번만 만든다. 화면이 다시 그려질 때마다 만들면 그리는 움직임이 처음부터 되풀이된다
+            "curve_box": sg_curve([ max(0, min(100, sg_int(s, 50))) for s in store.sg_score_log ],
+                                  max(1, sg_int(store.sg_total_turns, 10)),
+                                  height=sg_curve_height(
+                                      epilogue, sg_fit_size(epilogue, "sg_end_text", 660, 112, (20, 18, 16, 14)),
+                                      best, sg_fit_size(best, "sg_end_text", 620, 78, (18, 16, 14, 12)))),
         }
 
     ############################################################################
@@ -480,6 +503,7 @@ init -5 python:
         store.sg_score_shown = 50
         store.sg_finale = False
         store.sg_inner_log = [ ]
+        store.sg_score_log = [ ]
         store.sg_masked_seen = False
         store.sg_typed = ""
         sg_show_bg(sg_default_bg)
@@ -496,6 +520,8 @@ init -5 python:
         store.sg_finale = view["finale"]
         store.sg_typed = ""
         store.sg_inner_log.append(view["masked_raw"])
+        # 턴 번호 자리에 넣는다. 다시 시도해서 같은 턴이 두 번 와도 점이 늘지 않는다
+        store.sg_score_log = store.sg_score_log[:view["turn"]] + [ view["score"] ]
         if view["masked"]:
             store.sg_masked_seen = True
         # 점수는 대사가 나올 때 움직인다. 대사부터 시작하는 턴이면 지금 움직인다

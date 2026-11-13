@@ -1238,6 +1238,14 @@ screen sg_ending(e):
                         background sg_panel(14, "#fff0f6", 1.0, "#ffc3d9", 1.0)
                         text e["best"] style "sg_end_text" size e["best_size"] xsize 620
 
+            ## 호감도 곡선: 등장부터 마지막 답까지. 점이 둘 이상일 때만
+            if e.get("curve_box") is not None:
+                vbox:
+                    spacing 2
+
+                    text ("호감도 곡선 (등장부터 답 %d까지)" % (len(e["curve"]) - 1)) style "sg_end_label"
+                    add e["curve_box"]
+
     ## 카드 위의 리본 머리띠
     frame:
         xpos 874
