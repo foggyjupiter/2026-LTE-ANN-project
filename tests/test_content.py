@@ -8,14 +8,14 @@ from unittest import mock
 
 from sogaeting import content
 
-CHARACTER_IDS = ["anna", "boxhyun", "giulhee", "haru", "oeun", "relu"]
+CHARACTER_IDS = ["astra", "gemma", "haiku", "mistral", "nova", "sora"]
 GIMMICKS = {
-    "giulhee": "exploding_popup",
-    "oeun": "quote_memory",
-    "anna": "dropout",
-    "relu": "relu",
-    "haru": "citation_needed",
-    "boxhyun": "blackbox",
+    "astra": "exploding_popup",
+    "gemma": "quote_memory",
+    "sora": "dropout",
+    "nova": "relu",
+    "mistral": "citation_needed",
+    "haiku": "blackbox",
 }
 BANDS = ("low", "mid", "high")
 
@@ -40,6 +40,12 @@ def _banned_hits(text, banned):
 
 
 class CharacterTest(unittest.TestCase):
+    def test_old_ids_still_load(self):
+        # 2026-11-13에 id를 새 이름으로 바꿨다. 예전 id로 불러도 새 캐릭터가 나온다
+        for old, new in content.OLD_IDS.items():
+            self.assertEqual(content.load_character(old)["id"], new)
+        self.assertEqual(set(content.OLD_IDS.values()), set(CHARACTER_IDS))
+
     def test_list_character_ids(self):
         self.assertEqual(content.list_character_ids(), CHARACTER_IDS)
 
@@ -78,7 +84,7 @@ class CharacterTest(unittest.TestCase):
             content.load_character("../seeds")
 
     def test_missing_key_raises_value_error(self):
-        whole = content.load_character("giulhee")
+        whole = content.load_character("astra")
         broken = {k: v for k, v in whole.items() if k != "never"}
         shallow = dict(whole, by_affinity={"low": "가", "mid": "나"})
         with tempfile.TemporaryDirectory() as tmp:
@@ -111,8 +117,8 @@ class CharacterTest(unittest.TestCase):
                 bands = [example["band"] for example in c["examples"]]
                 self.assertIn("mid", bands)
                 self.assertIn("high", bands)
-                # relu(노바)는 호감도가 내려가지 않아서 낮음 예시가 없다
-                self.assertEqual("low" in bands, char_id != "relu")
+                # nova(노바)는 호감도가 내려가지 않아서 낮음 예시가 없다
+                self.assertEqual("low" in bands, char_id != "nova")
 
     def test_reactions_shape(self):
         for char_id in CHARACTER_IDS:
@@ -136,12 +142,12 @@ class CharacterTest(unittest.TestCase):
 
     def test_relu_has_a_rule_for_risky_talk_and_scores_by_what_was_said(self):
         # 실전 시험에서 relu가 입맞춤 이야기를 반기고 점수를 올렸다. 그런 말은 받아 주지 않아야 한다
-        relu = content.load_character("relu")
-        risky = [r for r in relu["reactions"] if "입맞춤" in r["when"]]
+        nova = content.load_character("nova")
+        risky = [r for r in nova["reactions"] if "입맞춤" in r["when"]]
         self.assertEqual(len(risky), 1)
         self.assertIn("입에 올리지 않는다", risky[0]["then"])
         self.assertIn("delta는 음수", risky[0]["then"])
-        self.assertTrue(any("delta를 -1이나 -2로 낸다" in s for s in relu["speech"]))
+        self.assertTrue(any("delta를 -1이나 -2로 낸다" in s for s in nova["speech"]))
 
     def test_color_and_fallback_format(self):
         for char_id in CHARACTER_IDS:

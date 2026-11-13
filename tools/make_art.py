@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """소개팅 그림(캐릭터 표정, 배경)을 한꺼번에 뽑는 스크립트.
 
-    python tools/make_art.py --only giulhee     한 명만 먼저 뽑아 본다
+    python tools/make_art.py --only astra     한 명만 먼저 뽑아 본다
     python tools/make_art.py                    없는 그림을 전부 뽑는다
     python tools/make_art.py --dry-run          요청문만 보여 주고 끝낸다
 
@@ -485,8 +485,8 @@ def all_keys(cfg):
 def parse_only(tokens, cfg):
     """--only에 적은 이름을 그림 열쇠 목록으로 바꾼다.
 
-    giulhee          그 캐릭터의 표정 여섯 장
-    giulhee:smile    그 한 장
+    astra          그 캐릭터의 표정 여섯 장
+    astra:smile    그 한 장
     sprites          캐릭터 전부
     bg               배경 전부
     library, bg:library   그 배경 한 장
@@ -534,12 +534,21 @@ def raw_stem(out, key):
     return pathlib.Path(out) / "raw" / left / right
 
 
+# 2026-11-13에 바꾸기 전의 캐릭터 id. 받은 그림을 예전 폴더 이름(art/raw/giulhee)에 넣어도 찾는다
+OLD_IDS = {"astra": "giulhee", "gemma": "oeun", "sora": "anna", "nova": "relu", "mistral": "haru", "haiku": "boxhyun"}
+
+
 def find_raw(out, key):
     stem = raw_stem(out, key)
-    for ext in RAW_EXTS:
-        path = stem.with_name(f"{stem.name}.{ext}")
-        if path.is_file():
-            return path
+    stems = [stem]
+    left, right = split_key(key)
+    if left in OLD_IDS:
+        stems.append(pathlib.Path(out) / "raw" / OLD_IDS[left] / right)
+    for candidate in stems:
+        for ext in RAW_EXTS:
+            path = candidate.with_name(f"{candidate.name}.{ext}")
+            if path.is_file():
+                return path
     return None
 
 
@@ -617,7 +626,7 @@ def gpt_doc(cfg):
         "2. 같은 대화에서 표정 요청문을 하나씩 보낸다. 기준 그림이 대화에 없으면 첨부한다. "
         "얼굴, 머리, 옷이 기준 그림과 같은지 본다.",
         "3. 받은 그림을 `art/raw/<캐릭터 id>/<표정>.png` 로 저장한다. "
-        "예: `art/raw/giulhee/neutral.png`. jpg와 webp도 된다.",
+        "예: `art/raw/astra/neutral.png`. jpg와 webp도 된다.",
         "4. `python tools/make_art.py --recut` 을 실행한다. 배경을 지우고(이미 투명이면 그대로 두고) "
         f"{cfg['sprite']['width']}x{cfg['sprite']['height']} 크기로 맞춰 `art/sprites/` 에 넣는다. "
         "`art/preview.png` 도 다시 만든다.",
@@ -987,7 +996,7 @@ def _save_raw(out, key, data):
 def build_parser():
     parser = argparse.ArgumentParser(
         description="소개팅 그림(캐릭터 표정, 배경)을 한꺼번에 뽑는다.",
-        epilog="예: python tools/make_art.py --only giulhee",
+        epilog="예: python tools/make_art.py --only astra",
     )
     parser.add_argument("--only", nargs="*", default=[], metavar="이름",
                         help="이것만 만든다. 캐릭터, 캐릭터:표정, sprites, bg, 배경 이름")

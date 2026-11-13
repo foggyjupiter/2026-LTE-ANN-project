@@ -28,6 +28,10 @@ def _read_json(path: pathlib.Path):
         return json.load(f)
 
 
+# 2026-11-13에 바꾸기 전의 캐릭터 id. 예전 주소(?character=haru)나 예전 결과를 읽는 쪽에서 불러도 되게 받아 준다
+OLD_IDS = {"giulhee": "astra", "oeun": "gemma", "anna": "sora", "relu": "nova", "haru": "mistral", "boxhyun": "haiku"}
+
+
 def list_character_ids() -> list[str]:
     """캐릭터 식별자 목록. 파일 이름 순서다."""
     return sorted(p.stem for p in (DATA_DIR / "characters").glob("*.json"))
@@ -36,6 +40,7 @@ def list_character_ids() -> list[str]:
 def load_character(char_id: str) -> dict:
     """캐릭터 한 명의 설정. 없는 식별자면 KeyError, 필수 키가 빠졌으면 ValueError."""
     # 목록에 있는 이름만 받는다. 주소로 넘어온 값이 다른 폴더의 파일을 가리키지 못하게 한다.
+    char_id = OLD_IDS.get(char_id, char_id) if isinstance(char_id, str) else char_id
     if char_id not in list_character_ids():
         raise KeyError(char_id)
     data = _read_json(DATA_DIR / "characters" / f"{char_id}.json")

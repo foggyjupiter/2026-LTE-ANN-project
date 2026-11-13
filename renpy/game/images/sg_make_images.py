@@ -207,17 +207,17 @@ MOUTH_Y = 458
 # hair는 머리 위쪽 색, hair2는 머리끝 색이다. 끝으로 갈수록 hair2로 번진다.
 CHARACTERS = {
     # 아스트라: 짙은 남색에서 끝이 보랏빛으로 번지는 포니테일, 금빛 눈, 남색 트레이닝 재킷
-    "giulhee": {"hair": "#283070", "hair2": "#8452D8", "eye": "#E0A81E", "top": "#3443B0"},
+    "astra": {"hair": "#283070", "hair2": "#8452D8", "eye": "#E0A81E", "top": "#3443B0"},
     # 젬마: 연한 푸른빛 양 갈래 땋은 머리, 남색 블레이저
-    "oeun": {"hair": "#AAB6F4", "hair2": "#8C9BEA", "eye": "#5562C4", "top": "#2B3A7A"},
+    "gemma": {"hair": "#AAB6F4", "hair2": "#8C9BEA", "eye": "#5562C4", "top": "#2B3A7A"},
     # 소라: 구름처럼 부스스한 흰 단발에 끝이 옅은 하늘색, 하늘색 눈, 크림색 카디건
-    "anna": {"hair": "#FBFDFF", "hair2": "#BFE4FA", "eye": "#3F9FE0", "top": "#F2E3BD"},
+    "sora": {"hair": "#FBFDFF", "hair2": "#BFE4FA", "eye": "#3F9FE0", "top": "#F2E3BD"},
     # 노바: 밝은 황금빛 사이드 포니테일, 주황빛 눈, 주황색 후드 집업
-    "relu": {"hair": "#FFD84D", "hair2": "#F5A623", "eye": "#E2681C", "top": "#F58A1F"},
+    "nova": {"hair": "#FFD84D", "hair2": "#F5A623", "eye": "#E2681C", "top": "#F58A1F"},
     # 미스트랄: 위는 황금빛, 끝은 붉은 주황으로 번지는 긴 웨이브 머리, 남색 블레이저
-    "haru": {"hair": "#FFC93C", "hair2": "#EE5A2A", "eye": "#D9541E", "top": "#2B3A7A"},
+    "mistral": {"hair": "#FFC93C", "hair2": "#EE5A2A", "eye": "#D9541E", "top": "#2B3A7A"},
     # 하이쿠: 먹빛 단발, 회색 눈, 크림색 후드
-    "boxhyun": {"hair": "#26262B", "hair2": "#15151A", "eye": "#7B8590", "top": "#F1E8D6"},
+    "haiku": {"hair": "#26262B", "hair2": "#15151A", "eye": "#7B8590", "top": "#F1E8D6"},
 }
 
 HAIR_EDGE = (196, 220, 238, 255)   # 흰 머리(소라)가 밝은 배경에 묻히지 않게 두르는 옅은 테두리
@@ -225,12 +225,12 @@ HAIR_EDGE = (196, 220, 238, 255)   # 흰 머리(소라)가 밝은 배경에 묻�
 
 def back_hair(c, who, hair, hair2):
     """얼굴 뒤에 깔리는 머리. 캐릭터마다 실루엣이 다르다."""
-    if who == "giulhee":      # 끝으로 갈수록 부푸는 높은 포니테일
+    if who == "astra":      # 끝으로 갈수록 부푸는 높은 포니테일
         for i, (x, y, r) in enumerate([(520, 150, 62), (596, 190, 78), (652, 270, 92),
                                        (676, 380, 98), (660, 500, 86), (628, 600, 60)]):
             c.ellipse(x, y, r, r, mix(hair, hair2, i / 5))
         c.ellipse(CX, 330, 186, 200, hair)
-    elif who == "oeun":       # 단정한 양 갈래 땋은 머리
+    elif who == "gemma":       # 단정한 양 갈래 땋은 머리
         c.ellipse(CX, 330, 182, 196, hair)
         for side in (-1, 1):
             for i in range(9):
@@ -238,7 +238,7 @@ def back_hair(c, who, hair, hair2):
                 c.ellipse(x, 470 + i * 52, 40, 34, hair if i % 2 else hair2)
             c.rect(CX + side * 176 - 30, 915, CX + side * 176 + 30, 937, rgba("#F5C518"), radius=8)
             c.ellipse(CX + side * 176, 962, 24, 30, hair)
-    elif who == "anna":       # 구름처럼 부스스한 흰 단발, 끝은 옅은 하늘색
+    elif who == "sora":       # 구름처럼 부스스한 흰 단발, 끝은 옅은 하늘색
         puffs = [(300, 162, 46), (384, 142, 48), (468, 162, 46),
                  (204, 250, 46), (182, 340, 48), (186, 440, 50), (218, 532, 48),
                  (564, 250, 46), (586, 340, 48), (582, 440, 50), (550, 532, 48)]
@@ -251,20 +251,20 @@ def back_hair(c, who, hair, hair2):
         c.rect(190, 474, 578, 560, hair2, radius=60)
         for x, y, r in puffs:
             c.ellipse(x, y, r, r, mix(hair, hair2, min(1.0, max(0.0, (y - 300) / 230.0))))
-    elif who == "relu":       # 옆으로 묶은 포니테일
+    elif who == "nova":       # 옆으로 묶은 포니테일
         for i, (x, y, r) in enumerate([(196, 250, 60), (140, 300, 74), (104, 392, 78),
                                        (104, 500, 66), (128, 590, 46)]):
             c.ellipse(x, y, r, r, mix(hair, hair2, i / 4))
         c.ellipse(CX, 330, 184, 198, hair)
         c.ellipse(214, 262, 20, 20, WHITE)
-    elif who == "haru":       # 위는 황금빛, 끝은 붉은 주황으로 번지는 길고 굽이치는 머리
+    elif who == "mistral":       # 위는 황금빛, 끝은 붉은 주황으로 번지는 길고 굽이치는 머리
         c.ellipse(CX, 330, 190, 200, hair)
         c.gradient(200, 330, 568, 960, hair, hair2)
         for side in (-1, 1):
             for i in range(10):
                 x = CX + side * (196 + (26 if i % 2 else 0))
                 c.ellipse(x, 380 + i * 66, 62, 56, mix(hair, hair2, i / 9))
-    else:                     # boxhyun(하이쿠): 먹빛 단발
+    else:                     # haiku(하이쿠): 먹빛 단발
         c.ellipse(CX, 340, 192, 200, hair)
         c.rect(196, 340, 572, 590, hair, radius=60)
 
@@ -272,51 +272,51 @@ def back_hair(c, who, hair, hair2):
 def clothes(c, who, top):
     """목과 윗옷."""
     c.rect(338, 490, 430, 640, SKIN_SHADE, radius=30)
-    if who == "relu":         # 후드
+    if who == "nova":         # 후드
         c.ellipse(CX, 640, 230, 110, mix(top, INK, 0.12))
-    if who == "boxhyun":
+    if who == "haiku":
         c.ellipse(CX, 640, 226, 104, mix(top, INK, 0.12))
-    width = 300 if who == "haru" else 280   # 미스트랄은 재킷을 망토처럼 어깨에 걸쳤다
+    width = 300 if who == "mistral" else 280   # 미스트랄은 재킷을 망토처럼 어깨에 걸쳤다
     c.rect(CX - width, 610, CX + width, 1300, top, radius=150)
-    if who in ("giulhee", "oeun", "haru", "anna"):   # 셔츠 깃과 리본
+    if who in ("astra", "gemma", "mistral", "sora"):   # 셔츠 깃과 리본
         c.polygon([(CX - 86, 612), (CX + 86, 612), (CX, 800)], SHIRT)
         c.polygon([(CX - 30, 690), (CX + 30, 690), (CX + 18, 722), (CX - 18, 722)], RIBBON)
         c.polygon([(CX - 64, 676), (CX - 12, 700), (CX - 64, 736)], RIBBON)
         c.polygon([(CX + 64, 676), (CX + 12, 700), (CX + 64, 736)], RIBBON)
     c.rect(CX - 46, 560, CX + 46, 640, SKIN_SHADE, radius=30)
     # 교표: 선으로 이어진 동그라미 세 개
-    if who in ("oeun", "haru"):
+    if who in ("gemma", "mistral"):
         ex, ey = 520, 800
         c.line([(ex - 18, ey + 12), (ex, ey - 16), (ex + 18, ey + 12), (ex - 18, ey + 12)],
                rgba("#F5C518"), 3)
         for dx, dy in ((-18, 12), (0, -16), (18, 12)):
             c.ellipse(ex + dx, ey + dy, 8, 8, rgba("#F5C518"))
-    if who == "giulhee":      # 트레이닝 재킷의 흰 줄
+    if who == "astra":      # 트레이닝 재킷의 흰 줄
         for side in (-1, 1):
             c.line([(CX + side * 236, 700), (CX + side * 262, 1152)], WHITE, 14)
         c.line([(CX, 800), (CX, 1152)], mix(top, INK, 0.25), 6)
-    elif who == "oeun":       # 끝까지 채운 단추, 수첩과 붙임쪽지
+    elif who == "gemma":       # 끝까지 채운 단추, 수첩과 붙임쪽지
         for y in (850, 940, 1030):
             c.ellipse(CX, y, 11, 11, rgba("#C9CEDF"))
         c.rect(520, 930, 690, 1152, rgba("#F4F1E8"), radius=10)
         for i, color in enumerate(("#F5C518", "#F29A2E", "#F5C518")):
             c.rect(676, 950 + i * 50, 716, 980 + i * 50, rgba(color), radius=4)
-    elif who == "anna":       # 단추 하나가 빠진 카디건
+    elif who == "sora":       # 단추 하나가 빠진 카디건
         c.line([(CX, 800), (CX, 1152)], mix(top, INK, 0.18), 5)
         for y in (860, 1040):
             c.ellipse(CX + 26, y, 12, 12, rgba("#B58A5A"))
         c.ellipse(CX + 26, 950, 12, 12, None, outline=rgba("#B58A5A"), width=3)
-    elif who == "relu":       # 집업 후드
+    elif who == "nova":       # 집업 후드
         c.line([(CX, 650), (CX, 1152)], WHITE, 8)
         for side in (-1, 1):
             c.line([(CX + side * 40, 660), (CX + side * 48, 800)], WHITE, 7)
             c.ellipse(CX + side * 48, 806, 9, 9, WHITE)
-    elif who == "haru":       # 별 하나가 그려진 완장, 두꺼운 책
+    elif who == "mistral":       # 별 하나가 그려진 완장, 두꺼운 책
         c.rect(596, 800, 690, 880, WHITE, radius=8)
         c.star(643, 840, 26, rgba("#F5C518"), points=5, inner=0.45)
         c.rect(96, 930, 290, 1152, rgba("#8A3A22"), radius=10)
         c.rect(112, 950, 274, 962, rgba("#F5C518"), radius=4)
-    else:                     # boxhyun(하이쿠): 테라코타 주황 끈, 목에 건 헤드폰
+    else:                     # haiku(하이쿠): 테라코타 주황 끈, 목에 건 헤드폰
         teal = rgba("#D97757")
         for side in (-1, 1):
             c.line([(CX + side * 44, 650), (CX + side * 52, 830)], teal, 8)
@@ -329,37 +329,37 @@ def clothes(c, who, top):
 
 def front_hair(c, who, hair, hair2):
     """얼굴 위로 내려오는 앞머리와 장식."""
-    if who == "anna":         # 흰 앞머리 밑에 옅은 테두리
+    if who == "sora":         # 흰 앞머리 밑에 옅은 테두리
         c.chord(CX, 323, 173, 153, 180, 360, HAIR_EDGE)
     c.chord(CX, 318, 170, 150, 180, 360, hair)                    # 이마를 덮는 윗머리
-    if who == "boxhyun":      # 한쪽 눈을 덮는 긴 앞머리
+    if who == "haiku":      # 한쪽 눈을 덮는 긴 앞머리
         c.polygon([(214, 300), (400, 250), (372, 330), (348, 432), (300, 452), (226, 420)], hair)
         c.polygon([(400, 262), (556, 300), (548, 352), (470, 330)], hair)
         c.star(292, 318, 24, rgba("#F08A3C"))                      # 주황 별빛 핀
         c.star(292, 318, 11, rgba("#FFE3B8"))
         return
     fringe = {
-        "giulhee": [(226, 300), (300, 372), (330, 300), (384, 352), (430, 300), (486, 364), (544, 300)],
-        "oeun": [(222, 300), (222, 356), (300, 340), (384, 348), (468, 340), (546, 356), (546, 300)],
-        "anna": [(220, 300), (262, 384), (318, 318), (372, 366), (428, 320), (500, 380), (548, 300)],
-        "relu": [(224, 300), (286, 360), (350, 316), (420, 362), (474, 318), (520, 356), (546, 300)],
-        "haru": [(222, 300), (250, 390), (330, 320), (384, 300), (440, 320), (518, 390), (546, 300)],
+        "astra": [(226, 300), (300, 372), (330, 300), (384, 352), (430, 300), (486, 364), (544, 300)],
+        "gemma": [(222, 300), (222, 356), (300, 340), (384, 348), (468, 340), (546, 356), (546, 300)],
+        "sora": [(220, 300), (262, 384), (318, 318), (372, 366), (428, 320), (500, 380), (548, 300)],
+        "nova": [(224, 300), (286, 360), (350, 316), (420, 362), (474, 318), (520, 356), (546, 300)],
+        "mistral": [(222, 300), (250, 390), (330, 320), (384, 300), (440, 320), (518, 390), (546, 300)],
     }[who]
-    if who == "anna":
+    if who == "sora":
         c.polygon([(x, y + 5) for x, y in fringe], HAIR_EDGE)
     c.polygon(fringe, hair)
-    if who == "giulhee":      # 별 모양 머리핀
+    if who == "astra":      # 별 모양 머리핀
         c.star(258, 286, 26, rgba("#FFD84D"), points=5, inner=0.45)
         c.star(258, 286, 12, rgba("#FFF6C8"), points=5, inner=0.45)
-    elif who == "oeun":       # 보석 모양 머리핀
+    elif who == "gemma":       # 보석 모양 머리핀
         c.polygon([(252, 276), (272, 296), (252, 324), (232, 296)], rgba("#56CDEE"))
         c.polygon([(252, 276), (272, 296), (232, 296)], rgba("#C8F3FF"))
         c.line([(242, 296), (252, 324), (262, 296)], rgba("#C8F3FF"), 2)
-    elif who == "anna":       # 구름 모양 머리핀
+    elif who == "sora":       # 구름 모양 머리핀
         for x, y, r in ((488, 308, 12), (508, 300, 15), (528, 308, 12)):
             c.ellipse(x, y, r, r, rgba("#7CCBF2"))
         c.rect(484, 306, 532, 320, rgba("#7CCBF2"), radius=7)
-    elif who == "relu":       # 볼에 붙인 반창고
+    elif who == "nova":       # 볼에 붙인 반창고
         c.rect(452, 420, 508, 446, rgba("#F3D2A8"), radius=8)
         c.line([(472, 426), (472, 440)], rgba("#D9B080"), 3)
         c.line([(488, 426), (488, 440)], rgba("#D9B080"), 3)
@@ -367,7 +367,7 @@ def front_hair(c, who, hair, hair2):
 
 def draw_face(c, who, face, eye_color):
     """표정. 눈, 눈썹, 입, 홍조, 그늘."""
-    sides = (1,) if who == "boxhyun" else (-1, 1)   # 하이쿠는 한쪽 눈이 머리에 가려 있다
+    sides = (1,) if who == "haiku" else (-1, 1)   # 하이쿠는 한쪽 눈이 머리에 가려 있다
     dull = face == "dark"
     look = 10 if face in ("blush", "pout") else 0   # 눈길을 옆으로 돌린다
 
@@ -376,24 +376,24 @@ def draw_face(c, who, face, eye_color):
 
     for side in sides:
         x = CX + side * EYE_DX
-        if face == "smile" and who != "boxhyun":
+        if face == "smile" and who != "haiku":
             c.arc(x, EYE_Y + 8, 24, 22, 200, 340, INK, 7)          # 감은 눈
             continue
-        if who == "anna" and face in ("neutral", "blush", "pout"):
+        if who == "sora" and face in ("neutral", "blush", "pout"):
             c.chord(x + look, EYE_Y, 20, 20, 0, 180, INK)          # 졸린 반쯤 감긴 눈
             c.line([(x - 22 + look, EYE_Y), (x + 22 + look, EYE_Y)], INK, 6)
             continue
         if face == "shock":
-            big = 1.15 if who == "boxhyun" else 1.5
+            big = 1.15 if who == "haiku" else 1.5
             c.ellipse(x, EYE_Y, 20 * big, 24 * big, WHITE, outline=INK, width=5)
             c.ellipse(x, EYE_Y, 8, 9, INK)
             continue
-        ry = 16 if (who == "boxhyun" or face == "pout") else 24
+        ry = 16 if (who == "haiku" or face == "pout") else 24
         c.ellipse(x + look, EYE_Y, 18, ry, eye_color)
         c.ellipse(x + look, EYE_Y + 2, 10, ry * 0.6, INK)
         if dull:
             c.ellipse(x + look, EYE_Y, 18, ry, (60, 60, 80, 170))  # 빛이 없는 눈
-        elif who == "haru":
+        elif who == "mistral":
             c.star(x + look + 2, EYE_Y - 2, 12, rgba("#FFF3B0"))   # 별 모양 반짝임
         else:
             c.ellipse(x + look + 6, EYE_Y - ry * 0.4, 5, 5, WHITE)
@@ -406,37 +406,37 @@ def draw_face(c, who, face, eye_color):
             c.line([(x - side * 26, brow_y - 8), (x + side * 22, brow_y + 12)], INK, 6)
         elif face == "shock":
             c.line([(x - 22, brow_y - 22), (x + 22, brow_y - 22)], INK, 6)
-        elif who == "giulhee" or (who == "haru" and face in ("neutral", "smile")):
+        elif who == "astra" or (who == "mistral" and face in ("neutral", "smile")):
             c.line([(x - side * 24, brow_y + 10), (x + side * 24, brow_y - 8)], INK, 6)  # 치켜든 눈썹
         elif face == "blush":
             c.line([(x - side * 24, brow_y - 6), (x + side * 22, brow_y + 6)], INK, 5)
         else:
             c.line([(x - 22, brow_y), (x + 22, brow_y)], INK, 5)
 
-    if who == "oeun":         # 동그란 안경
+    if who == "gemma":         # 동그란 안경
         for side in (-1, 1):
             c.ellipse(CX + side * EYE_DX, EYE_Y, 46, 46, (255, 255, 255, 40), outline=INK, width=5)
         c.line([(CX - 16, EYE_Y), (CX + 16, EYE_Y)], INK, 5)
 
     # 홍조
-    if face in ("blush", "pout") or (who == "giulhee" and face == "smile"):
-        alpha = 90 if (who == "boxhyun" or face == "pout") else 150
+    if face in ("blush", "pout") or (who == "astra" and face == "smile"):
+        alpha = 90 if (who == "haiku" or face == "pout") else 150
         size = 30 if face == "blush" else 26
         for side in (-1, 1):
             c.ellipse(CX + side * 98, 432, size, size * 0.55, BLUSH[:3] + (alpha,))
 
     # 입
-    if who == "boxhyun":
+    if who == "haiku":
         if face == "smile":
             c.arc(CX, MOUTH_Y - 12, 22, 14, 30, 150, INK, 5)
         elif face == "shock":
             c.ellipse(CX, MOUTH_Y, 8, 8, INK)
         else:
             c.line([(CX - 16, MOUTH_Y), (CX + 16, MOUTH_Y)], INK, 5)
-    elif face == "smile" or (who == "relu" and face in ("neutral", "dark")):
+    elif face == "smile" or (who == "nova" and face in ("neutral", "dark")):
         c.chord(CX, MOUTH_Y - 16, 36, 34, 0, 180, rgba("#B8324A"))   # 활짝 웃는 입
     elif face == "neutral":
-        if who == "haru":
+        if who == "mistral":
             c.line([(CX - 20, MOUTH_Y + 2), (CX + 6, MOUTH_Y + 2), (CX + 26, MOUTH_Y - 10)], INK, 5)
         else:
             c.arc(CX, MOUTH_Y - 14, 22, 16, 30, 150, INK, 5)
@@ -450,7 +450,7 @@ def draw_face(c, who, face, eye_color):
     else:                     # dark: 가늘게 굳은 웃음
         c.arc(CX, MOUTH_Y - 20, 34, 22, 30, 150, INK, 5)
 
-    if who == "relu" and face == "dark":   # 관자놀이의 땀방울
+    if who == "nova" and face == "dark":   # 관자놀이의 땀방울
         c.ellipse(520, 318, 9, 13, rgba("#9AD4F5"))
 
 

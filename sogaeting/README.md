@@ -28,7 +28,7 @@ python3 -m sogaeting.server          # 실제 모델
 
 터미널에 찍힌 주소(기본 `http://127.0.0.1:8000/`)를 크롬으로 열고 전체 화면(F11)으로 둔다. 끌 때는 터미널에서 Ctrl-C를 누른다.
 
-- 캐릭터를 바로 지정해서 열기: `http://127.0.0.1:8000/?character=haru`
+- 캐릭터를 바로 지정해서 열기: `http://127.0.0.1:8000/?character=mistral`
 - 다른 포트: `--port 8080`
 - 판이 끝난 뒤 결과 읽기(3단계용): `GET /api/session/<판 id>/result`, 또는 `results/` 폴더의 파일
 - 3분 동안 입력이 없으면 판을 버리고 첫 화면으로 돌아간다.
@@ -41,10 +41,10 @@ python3 -m sogaeting.server          # 실제 모델
 ```
 python3 -m sogaeting --fake          # 키 없이 가짜 모델로 시연
 python3 -m sogaeting                 # 실제 모델. 캐릭터를 번호로 고른다
-python3 -m sogaeting haru            # 캐릭터를 바로 지정
+python3 -m sogaeting mistral            # 캐릭터를 바로 지정
 ```
 
-캐릭터 id: `giulhee`(아스트라), `oeun`(젬마), `anna`(소라), `relu`(노바), `haru`(미스트랄), `boxhyun`(하이쿠)
+캐릭터 id: `astra`(아스트라), `gemma`(젬마), `sora`(소라), `nova`(노바), `mistral`(미스트랄), `haiku`(하이쿠)
 
 진행 중에 1, 2, 3을 치면 선택지를 고르고, 다른 글을 치면 그대로 입력된다. `q`를 치면 곧장 엔딩으로 간다.
 
@@ -74,7 +74,7 @@ Gemini 키만 있어도 된다. 호출 순서와 모델명은 `sogaeting/llm.py`
 
 ```
 python3 -m sogaeting.playtest               # 여섯 캐릭터를 정해 둔 각본으로 한 판씩
-python3 -m sogaeting.playtest --only haru   # 한 명만
+python3 -m sogaeting.playtest --only mistral   # 한 명만
 python3 -m sogaeting.playtest --fake        # 키 없이
 ```
 

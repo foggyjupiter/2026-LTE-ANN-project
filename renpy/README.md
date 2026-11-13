@@ -80,7 +80,7 @@ art/sprites/<캐릭터 id>/<표정>.png   ->   renpy/game/images/sprites/<캐릭
 art/bg/<장소>.jpg                   ->   renpy/game/images/bg/<장소>.jpg
 ```
 
-- 캐릭터 id: `giulhee`, `oeun`, `anna`, `relu`, `haru`, `boxhyun`. 표정: `neutral`, `smile`, `blush`, `pout`, `shock`, `dark`.
+- 캐릭터 id: `astra`, `gemma`, `sora`, `nova`, `mistral`, `haiku`. 표정: `neutral`, `smile`, `blush`, `pout`, `shock`, `dark`.
 - `art/raw/`, `art/preview.png`, `art/manifest.json` 은 복사하지 않는다.
 - 그림을 고칠 때는 `art/` 쪽을 고친다. `renpy/game/images/` 쪽을 직접 고치면 다음에 켤 때 `art/` 의 그림으로 덮인다.
 - `art/` 에서 지운 그림은 게임 폴더에서 저절로 지워지지 않는다. 직접 지운다.

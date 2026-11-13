@@ -13,7 +13,7 @@ default sg_stage_demo_line = "무대 연기 시험장"
 default sg_stage_demo_i = 0
 
 ## 시험장에 세울 캐릭터와 배경.
-define sg_stage_demo_char = "giulhee"
+define sg_stage_demo_char = "astra"
 define sg_stage_demo_bg = "cafeteria"
 define sg_stage_demo_place = "급식실"
 

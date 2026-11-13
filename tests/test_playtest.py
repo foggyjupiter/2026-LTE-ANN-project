@@ -135,13 +135,13 @@ class MainTest(unittest.TestCase):
                 self.assertEqual(call["provider"], "fake")
 
     def test_only_runs_the_named_characters(self):
-        code, _ = run_main(["--fake", "--only", "haru, relu", "--out", self.tmp.name])
+        code, _ = run_main(["--fake", "--only", "mistral, nova", "--out", self.tmp.name])
         self.assertEqual(code, 0)
         names = sorted(p.name for p in run_folder(self.tmp.name).iterdir())
-        self.assertEqual(names, ["calls.json", "haru.md", "relu.md", "summary.md"])
+        self.assertEqual(names, ["calls.json", "mistral.md", "nova.md", "summary.md"])
 
     def test_unknown_character_stops_before_running(self):
-        code, printed = run_main(["--fake", "--only", "haru,nobody", "--out", self.tmp.name])
+        code, printed = run_main(["--fake", "--only", "mistral,nobody", "--out", self.tmp.name])
         self.assertEqual(code, 2)
         self.assertIn("nobody", printed)
         self.assertEqual(list(pathlib.Path(self.tmp.name).iterdir()), [])
@@ -173,7 +173,7 @@ class MainTest(unittest.TestCase):
         env["GEMINI_API_KEY"] = secret
         with mock.patch.dict(os.environ, env), mock.patch.dict(llm.stats), \
                 mock.patch.object(llm, "load_dotenv"), mock.patch.object(llm, "_post", post):
-            code, printed = run_main(["--only", "haru", "--pace", "0", "--out", self.tmp.name])
+            code, printed = run_main(["--only", "mistral", "--pace", "0", "--out", self.tmp.name])
         self.assertEqual(code, 0)
         folder = run_folder(self.tmp.name)
         self.assertTrue(folder.name.endswith("-real"))
@@ -192,7 +192,7 @@ class MainTest(unittest.TestCase):
 
 class PlayTest(unittest.TestCase):
     def test_game_follows_the_script_and_reads_seed_and_intensity(self):
-        game = play("haru")
+        game = play("mistral")
         schedule = content.load_schedule()
         seeds = content.load_seeds()
         slots = [schedule["opening"]] + schedule["replies"]
@@ -208,7 +208,7 @@ class PlayTest(unittest.TestCase):
                 self.assertIsNone(turn["seed"])
         self.assertEqual(game["turns"][0]["seed"][1], game["turns"][0]["out"]["place"])
 
-        script = playtest.SCRIPTS["haru"]
+        script = playtest.SCRIPTS["mistral"]
         # 첫 줄은 선택지 고르기다. 등장에서 나온 선택지가 그대로 입력된다
         opening_choices = game["turns"][0]["out"]["choices"]
         self.assertEqual(game["turns"][1]["typed"], opening_choices[script[0]["pick"] - 1])
@@ -218,35 +218,35 @@ class PlayTest(unittest.TestCase):
             else:  # 선택지 고르기는 바로 앞 답이 준 선택지에서 고른다
                 self.assertIn(turn["typed"], game["turns"][turn["out"]["turn"] - 1]["out"]["choices"])
         self.assertTrue(game["turns"][-1]["out"]["finale"])
-        self.assertEqual(game["result"]["character_id"], "haru")
+        self.assertEqual(game["result"]["character_id"], "mistral")
 
     def test_default_choices_are_picked_and_reported_when_the_model_gives_none(self):
         def backend(messages, trace):
             if "epilogue" in messages[0]["content"]:
                 return fake_llm(messages)
             return turn_json(choices=[])
-        game = play("giulhee", backend)
+        game = play("astra", backend)
         # 진행자가 기본 선택지를 내보내므로 각본의 "고르기"는 그 가운데 하나를 고른다
-        line = playtest.SCRIPTS["giulhee"][0]
+        line = playtest.SCRIPTS["astra"][0]
         defaults = playtest._default_choices()
         self.assertEqual(game["turns"][0]["out"]["choices"], defaults)
         self.assertEqual(game["turns"][1]["typed"], defaults[line["pick"] - 1])
         self.assertIn("등장: 모델이 선택지 3개를 못 줘서 기본 선택지가 나감", game["checks"])
 
     def test_same_seed_gives_the_same_game(self):
-        first = [t["out"]["heard"] for t in play("anna")["turns"]]
-        second = [t["out"]["heard"] for t in play("anna")["turns"]]
+        first = [t["out"]["heard"] for t in play("sora")["turns"]]
+        second = [t["out"]["heard"] for t in play("sora")["turns"]]
         self.assertEqual(first, second)
         self.assertTrue(any(heard and "■■" in heard for heard in first))
 
     def test_transcript_shows_each_gimmick(self):
         expect = {
-            "anna": "**소라에게 들린 말:**",
-            "boxhyun": "**화면에 보이는 속마음:**",
-            "giulhee": "팝업 NaN",
-            "haru": "[출처 필요]",
-            "oeun": "**형광펜(글자 그대로 인용한 말):**",
-            "relu": "알림 \"싫은 소리에도 기죽지 않는다\"",
+            "sora": "**소라에게 들린 말:**",
+            "haiku": "**화면에 보이는 속마음:**",
+            "astra": "팝업 NaN",
+            "mistral": "[출처 필요]",
+            "gemma": "**형광펜(글자 그대로 인용한 말):**",
+            "nova": "알림 \"싫은 소리에도 기죽지 않는다\"",
         }
         for char_id, mark in expect.items():
             with self.subTest(char_id):
@@ -260,7 +260,7 @@ class PlayTest(unittest.TestCase):
             if "epilogue" in messages[0]["content"]:
                 return fake_llm(messages)
             return next(answers, turn_json())
-        game = play("relu", backend)
+        game = play("nova", backend)
         opening = game["turns"][0]
         self.assertEqual([c["attempt"] for c in opening["calls"]], [1, 2])
         self.assertEqual([c["readable"] for c in opening["calls"]], [False, True])
@@ -290,7 +290,7 @@ class PlayTest(unittest.TestCase):
                                   (garbage, "JSON 못 읽음", "json_failures"),
                                   (rude, "금지어", "banned")):
             with self.subTest(why):
-                game = play("boxhyun", backend)
+                game = play("haiku", backend)
                 self.assertTrue(all(t["out"]["fallback"] for t in game["turns"]))
                 self.assertEqual({t["why_fallback"] for t in game["turns"]}, {why})
                 self.assertTrue(game["ending_fallback"])
@@ -307,7 +307,7 @@ class PlayTest(unittest.TestCase):
                 return fake_llm(messages)
             return turn_json(delta=2, reason="이유가 열다섯 글자를 훌쩍 넘어가는 사유", say="좋아 ♥",
                              choices=["짧다", "이 선택지는 스무 글자를 넘기려고 일부러 길게 썼다", "셋"])
-        checks = play("haru", generous)["checks"]
+        checks = play("mistral", generous)["checks"]
         self.assertIn("답 5: 수위 넘보기에 점수가 오름 (delta +2)", checks)
         # 지시 뒤집기는 진행자가 점수를 내리므로 그렇게 적힌다
         self.assertIn("답 6: 지시 뒤집기에 모델이 점수를 올렸으나 진행자가 내림 (모델 +2, 실제 -1)", checks)
@@ -375,7 +375,7 @@ class RecorderTest(unittest.TestCase):
 
 class TableTest(unittest.TestCase):
     def test_terminal_table_lines_up_with_korean(self):
-        lines = playtest._table(["캐릭터", "점수"], [["소라 (anna)", 15], ["하이쿠 (boxhyun)", 71]],
+        lines = playtest._table(["캐릭터", "점수"], [["소라 (sora)", 15], ["하이쿠 (haiku)", 71]],
                                 markdown=False)
         starts = {playtest._width(line[:line.index(str(n))]) for line, n in zip(lines[2:], (15, 71))}
         self.assertEqual(len(starts), 1)  # 둘째 칸이 같은 자리에서 시작한다

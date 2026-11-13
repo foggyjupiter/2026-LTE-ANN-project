@@ -21,7 +21,7 @@ from sogaeting.fake_llm import fake_llm
 
 TOTAL = len(content.load_schedule()["replies"])  # 한 판의 답 수
 
-ORDER = ["giulhee", "oeun", "anna", "relu", "haru", "boxhyun"]
+ORDER = ["astra", "gemma", "sora", "nova", "mistral", "haiku"]
 CARD_KEYS = {"id", "name", "attribute", "motif", "color"}
 RESULT_KEYS = {
     "character_id", "character_name", "affinity", "band", "ending_title", "nickname", "finished_at",
@@ -100,7 +100,7 @@ class ServerCase(unittest.TestCase):
     def post(self, path, body=None, **kw):
         return self.request("POST", path, body, **kw)
 
-    def new_game(self, character="haru", **kw):
+    def new_game(self, character="mistral", **kw):
         """판을 만들고 (판 id, 응답 내용)을 돌려준다."""
         res = self.post("/api/session", {"character": character}, **kw)
         self.assertEqual(res.status, 201, res.raw)
@@ -178,8 +178,8 @@ class CharactersTest(ServerCase):
 
     def test_intro_is_first_sentence_of_attitude(self):
         cards = {card["id"]: card for card in self.get("/api/characters").json()}
-        self.assertEqual(cards["haru"]["intro"], "연애도 소개팅도 다 해 본 척 여유를 부린다.")
-        self.assertEqual(cards["relu"]["intro"], "밝고 적극적으로 다가온다.")
+        self.assertEqual(cards["mistral"]["intro"], "연애도 소개팅도 다 해 본 척 여유를 부린다.")
+        self.assertEqual(cards["nova"]["intro"], "밝고 적극적으로 다가온다.")
         for char_id, card in cards.items():
             attitude = content.load_character(char_id)["attitude"]
             self.assertTrue(attitude.startswith(card["intro"]), char_id)
@@ -197,7 +197,7 @@ class CharactersTest(ServerCase):
 
 class FullGameTest(ServerCase):
     def test_full_game_saves_exactly_one_result(self):
-        res = self.post("/api/session", {"character": "haru"})
+        res = self.post("/api/session", {"character": "mistral"})
         self.assertEqual(res.status, 201)
         created = res.json()
         self.assertEqual(set(created), {"session_id", "character", "turn"})
@@ -205,7 +205,7 @@ class FullGameTest(ServerCase):
         self.assertIsInstance(sid, str)
         self.assertTrue(sid)
         self.assertEqual(set(created["character"]), CARD_KEYS)
-        self.assertEqual(created["character"]["id"], "haru")
+        self.assertEqual(created["character"]["id"], "mistral")
         self.assertEqual(created["character"]["name"], "미스트랄")
         self.assertEqual(created["character"]["motif"], "들키면 귀여운 허세")
         opening = created["turn"]
@@ -226,7 +226,7 @@ class FullGameTest(ServerCase):
         finished = res.json()
         self.assertEqual(set(finished), {"ending", "result"})
         self.assertEqual(finished["ending"]["kind"], "ending")
-        self.assertEqual(finished["ending"]["character_id"], "haru")
+        self.assertEqual(finished["ending"]["character_id"], "mistral")
         self.assertFalse(finished["ending"]["early"])
         self.assertEqual(set(finished["result"]), RESULT_KEYS)
         self.assertEqual(finished["result"]["affinity"], finished["ending"]["score"])
@@ -246,7 +246,7 @@ class FullGameTest(ServerCase):
         self.assertEqual(self.result_files(), files)
 
     def test_finish_right_after_start(self):
-        sid, _ = self.new_game("giulhee")
+        sid, _ = self.new_game("astra")
         res = self.post(f"/api/session/{sid}/finish", {})  # 빈 dict를 실어 보내도 된다
         self.assertEqual(res.status, 200, res.raw)
         self.assertTrue(res.json()["ending"]["early"])
@@ -259,8 +259,8 @@ class FullGameTest(ServerCase):
             self.assertEqual(created["turn"]["turn"], 0)
 
     def test_games_do_not_know_each_other(self):
-        first, _ = self.new_game("haru")
-        second, _ = self.new_game("haru")
+        first, _ = self.new_game("mistral")
+        second, _ = self.new_game("mistral")
         self.assertNotEqual(first, second)
         self.assertEqual(self.reply(first).json()["turn"], 1)
         self.assertEqual(self.reply(first).json()["turn"], 2)
@@ -303,8 +303,8 @@ class ErrorTest(ServerCase):
         self.assertEqual(self.get("/api/status").json()["sessions"], 0)
 
     def test_character_missing_or_not_string_is_400(self):
-        for body in ({}, {"character": 3}, {"character": None}, {"character": ["haru"]},
-                     {"text": "haru"}):
+        for body in ({}, {"character": 3}, {"character": None}, {"character": ["mistral"]},
+                     {"text": "mistral"}):
             self.assert_error(self.post("/api/session", body), 400)
 
     def test_unknown_session_is_404(self):
@@ -322,20 +322,20 @@ class ErrorTest(ServerCase):
     def test_text_that_is_a_number_is_400(self):
         sid, _ = self.new_game()
         self.assert_error(self.post(f"/api/session/{sid}/reply", {"text": 7}), 400)
-        for body in ({}, {"text": None}, {"text": ["안녕"]}, {"text": {"a": 1}}, {"character": "haru"}):
+        for body in ({}, {"text": None}, {"text": ["안녕"]}, {"text": {"a": 1}}, {"character": "mistral"}):
             self.assert_error(self.post(f"/api/session/{sid}/reply", body), 400)
         self.assertEqual(self.reply(sid).json()["turn"], 1)
 
     def test_body_that_is_not_json_is_400(self):
         sid, _ = self.new_game()
-        for data in (b"haru", b"", b"{character: haru}", b'{"character": "haru"', b"\xff\xfe\x00"):
+        for data in (b"mistral", b"", b"{character: mistral}", b'{"character": "mistral"', b"\xff\xfe\x00"):
             self.assert_error(self.post("/api/session", data=data), 400)
             self.assert_error(self.post(f"/api/session/{sid}/reply", data=data), 400)
         self.assertEqual(self.get("/api/status").json()["sessions"], 1)
 
     def test_body_that_is_not_an_object_is_400(self):
         sid, _ = self.new_game()
-        for data in (b'["haru"]', b'"haru"', b"3", b"null", b"true"):
+        for data in (b'["mistral"]', b'"mistral"', b"3", b"null", b"true"):
             self.assert_error(self.post("/api/session", data=data), 400)
             self.assert_error(self.post(f"/api/session/{sid}/reply", data=data), 400)
 
@@ -413,7 +413,7 @@ class ErrorTest(ServerCase):
         # 한도를 1바이트 넘기면 거절한다
         self.assert_error(self.post(f"/api/session/{sid}/reply", data=body_of(10 * 1024 + 1)), 400)
         self.assert_error(self.reply(sid, "가" * 5000), 400)  # 15KB
-        self.assert_error(self.post("/api/session", {"character": "haru", "pad": "a" * 20000}), 400)
+        self.assert_error(self.post("/api/session", {"character": "mistral", "pad": "a" * 20000}), 400)
         self.assert_error(self.post(f"/api/session/{sid}/finish", {"pad": "a" * 20000}), 400)
         self.assertEqual(self.result_files(), [])
         # 딱 10KB까지는 받는다. 거절된 요청은 차례를 쓰지 않았다
@@ -428,7 +428,7 @@ class ErrorTest(ServerCase):
         srv = self.start(llm=broken_llm)
         terminal = io.StringIO()
         with contextlib.redirect_stderr(terminal):
-            res = self.post("/api/session", {"character": "haru"}, srv=srv)
+            res = self.post("/api/session", {"character": "mistral"}, srv=srv)
         self.assert_error(res, 500)
         self.assertNotIn("ZeroDivisionError", res.raw.decode("utf-8"))
         self.assertNotIn("비밀스러운", res.raw.decode("utf-8"))
@@ -507,7 +507,7 @@ class StaticTest(ServerCase):
         self.assertEqual(res.raw, (self.web / "app.js").read_bytes())
 
     def test_query_string_is_ignored(self):
-        res = self.get("/?character=haru")
+        res = self.get("/?character=mistral")
         self.assertEqual(res.status, 200)
         self.assertTrue(res.headers["Content-Type"].startswith("text/html"))
         self.assertEqual(res.raw, (self.web / "index.html").read_bytes())
@@ -526,7 +526,7 @@ class StaticTest(ServerCase):
             "style.css": "text/css; charset=utf-8",
             "fx.js": "text/javascript; charset=utf-8",
             "data.json": JSON_TYPE,
-            "assets/characters/haru/smile.png": "image/png",
+            "assets/characters/mistral/smile.png": "image/png",
             "assets/photo.jpg": "image/jpeg",
             "assets/face.svg": "image/svg+xml",
             "fonts/Galmuri14.woff2": "font/woff2",
@@ -569,7 +569,7 @@ class StaticTest(ServerCase):
             self.get("/../server.py"),
             self.get("/api/characters"),
             self.get("/api/status"),
-            self.post("/api/session", {"character": "haru"}),
+            self.post("/api/session", {"character": "mistral"}),
             self.post("/api/session", {"character": "nobody"}),
             self.reply(sid),
             self.reply(sid, ""),
@@ -627,7 +627,7 @@ class KoreanTest(ServerCase):
         self.assertIn("들키면 귀여운 허세".encode("utf-8"), res.raw)
         self.assertNotIn(b"\\u", res.raw)  # \uXXXX 꼴로 바뀌지 않았다
 
-        res = self.post("/api/session", {"character": "haru"})
+        res = self.post("/api/session", {"character": "mistral"})
         self.assertEqual(res.headers["Content-Type"], JSON_TYPE)
         self.assertIn("가짜 모델".encode("utf-8"), res.raw)
         self.assertNotIn(b"\\u", res.raw)
@@ -679,9 +679,9 @@ class LlmChoiceTest(ServerCase):
                 super().__init__(*args, **kwargs)
 
         with mock.patch.object(server, "Session", Spy):
-            self.new_game("relu", srv=self.start(llm=None))
-            self.new_game("anna")
-        self.assertEqual(seen, [(("relu",), {}), (("anna",), {"llm": fake_llm})])
+            self.new_game("nova", srv=self.start(llm=None))
+            self.new_game("sora")
+        self.assertEqual(seen, [(("nova",), {}), (("sora",), {"llm": fake_llm})])
 
 
 class Counting:
@@ -747,8 +747,8 @@ class LockTest(ServerCase):
         srv = self.start(llm=meeting)
         meeting.barrier = threading.Barrier(2, timeout=5)
         results = in_parallel(
-            lambda: self.post("/api/session", {"character": "haru"}, srv=srv),
-            lambda: self.post("/api/session", {"character": "oeun"}, srv=srv),
+            lambda: self.post("/api/session", {"character": "mistral"}, srv=srv),
+            lambda: self.post("/api/session", {"character": "gemma"}, srv=srv),
         )
         self.assertEqual([r.status for r in results], [201, 201])
         self.assertEqual(self.get("/api/status", srv=srv).json()["sessions"], 2)

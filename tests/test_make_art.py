@@ -377,17 +377,17 @@ class Unit(unittest.TestCase):
         self.assertEqual(len(everything), 6 * 6 + 8)
         self.assertEqual(make_art.parse_only([], self.cfg), everything)
         self.assertEqual(
-            make_art.parse_only(["giulhee"], self.cfg), [f"giulhee:{face}" for face in make_art.FACES]
+            make_art.parse_only(["astra"], self.cfg), [f"astra:{face}" for face in make_art.FACES]
         )
         self.assertEqual(
-            make_art.parse_only(["library,anna:smile", "bg:rooftop"], self.cfg),
-            ["anna:smile", "bg:library", "bg:rooftop"],
+            make_art.parse_only(["library,sora:smile", "bg:rooftop"], self.cfg),
+            ["sora:smile", "bg:library", "bg:rooftop"],
         )
         self.assertEqual(len(make_art.parse_only(["bg"], self.cfg)), 8)
         self.assertEqual(len(make_art.parse_only(["sprites"], self.cfg)), 36)
         with self.assertRaises(ValueError) as caught:
             make_art.parse_only(["giulhe"], self.cfg)
-        self.assertIn("giulhee", str(caught.exception))
+        self.assertIn("astra", str(caught.exception))
 
     def test_faces_match_the_engine(self):
         from sogaeting import actor, content
@@ -416,13 +416,13 @@ class Unit(unittest.TestCase):
                 self.assertNotIn(TILDE, prompt)
                 self.assertNotIn(EM_DASH, prompt)
                 self.assertNotIn("{", prompt)
-        smile = make_art.sprite_prompt(self.cfg, "boxhyun", "smile", variant=True)
+        smile = make_art.sprite_prompt(self.cfg, "haiku", "smile", variant=True)
         self.assertIn("deadpan", smile)   # 캐릭터가 따로 정한 표정이 공통 표정보다 먼저다
 
     def test_seed_is_stable(self):
-        self.assertEqual(make_art.seed_for("giulhee"), make_art.seed_for("giulhee"))
-        self.assertNotEqual(make_art.seed_for("giulhee"), make_art.seed_for("anna"))
-        self.assertEqual(make_art.seed_for("giulhee", 3), make_art.seed_for("giulhee") + 3)
+        self.assertEqual(make_art.seed_for("astra"), make_art.seed_for("astra"))
+        self.assertNotEqual(make_art.seed_for("astra"), make_art.seed_for("sora"))
+        self.assertEqual(make_art.seed_for("astra", 3), make_art.seed_for("astra") + 3)
 
     def test_dotenv(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -441,6 +441,20 @@ class Unit(unittest.TestCase):
         self.assertIsNone(re.search(r"AIza[0-9A-Za-z_\-]{20,}", text))
         self.assertNotIn(TILDE, text)
         self.assertNotIn(EM_DASH, text)
+
+
+class OldFolderTest(unittest.TestCase):
+    def test_raw_in_old_folder_is_found(self):
+        # 2026-11-13에 id를 바꿨다. 받은 그림을 예전 폴더(art/raw/giulhee)에 넣어도 찾는다
+        with tempfile.TemporaryDirectory() as tmp:
+            old = pathlib.Path(tmp) / "raw" / "giulhee"
+            old.mkdir(parents=True)
+            (old / "smile.png").write_bytes(b"x")
+            self.assertEqual(make_art.find_raw(tmp, "astra:smile"), old / "smile.png")
+            new = pathlib.Path(tmp) / "raw" / "astra"
+            new.mkdir(parents=True)
+            (new / "smile.png").write_bytes(b"y")
+            self.assertEqual(make_art.find_raw(tmp, "astra:smile"), new / "smile.png")  # 새 폴더가 먼저다
 
 
 class GptDoc(unittest.TestCase):
@@ -528,7 +542,7 @@ class Cutting(unittest.TestCase):
             out = pathlib.Path(tmp) / "out" / "neutral.png"
             image.save(raw)
             cfg = make_art.load_config()
-            self.assertIsNone(make_art.finish_sprite(raw, out, cfg, "giulhee"))
+            self.assertIsNone(make_art.finish_sprite(raw, out, cfg, "astra"))
             with Image.open(out) as done:
                 self.assertEqual(done.size, (cfg["sprite"]["width"], cfg["sprite"]["height"]))
                 center = done.getpixel((done.width // 2, done.height - 10))
@@ -572,7 +586,7 @@ class EndToEnd(unittest.TestCase):
         return code, screen.getvalue()
 
     def test_one_character_and_one_background(self):
-        code, screen = self.run_tool("--only", "giulhee", "library")
+        code, screen = self.run_tool("--only", "astra", "library")
         self.assertEqual(code, 0, screen)
         log = self.api.log
         self.assertEqual(len(log), 7)
@@ -594,8 +608,8 @@ class EndToEnd(unittest.TestCase):
         self.assertEqual((log[6]["fields"]["width"], log[6]["fields"]["height"]), ("1280", "720"))
 
         for face in make_art.FACES:
-            self.assertIsNotNone(make_art.find_raw(self.out, f"giulhee:{face}"))
-            with Image.open(self.out / "sprites" / "giulhee" / f"{face}.png") as sprite:
+            self.assertIsNotNone(make_art.find_raw(self.out, f"astra:{face}"))
+            with Image.open(self.out / "sprites" / "astra" / f"{face}.png") as sprite:
                 self.assertEqual((sprite.mode, sprite.size), ("RGBA", (768, 1152)))
                 self.assertEqual(sprite.getpixel((3, 3))[3], 0)
                 self.assertEqual(sprite.getpixel((384, 1148))[3], 255)
@@ -604,37 +618,37 @@ class EndToEnd(unittest.TestCase):
         self.assertTrue((self.out / "preview.png").is_file())
         manifest = json.loads((self.out / "manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(len(manifest), 7)
-        self.assertEqual(manifest["giulhee:smile"]["model"], make_art.CF_KLEIN)
+        self.assertEqual(manifest["astra:smile"]["model"], make_art.CF_KLEIN)
         self.assertNotIn("good-token", json.dumps(manifest))
         self.assertNotIn("good-token", screen)
 
         # 다시 실행하면 이미 받은 것은 건너뛴다
-        code, screen = self.run_tool("--only", "giulhee", "library")
+        code, screen = self.run_tool("--only", "astra", "library")
         self.assertEqual(code, 0)
         self.assertEqual(len(self.api.log), 7)
         self.assertIn("새로 0장", screen)
 
         # 한 장만 다시 뽑기
-        code, _ = self.run_tool("--only", "giulhee:pout", "--force", "--seed", "5")
+        code, _ = self.run_tool("--only", "astra:pout", "--force", "--seed", "5")
         self.assertEqual(code, 0)
         self.assertEqual(len(self.api.log), 8)
         self.assertEqual(list(self.api.log[7]["files"]), ["input_image_0"])
         self.assertEqual(int(self.api.log[7]["fields"]["seed"]), int(log[0]["fields"]["seed"]) + 5)
 
         # 기준 그림만 다시 뽑으면 예전 표정과 어긋난다고 알려 준다
-        code, screen = self.run_tool("--only", "giulhee:neutral", "--force")
+        code, screen = self.run_tool("--only", "astra:neutral", "--force")
         self.assertEqual(code, 0)
         self.assertEqual(len(self.api.log), 9)
-        self.assertIn("--only giulhee --force", screen)
+        self.assertIn("--only astra --force", screen)
 
     def test_variant_alone_makes_the_base_first(self):
-        code, _ = self.run_tool("--only", "anna:blush")
+        code, _ = self.run_tool("--only", "sora:blush")
         self.assertEqual(code, 0)
         self.assertEqual(len(self.api.log), 2)
         self.assertEqual(self.api.log[0]["files"], {})
         self.assertEqual(list(self.api.log[1]["files"]), ["input_image_0"])
-        self.assertTrue((self.out / "sprites" / "anna" / "neutral.png").is_file())
-        self.assertTrue((self.out / "sprites" / "anna" / "blush.png").is_file())
+        self.assertTrue((self.out / "sprites" / "sora" / "neutral.png").is_file())
+        self.assertTrue((self.out / "sprites" / "sora" / "blush.png").is_file())
 
     def test_rejected_image_is_retried_with_another_seed(self):
         self.api.reject_first = True
@@ -644,7 +658,7 @@ class EndToEnd(unittest.TestCase):
         self.assertEqual(int(second["fields"]["seed"]), int(first["fields"]["seed"]) + 1000)
 
     def test_wrong_token_stops_at_once(self):
-        code, screen = self.run_tool("--only", "giulhee", env={**GOOD_ENV, "CLOUDFLARE_API_TOKEN": "bad"})
+        code, screen = self.run_tool("--only", "astra", env={**GOOD_ENV, "CLOUDFLARE_API_TOKEN": "bad"})
         self.assertEqual(code, 1)
         self.assertEqual(len(self.api.log), 1)
         self.assertIn("CLOUDFLARE_API_TOKEN", screen)
@@ -652,13 +666,13 @@ class EndToEnd(unittest.TestCase):
 
     def test_daily_limit_stops_and_next_run_continues(self):
         self.api.quota_after = 2
-        code, screen = self.run_tool("--only", "relu")
+        code, screen = self.run_tool("--only", "nova")
         self.assertEqual(code, 1)
         self.assertEqual(len(self.api.log), 3)
         self.assertIn("3036", screen)
         self.assertIn("오전 9시", screen)
         self.api.quota_after = None
-        code, _ = self.run_tool("--only", "relu")
+        code, _ = self.run_tool("--only", "nova")
         self.assertEqual(code, 0)
         self.assertEqual(len(self.api.log), 3 + 4)
 
@@ -672,14 +686,14 @@ class EndToEnd(unittest.TestCase):
     def test_without_pillow_cloudflare_gets_no_reference(self):
         # 참고 그림을 512보다 작게 줄일 수 없으면 큰 그림을 보내지 않고 글만 보낸다
         with mock.patch.object(make_art, "Image", None):
-            code, screen = self.run_tool("--only", "anna:neutral", "anna:smile")
+            code, screen = self.run_tool("--only", "sora:neutral", "sora:smile")
         self.assertEqual(code, 0, screen)
         self.assertEqual([entry["files"] for entry in self.api.log], [{}, {}])
         self.assertIn("Expression:", self.api.log[1]["fields"]["prompt"])
         self.assertIn("Pillow", screen)
 
     def test_schnell_sends_json_without_reference(self):
-        code, screen = self.run_tool("--only", "haru:neutral", "haru:smile", "--backend", "schnell")
+        code, screen = self.run_tool("--only", "mistral:neutral", "mistral:smile", "--backend", "schnell")
         self.assertEqual(code, 0, screen)
         self.assertEqual(len(self.api.log), 2)
         for entry in self.api.log:
@@ -693,7 +707,7 @@ class EndToEnd(unittest.TestCase):
     def test_schnell_drops_seed_when_the_schema_is_enforced(self):
         # 문서의 예시는 seed를 보내지만 입력 스키마에는 prompt와 steps뿐이다. 거절되면 seed를 뺀다
         self.api.schnell_refuses_seed = True
-        code, screen = self.run_tool("--only", "haru:neutral", "haru:smile", "--backend", "schnell")
+        code, screen = self.run_tool("--only", "mistral:neutral", "mistral:smile", "--backend", "schnell")
         self.assertEqual(code, 0, screen)
         self.assertEqual(
             [set(entry["fields"]) for entry in self.api.log],
@@ -708,7 +722,7 @@ class EndToEnd(unittest.TestCase):
         self.assertEqual(self.api.log, [])
 
     def test_gemini(self):
-        code, screen = self.run_tool("--only", "oeun:neutral", "oeun:dark", "corridor", "--backend", "gemini")
+        code, screen = self.run_tool("--only", "gemma:neutral", "gemma:dark", "corridor", "--backend", "gemini")
         self.assertEqual(code, 0, screen)
         docs = [entry["doc"] for entry in self.api.log]
         self.assertEqual(len(docs), 3)
@@ -723,15 +737,15 @@ class EndToEnd(unittest.TestCase):
             self.assertEqual(doc["response_format"]["mime_type"], "image/jpeg")
             self.assertEqual(doc["response_format"]["image_size"], "1K")
         # 생각 단계의 작은 중간 그림이 아니라 결과 그림을 저장한다 (1K의 2:3은 848x1264)
-        with Image.open(make_art.find_raw(self.out, "oeun:dark")) as raw:
+        with Image.open(make_art.find_raw(self.out, "gemma:dark")) as raw:
             self.assertEqual(raw.size, (848, 1264))
-        with Image.open(self.out / "sprites" / "oeun" / "dark.png") as sprite:
+        with Image.open(self.out / "sprites" / "gemma" / "dark.png") as sprite:
             self.assertEqual(sprite.size, (768, 1152))
         with Image.open(self.out / "bg" / "corridor.jpg") as scene:
             self.assertEqual(scene.size, (1280, 720))
 
     def test_gemini_wrong_key_stops_at_once(self):
-        code, screen = self.run_tool("--only", "oeun", "--backend", "gemini", env={"GEMINI_API_KEY": "bad"})
+        code, screen = self.run_tool("--only", "gemma", "--backend", "gemini", env={"GEMINI_API_KEY": "bad"})
         self.assertEqual(code, 1)
         self.assertEqual(len(self.api.log), 1)
         self.assertIn("GEMINI_API_KEY", screen)
@@ -751,7 +765,7 @@ class EndToEnd(unittest.TestCase):
         self.assertEqual(self.api.log[0]["path"], "/interactions")
 
     def test_no_keys(self):
-        code, screen = self.run_tool("--only", "giulhee", env={})
+        code, screen = self.run_tool("--only", "astra", env={})
         self.assertEqual(code, 2)
         self.assertEqual(self.api.log, [])
         self.assertIn("CLOUDFLARE_API_TOKEN", screen)
@@ -762,13 +776,13 @@ class EndToEnd(unittest.TestCase):
         self.assertIn("모두 44장", screen)
         code, screen = self.run_tool("--list", env={})
         self.assertEqual(code, 0)
-        self.assertIn("giulhee", screen)
+        self.assertIn("astra", screen)
         self.assertEqual(self.api.log, [])
         self.assertFalse(self.out.exists())
 
     def test_recut_uses_saved_images_only(self):
-        self.run_tool("--only", "boxhyun:neutral")
-        sprite = self.out / "sprites" / "boxhyun" / "neutral.png"
+        self.run_tool("--only", "haiku:neutral")
+        sprite = self.out / "sprites" / "haiku" / "neutral.png"
         sprite.unlink()
         (self.out / "preview.png").unlink()
         code, _ = self.run_tool("--recut", env={})

@@ -28,7 +28,7 @@ FORBIDDEN_CHARS = tuple(chr(code) for code in (0x7E, 0x2014, 0x301C, 0xFF5E))
 def sample_character():
     """Task 1의 캐릭터 JSON과 같은 모양. 데이터 파일을 읽지 않고 여기서 직접 만든다."""
     return {
-        "id": "giulhee",
+        "id": "astra",
         "name": "기울희",
         "attribute": "츤데레",
         "motif": {

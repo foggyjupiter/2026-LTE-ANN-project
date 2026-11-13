@@ -27,7 +27,7 @@ MAX_BODY = 10 * 1024         # 요청 본문 한도 (바이트)
 DRAIN_LIMIT = 1024 * 1024    # 한도를 넘긴 본문도 이만큼까지는 읽어서 버린다
 
 # 고르기 화면에 놓는 순서. 여기에 없는 캐릭터는 뒤에 id 순서로 붙는다
-CHARACTER_ORDER = ("giulhee", "oeun", "anna", "relu", "haru", "boxhyun")
+CHARACTER_ORDER = ("astra", "gemma", "sora", "nova", "mistral", "haiku")
 
 JSON_TYPE = "application/json; charset=utf-8"
 CONTENT_TYPES = {

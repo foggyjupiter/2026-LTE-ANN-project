@@ -31,7 +31,7 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 # 설계 문서의 주 모델은 gemini-3.8-flash(유료 키 기준)다. 유료 등급 키로 바꾸거나 과부하가 풀려서
 # 이 모델을 쓰려면 코드를 고치지 말고 .env에 GEMINI_MAIN_MODEL=gemini-3.8-flash 한 줄을 적는다.
 # 그러면 그 모델을 맨 앞에서 먼저 부른다(_providers). 적은 뒤에는
-# `python3 -m sogaeting.playtest --only haru`로 응답 시간을 잰다. flash-lite만큼 빠르지 않으면
+# `python3 -m sogaeting.playtest --only mistral`로 응답 시간을 잰다. flash-lite만큼 빠르지 않으면
 # 그 줄을 다시 지운다. reasoning_effort는 low, medium, high만 되고 minimal은 오류다.
 #
 # 칸 설명

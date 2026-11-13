@@ -189,14 +189,14 @@ class SyncArtTest(TempCase):
         return sorted(p.relative_to(self.images).as_posix() for p in self.images.rglob("*") if p.is_file())
 
     def test_copies_sprites_and_backgrounds_only(self):
-        self.put("sprites/giulhee/neutral.png")
-        self.put("sprites/haru/SMILE.PNG")
+        self.put("sprites/astra/neutral.png")
+        self.put("sprites/mistral/SMILE.PNG")
         self.put("bg/rooftop.jpg")
-        self.put("raw/giulhee/neutral.png")
+        self.put("raw/astra/neutral.png")
         self.put("raw/bg/rooftop.jpg")
         self.put("preview.png")
         self.put("manifest.json")
-        wanted = ["bg/rooftop.jpg", "sprites/giulhee/neutral.png", "sprites/haru/SMILE.PNG"]
+        wanted = ["bg/rooftop.jpg", "sprites/astra/neutral.png", "sprites/mistral/SMILE.PNG"]
         self.assertEqual(sorted(self.sync()), wanted)
         self.assertEqual(self.copied_files(), wanted)
         self.assertEqual((self.images / "bg" / "rooftop.jpg").read_text(encoding="utf-8"), "그림")
@@ -234,7 +234,7 @@ class SyncArtTest(TempCase):
         self.put("bg/rooftop.jpg")
         self.put("bg/notes.txt")
         self.put("bg/.DS_Store")
-        self.put("sprites/giulhee/neutral.png.part")
+        self.put("sprites/astra/neutral.png.part")
         mine = self.images / "bg" / "hand_made.jpg"
         mine.parent.mkdir(parents=True)
         mine.write_text("게임 폴더에만 있는 그림", encoding="utf-8")

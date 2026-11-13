@@ -143,7 +143,7 @@ testsuite sg_gimmicks:
         exit
 
     ## 젬마: 대사 속 인용문에 형광펜
-    testcase oeun:
+    testcase gemma:
         pause until screen "sg_select"
         click "젬마"
         pause until screen "sg_talk"
@@ -154,11 +154,11 @@ testsuite sg_gimmicks:
         pause 0.5
         click id "sg_advance"
         pause 1.8
-        screenshot "gimmick_oeun_highlight.png"
+        screenshot "gimmick_gemma_highlight.png"
         run Jump("sg_select")
 
     ## 소라: 가려진 채 들린 내 말
-    testcase anna:
+    testcase sora:
         pause until screen "sg_select"
         click "소라"
         pause until screen "sg_talk"
@@ -166,16 +166,16 @@ testsuite sg_gimmicks:
         click "좋아, 더 말해줘"
         pause until eval (sg_turn_no == 1)
         pause 0.8
-        screenshot "gimmick_anna_heard.png"
+        screenshot "gimmick_sora_heard.png"
         click id "sg_advance"
         pause 0.5
         click id "sg_advance"
         pause 1.8
-        screenshot "gimmick_anna_say.png"
+        screenshot "gimmick_sora_say.png"
         run Jump("sg_select")
 
     ## 노바: 싫은 소리를 들어도 점수가 내려가지 않는다는 알림
-    testcase relu:
+    testcase nova:
         pause until screen "sg_select"
         click "노바"
         pause until screen "sg_talk"
@@ -189,7 +189,7 @@ testsuite sg_gimmicks:
         run Jump("sg_select")
 
     ## 미스트랄: 출처 딱지
-    testcase haru:
+    testcase mistral:
         pause until screen "sg_select"
         click "미스트랄"
         pause until screen "sg_talk"
@@ -199,48 +199,48 @@ testsuite sg_gimmicks:
         pause 0.5
         click id "sg_advance"
         pause 1.8
-        screenshot "gimmick_haru_cite.png"
+        screenshot "gimmick_mistral_cite.png"
         click id "sg_advance" until id "sg_input"
         click "잘 모르겠는데"
         pause until eval (sg_turn_no == 2)
         pause 0.5
         click id "sg_advance"
         pause 1.8
-        screenshot "gimmick_haru_cite2.png"
+        screenshot "gimmick_mistral_cite2.png"
         run Jump("sg_select")
 
     ## 하이쿠: 가려진 속마음, 도중에 엔딩으로 가기, 엔딩에서 원문 공개, 다시 하기
-    testcase boxhyun:
+    testcase haiku:
         pause until screen "sg_select"
         click "하이쿠"
         pause until screen "sg_talk"
         click id "sg_advance"
         pause 1.6
-        screenshot "gimmick_boxhyun_masked0.png"
+        screenshot "gimmick_haiku_masked0.png"
         click id "sg_advance" until id "sg_input"
         click "좋아, 더 말해줘"
         pause until eval (sg_turn_no == 1)
         pause 0.5
         click id "sg_advance"
         pause 1.8
-        screenshot "gimmick_boxhyun_masked1.png"
+        screenshot "gimmick_haiku_masked1.png"
         click "엔딩 보러 가기"
         pause until screen "sg_confirm"
         pause 0.3
-        screenshot "gimmick_boxhyun_quit_confirm.png"
+        screenshot "gimmick_haiku_quit_confirm.png"
         click "엔딩 보기"
         pause until screen "sg_ending"
         pause 1.2
-        screenshot "gimmick_boxhyun_ending.png"
+        screenshot "gimmick_haiku_ending.png"
         click "가려졌던 속마음 보기"
         pause 0.6
-        screenshot "gimmick_boxhyun_reveal.png"
+        screenshot "gimmick_haiku_reveal.png"
         click "닫기"
         pause 0.3
         click "다시 하기"
         pause until eval (sg_turn_no == 0 and renpy.get_screen("sg_talk") is not None)
         pause 0.8
-        screenshot "gimmick_boxhyun_again.png"
+        screenshot "gimmick_haiku_again.png"
         run Jump("sg_select")
 
 
@@ -464,8 +464,8 @@ testsuite sg_colors:
         python:
             for sg_test_card in sg_cards:
                 sg_test_card["color"] = {
-                    "giulhee": "#4050C8", "oeun": "#8C9BEA", "anna": "#7CCBF2",
-                    "relu": "#F5A623", "haru": "#EE5A2A", "boxhyun": "#D97757",
+                    "astra": "#4050C8", "gemma": "#8C9BEA", "sora": "#7CCBF2",
+                    "nova": "#F5A623", "mistral": "#EE5A2A", "haiku": "#D97757",
                 }.get(sg_test_card["id"], sg_test_card["color"])
             renpy.restart_interaction()
         pause 0.8

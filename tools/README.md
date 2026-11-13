@@ -25,7 +25,7 @@ Gemini 그림 모델(`gemini-nano-banana-2.1`)을 쓰려면 `GEMINI_API_KEY=...`
 ## 실행
 
 ```
-python tools/make_art.py --only giulhee     한 명만 먼저 뽑아 품질을 본다
+python tools/make_art.py --only astra     한 명만 먼저 뽑아 품질을 본다
 python tools/make_art.py                    없는 그림을 전부 뽑는다
 ```
 
@@ -35,8 +35,8 @@ python tools/make_art.py                    없는 그림을 전부 뽑는다
 |---|---|
 | 요청문만 보기 (요청은 안 보냄) | `python tools/make_art.py --dry-run` |
 | 이름과 진행 상황 보기 | `python tools/make_art.py --list` |
-| 한 장만 다시 뽑기 | `python tools/make_art.py --only giulhee:smile --force --seed 2` |
-| 캐릭터 한 명을 통째로 다시 | `python tools/make_art.py --only giulhee --force --seed 2` |
+| 한 장만 다시 뽑기 | `python tools/make_art.py --only astra:smile --force --seed 2` |
+| 캐릭터 한 명을 통째로 다시 | `python tools/make_art.py --only astra --force --seed 2` |
 | 배경만 | `python tools/make_art.py --only bg` |
 | 배경 지우기만 다시 (요청은 안 보냄) | `python tools/make_art.py --recut` |
 
@@ -60,7 +60,7 @@ art/
 캐릭터 그림은 이 스크립트로 뽑지 못했다. Cloudflare의 안전 필터가 캐릭터 요청을 걸렀다(아래 "실제로 돌려 본 결과"). 그래서 캐릭터는 ChatGPT 같은 도구에서 직접 뽑아 넣는다.
 
 1. `docs/art-prompts-gpt.md` 의 요청문을 붙여 넣어 그림을 받는다.
-2. 받은 그림을 `art/raw/<캐릭터 id>/<표정>.png` 로 저장한다. 예: `art/raw/giulhee/neutral.png`
+2. 받은 그림을 `art/raw/<캐릭터 id>/<표정>.png` 로 저장한다. 예: `art/raw/astra/neutral.png`
 3. `python tools/make_art.py --recut` 을 실행한다. 투명 배경 그림은 그대로 두고, 단색 배경 그림은 그 색을 지운 뒤 크기를 맞춰 `art/sprites/` 에 넣는다.
 
 요청문 문서는 `python tools/make_art.py --gpt-doc` 으로 다시 만든다. `tools/art_prompts.json` 을 고쳤으면 꼭 다시 만든다(시험이 검사한다).
