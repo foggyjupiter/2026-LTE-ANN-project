@@ -248,6 +248,27 @@ class CallLlmTest(LlmTestCase):
         self.assertEqual(self.timeouts, [6, 4.0])  # 둘째는 남은 4초만 기다린다
         self.assertEqual(self.clock.slept, [])     # 시간 초과가 난 제공자를 기다리지 않는다
 
+    def test_last_usable_provider_gets_the_rest_of_the_budget(self):
+        # 부스 PC처럼 Gemini 키만 있을 때: 주 모델이 한도(429)로 곧바로 거절하면 예비 모델이 남은 시간을 다 쓴다
+        os.environ.pop("GROQ_API_KEY")
+        def post(p, *a):
+            if p["name"] == FIRST:
+                raise http_error(429)
+            return "답"
+        self.patch_post(post, takes=0.5)
+        self.assertEqual(llm.call_llm([]), "답")
+        self.assertEqual(self.names(), [FIRST, SECOND])
+        self.assertEqual(self.timeouts, [6, llm.TURN_BUDGET_SEC - 0.5])
+
+    def test_provider_with_others_behind_keeps_its_own_timeout(self):
+        self.patch_post(lambda p, *a: "답")
+        llm.call_llm([])
+        self.assertEqual(self.timeouts, [6])
+        llm._blocked_until[FIRST] = 2000.0  # 주 모델이 쉬는 중이면 둘째가 맨 앞이지만 뒤에 Groq가 있다
+        self.timeouts.clear()
+        llm.call_llm([])
+        self.assertEqual(self.timeouts, [llm.PROVIDERS[1]["timeout"]])
+
     def test_waits_for_a_provider_that_is_about_to_be_ready(self):
         # 바로 앞 호출에서 503이 나서 전부 잠깐 쉬는 중이면 대체 대사로 가지 않고 기다렸다 부른다
         for p in llm.PROVIDERS:

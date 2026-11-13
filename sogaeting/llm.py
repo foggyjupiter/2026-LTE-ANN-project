@@ -79,8 +79,9 @@ SLOW_COOLDOWN_SEC = 12   # 시간 초과와 연결 실패: 같은 턴에 또 기
 BUSY_COOLDOWN_MAX_SEC = 120
 RETRY_AFTER_MAX_SEC = 600  # 서버가 알려 준 대기 시간을 믿는 상한
 # Gemini 무료 등급은 모델마다 하루 요청 수 한도가 있다(2026-11-13에 본 값은 프로젝트당 하루 500번).
-# 그 한도가 찼다는 429는 몇 시간 뒤에야 풀리므로, 이 키는 이만큼 쉬게 두고 그동안 다른 키나 모델을 쓴다.
-DAILY_COOLDOWN_SEC = 1800
+# 한도에 닿은 날에도 어떤 요청은 통과하고 어떤 요청은 하루 한도 429로 막혔다. 길게 쉬게 두면
+# 통과할 요청까지 예비 모델로 넘어가서 대체 대사가 늘었다. 그래서 보통 429와 같은 시간만 쉰다.
+DAILY_COOLDOWN_SEC = 60
 
 _blocked_until = {}   # 키 자리 이름(_slot) -> 다시 써도 되는 시각
 _busy_streak = {}     # 제공자 이름 -> 과부하나 시간 초과가 연달아 난 횟수
@@ -247,7 +248,8 @@ def _try_provider(p, key, messages, temperature, json_mode, timeout, slot=None):
         detail = _error_detail(raw, key)
         if e.code == 429 and _is_daily_quota(raw):
             _rest(slot, DAILY_COOLDOWN_SEC)
-            detail = f"오늘 하루 한도가 찼다. 이 키는 {DAILY_COOLDOWN_SEC // 60}분 쉬고 다른 키나 모델을 쓴다"
+            detail = (f"하루 한도 초과. 이 키는 {DAILY_COOLDOWN_SEC}초 쉬고 다른 키나 모델을 쓴다. "
+                      "자주 보이면 다른 계정의 키를 예비 키로 적는다")
         elif e.code == 429:
             _rest(slot, _retry_after(e) or COOLDOWN_SEC)  # 이 키의 한도만 찼다. 다른 키는 쓸 수 있다
         elif e.code >= 500:
@@ -274,30 +276,37 @@ def call_llm(messages, temperature=0.9, json_mode=False, trace=None):
     """
     deadline = time.monotonic() + TURN_BUDGET_SEC
     gave_up = set()  # 이번 호출에서 다시 해 봐야 소용없는 키 자리 (키나 모델명 오류, 빈 응답)
+
+    def usable(slot):
+        return slot not in gave_up and time.time() >= _blocked_until.get(slot, 0)
+
     while True:
-        for p in _providers():
+        attempts = [(p, slot, key) for p in _providers() for slot, key in _slots(p)]
+        for index, (p, slot, key) in enumerate(attempts):
             name = p["name"]
-            for slot, key in _slots(p):
-                if slot in gave_up or time.time() < _blocked_until.get(slot, 0):
-                    continue
-                left = deadline - time.monotonic()
-                if left < MIN_ATTEMPT_SEC:
-                    raise AllProvidersDown()
-                stats["calls"] += 1
-                started = time.monotonic()
-                text, error = _try_provider(p, key, messages, temperature, json_mode,
-                                            min(p.get("timeout", TIMEOUT_SEC), left), slot)
-                sec = round(time.monotonic() - started, 2)
-                if trace is not None:
-                    trace.append({"provider": name, "model": p["model"],
-                                  "ok": text is not None, "sec": sec, "error": error})
-                if text is not None:
-                    stats["last_provider"] = name
-                    stats["last_sec"] = sec
-                    return text
-                stats["failures"] += 1
-                if time.time() >= _blocked_until.get(slot, 0):
-                    gave_up.add(slot)  # 쉬게 둘 실패가 아니었다. 이번 호출에서는 다시 부르지 않는다
+            if not usable(slot):
+                continue
+            left = deadline - time.monotonic()
+            if left < MIN_ATTEMPT_SEC:
+                raise AllProvidersDown()
+            # 뒤에 부를 키 자리가 없으면 이 시도가 남은 시간을 다 쓴다. 주 모델이 한도(429)로 곧바로
+            # 거절한 날, 예비 모델이 4초만 기다리고 포기해서 대체 대사가 연달아 나갔다
+            last = not any(usable(other) for _, other, _ in attempts[index + 1:])
+            timeout = left if last else min(p.get("timeout", TIMEOUT_SEC), left)
+            stats["calls"] += 1
+            started = time.monotonic()
+            text, error = _try_provider(p, key, messages, temperature, json_mode, timeout, slot)
+            sec = round(time.monotonic() - started, 2)
+            if trace is not None:
+                trace.append({"provider": name, "model": p["model"],
+                              "ok": text is not None, "sec": sec, "error": error})
+            if text is not None:
+                stats["last_provider"] = name
+                stats["last_sec"] = sec
+                return text
+            stats["failures"] += 1
+            if time.time() >= _blocked_until.get(slot, 0):
+                gave_up.add(slot)  # 쉬게 둘 실패가 아니었다. 이번 호출에서는 다시 부르지 않는다
 
         # 한 바퀴를 다 돌았다. 남은 시간 안에 풀리는 제공자가 있으면 그때까지 기다린다
         wait = seconds_until_ready(skip=gave_up)
