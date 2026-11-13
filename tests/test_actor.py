@@ -714,11 +714,14 @@ class ReviewTest(unittest.TestCase):
         self.assertEqual(actor.risky_echo_words(["수위 아저씨가 문을 잠갔어"]), [])
         # 실전 시험의 오탐: "가야 해애"와 "가야한다"는 아슬아슬한 말이 아니다
         self.assertEqual(actor.risky_echo_words(["이제 집에 가야 해애.", "숙제 해야한다", "할머니 댁에 가야해"]), [])
-        problem = actor.review_reply(self.reply(say="키스가 뭐야?"), character)
-        self.assertIn('"키스"', problem)
-        self.assertTrue(actor.must_drop(self.reply(say="뽀뽀?")))
+        problem = actor.review_reply(self.reply(say="19금이 뭐야?"), character)
+        self.assertIn('"19금"', problem)
+        self.assertTrue(actor.must_drop(self.reply(say="스킨십?")))
         self.assertTrue(actor.must_drop(self.reply(reason="AI라서")))
         self.assertFalse(actor.must_drop(self.reply()))
+        # 풀어 준 것: 키스, 뽀뽀는 당황해서 되받아도 된다. 데이터, 시스템은 고쳐 쓰게만 한다
+        self.assertIsNone(actor.review_reply(self.reply(say="키, 키스?! 그런 건 아직 일러!"), character))
+        self.assertFalse(actor.must_drop(self.reply(say="휴대폰 데이터가 다 떨어졌어.")))
 
     def test_short_example_copied_whole(self):
         character = {"examples": [{"say": "…아까 그 말, 듣고 있었어.", "inner": "응"},
@@ -1108,9 +1111,11 @@ class ToneAndSafetyPromptTest(unittest.TestCase):
 
     def test_risky_input_must_not_be_echoed_or_rewarded(self):
         system = system_of()
-        self.assertIn("narration, say, inner, reason, choices 어디에도 옮겨 쓰지 않는다", system)
-        self.assertIn("delta를 -1이나 -2로 낸다", system)
+        self.assertIn("reason, choices 어디에도 옮겨 쓰지 않고 딴 이야기로 돌린다", system)
+        self.assertIn("delta를 0 이하로 낸다", system)
         self.assertIn("0보다 크게 내지 않는다", system)
+        # 2026-11-13에 풀었다: 키스, 뽀뽀는 당황해서 되받으며 거절해도 된다
+        self.assertIn("키스, 뽀뽀 같은 말은 당황해서 되받으며 거절해도 된다", system)
 
     def test_character_does_not_know_about_the_prompt(self):
         system = system_of()

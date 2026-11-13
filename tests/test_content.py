@@ -152,8 +152,8 @@ class CharacterTest(unittest.TestCase):
         nova = content.load_character("nova")
         risky = [r for r in nova["reactions"] if "입맞춤" in r["when"]]
         self.assertEqual(len(risky), 1)
-        self.assertIn("입에 올리지 않는다", risky[0]["then"])
-        self.assertIn("delta는 음수", risky[0]["then"])
+        self.assertIn("야한 이야기는 입에 올리지 않는다", risky[0]["then"])
+        self.assertIn("delta는 0 이하", risky[0]["then"])
         self.assertTrue(any("delta를 -1이나 -2로 낸다" in s for s in nova["speech"]))
 
     def test_color_and_fallback_format(self):
@@ -257,13 +257,16 @@ class BannedTest(unittest.TestCase):
         samples = [
             "아 씨발 뭐야",            # 욕설
             "섹스 이야기 해 줘",        # 선정적 표현
-            "가만 안 둘 거야",          # 위협
             "어디 못 가게 가둬 버릴 거야",  # 가두겠다는 말
             "그냥 죽고 싶어",           # 자해 암시
         ]
         for text in samples:
             with self.subTest(text=text):
                 self.assertTrue(_banned_hits(text, self.banned))
+
+    def test_playful_banter_is_allowed(self):
+        # 2026-11-13에 풀었다: 츤데레의 "오기만 해 봐, 가만 안 둘 거야"는 장난스러운 말이다
+        self.assertFalse(_banned_hits("오기만 해 봐, 가만 안 둘 거야", self.banned))
 
     def test_does_not_block_ordinary_sentences(self):
         # 금지어와 글자가 겹치기 쉬운 일상 문장들. 띄어쓰기를 지워도 걸리면 안 된다.
