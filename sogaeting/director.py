@@ -165,7 +165,11 @@ class Session:
         intensity = slot["intensity"]
         finale = (not opening) and self.turn == self.total_turns
         seed_kind = slot.get("seed")
-        seed = self._pick_seed(seed_kind)
+        # 한 판의 마지막 사건은 손잡기나 기대기 같은 순간의 계기가 되는 사건(event_hints)에서 고른다
+        last_event = (seed_kind == "event" and not opening
+                      and not any(r.get("seed") == "event" for r in self.schedule["replies"][self.turn:]))
+        seed = self._pick_seed(seed_kind, close=last_event)
+        seed_hint = (self.seeds.get("event_hints") or {}).get(seed, "") if seed_kind == "event" else ""
         fx_allowed = list(self.fx["light"])
         if intensity > 2:
             fx_allowed += self.fx["heavy"]
@@ -183,17 +187,19 @@ class Session:
             extra="" if opening else self.gimmick.extra_instruction(list(self.past_inputs)),
             place=self._place,
             events_so_far=tuple(self._events),
+            seed_hint=seed_hint,
         )
         fx_names = set(self.fx["light"]) | set(self.fx["heavy"])
         event_seed = seed if seed_kind == "event" else None
         used, tomorrow = actor._used_phrases(self.history)
         wishes = actor._recent_wishes(self.history)  # 앞 답들이 속마음에 흘린 바람 (이번 답의 +2를 가른다)
+        stuck_wish = wishes[0] if wishes and actor._wish_streak(self.history) >= 2 else ""
         previous = actor._previous_lines(self.history)
         reply = actor.ask_turn(self.llm, messages, fx_names,
                                review=lambda r: actor.review_reply(r, self.character, banned=self.banned,
                                                                    event_seed=event_seed, used_phrases=used,
                                                                    tomorrow=tomorrow, finale=finale,
-                                                                   previous=previous))
+                                                                   previous=previous, stuck_wish=stuck_wish))
 
         # 모델이 답을 못 줬거나, 금지어가 걸리거나, 고쳐 쓰게 했는데도 캐릭터가 모르는 말이
         # 남았으면 대체 대사로 바꾼다
@@ -311,8 +317,11 @@ class Session:
             "place": seed if opening and seed_kind == "entrance" else None,
         }
 
-    def _pick_seed(self, kind):
-        """아직 안 쓴 씨앗 가운데 하나를 뽑는다. 종류가 없거나 다 썼으면 None."""
+    def _pick_seed(self, kind, close=False):
+        """아직 안 쓴 씨앗 가운데 하나를 뽑는다. 종류가 없거나 다 썼으면 None.
+
+        close가 참이면 사건 가운데 가까워지는 순간의 계기가 되는 것(event_hints에 있는 것)을 먼저 고른다.
+        """
         if not kind:
             return None
         pool = [s for s in self.seeds.get(kind, []) if s not in self._used_seeds]
@@ -324,6 +333,9 @@ class Session:
         if kind == "event" and self._place:
             suitable = [s for s in pool if s not in fits or self._place in fits[s]]
             pool = suitable or pool
+        if kind == "event" and close:
+            hints = self.seeds.get("event_hints") or {}
+            pool = [s for s in pool if s in hints] or pool
         seed = self.rng.choice(pool)
         self._used_seeds.add(seed)
         return seed

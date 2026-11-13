@@ -416,6 +416,12 @@ class BuildTurnMessagesTest(unittest.TestCase):
         self.assertIn("사건은 캐릭터의 버릇을 거쳐서 일어난다", system)
         self.assertNotIn("등장 씨앗", system)
 
+    def test_event_seed_with_closeness_hint(self):
+        system = system_of(seed="천둥 번개", seed_kind="event", seed_hint="깜짝 놀라 손을 잡는")
+        self.assertIn("이 사건은 깜짝 놀라 손을 잡는 순간의 계기가 될 수 있다", system)
+        self.assertIn("그 이상(입맞춤 같은 것)으로는 가지 않는다", system)
+        self.assertNotIn("순간의 계기가 될 수 있다", system_of(seed="정전", seed_kind="event"))
+
     def test_entrance_seed(self):
         system = system_of(seed="옥상", seed_kind="entrance", opening=True)
         self.assertIn('등장 씨앗: "옥상"', system)
@@ -922,6 +928,12 @@ class VarietyTest(unittest.TestCase):
         self.assertTrue(actor.looks_like_fallback(copied))
         self.assertIn("대체 대사 모양", actor.review_reply(copied, sample_character()))
         self.assertFalse(actor.looks_like_fallback(parse_reply(raw_reply(say="(작게) 고마워.", inner="좋다"), FX)))
+
+    def test_third_same_wish_is_rewritten(self):
+        same = parse_reply(raw_reply(say="으, 응.", inner="손 잡아 주면 좋겠다", wish="손 잡아 주기"), FX)
+        problem = actor.review_reply(same, sample_character(), stuck_wish="손 잡아 주기")
+        self.assertIn("앞의 두 답에서 이미 적었다", problem)
+        self.assertIsNone(actor.review_reply(same, sample_character(), stuck_wish="책 이야기 물어봐 주기"))
 
     def test_stuck_wish_is_changed(self):
         same = raw_reply(wish="급식 메뉴를 물어봐 주기")

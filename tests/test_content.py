@@ -171,7 +171,15 @@ class CharacterTest(unittest.TestCase):
 class OtherDataTest(unittest.TestCase):
     def test_seeds(self):
         seeds = content.load_seeds()
-        self.assertEqual(sorted(seeds), ["entrance", "event", "event_places"])
+        self.assertEqual(sorted(seeds), ["entrance", "event", "event_hints", "event_places"])
+        # 가까워지는 순간의 계기가 되는 사건. 어느 장소에서나 하나 넘게 고를 수 있다
+        for event, hint in seeds["event_hints"].items():
+            self.assertIn(event, seeds["event"])
+            self.assertTrue(hint.endswith("는"), hint)  # "...하는 순간의 계기"로 이어 붙는다
+        for place in seeds["entrance"]:
+            close = [e for e in seeds["event_hints"]
+                     if e not in seeds["event_places"] or place in seeds["event_places"][e]]
+            self.assertGreaterEqual(len(close), 2, place)
         # 사건이 일어날 수 있는 장소는 등장 장소 목록에 있는 이름이다
         for event, places in seeds["event_places"].items():
             self.assertIn(event, seeds["event"])
@@ -183,7 +191,7 @@ class OtherDataTest(unittest.TestCase):
             fits = [e for e in seeds["event"] if e not in seeds["event_places"] or place in seeds["event_places"][e]]
             self.assertGreaterEqual(len(fits), 4, place)
         self.assertEqual(len(seeds["entrance"]), 8)
-        self.assertEqual(len(seeds["event"]), 16)
+        self.assertEqual(len(seeds["event"]), 22)
         for kind in ("entrance", "event"):
             self.assertEqual(len(seeds[kind]), len(set(seeds[kind])))
 

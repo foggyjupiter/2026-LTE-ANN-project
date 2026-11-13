@@ -189,7 +189,7 @@ def _intensity_section(character: dict, intensity: int, meaning: str) -> list[st
     return lines
 
 
-def _seed_section(seed: str, kind: str) -> list[str]:
+def _seed_section(seed: str, kind: str, hint: str = "") -> list[str]:
     if kind == "entrance":
         return [
             "[이번 답의 씨앗]",
@@ -207,7 +207,11 @@ def _seed_section(seed: str, kind: str) -> list[str]:
         "choices나 reason에만 넣어도 사건이 아니다.",
         "- 사건이 지금 있는 장소와 맞지 않으면 장소를 옮기지 않는다. 그 자리에서 이야기나 물건으로 꺼낸다"
         "(급식실이라면 하굣길 이야기를 한다, 우산을 들고 있다 같은 식).",
-    ]
+    ] + ([
+        # 2026-11-13: 손잡기, 기대기, 짧게 안기를 허용하면서 그런 순간이 나올 사건을 넣었다
+        "- 이 사건은 " + hint + " 순간의 계기가 될 수 있다. 캐릭터의 버릇대로 허둥대거나 머뭇거리며 하고, "
+        "억지로 하지 않는다. 그 이상(입맞춤 같은 것)으로는 가지 않는다.",
+    ] if hint else [])
 
 
 def _fx_section(fx_allowed: list[str]) -> list[str]:
@@ -337,8 +341,8 @@ _OUTPUT_SECTION = [
     "25자 이내로 적는다(예: 읽던 책 이야기를 물어봐 주기, 아까 말한 고양이 이야기를 이어 주기). "
     "화면의 그림에는 소품과 옷차림이 보이지 않아서 참가자는 글로만 안다. 물건이나 겉모습(필통, 리본 같은 것)을 "
     "바람으로 고르면 그것을 이번 답의 지문이나 겉말에서 먼저 보여 준다. 캐릭터의 이름과 호칭은 화제가 아니다. 지금 장면이나 "
-    "캐릭터가 좋아하는 것에서 고르고, 말 한마디로 들어줄 수 있는 것이어야 한다. 몸이 닿는 것, 고백, 선물은 "
-    "바라지 않는다. 앞 답의 바람을 주인공이 아직 짚지 않았으면 한 번 더 적어도 되지만, 세 답 연달아 같은 바람을 "
+    "캐릭터가 좋아하는 것에서 고르고, 말 한마디로 들어줄 수 있는 것이어야 한다. 손잡기나 어깨에 기대기는 "
+    "바랄 수 있지만 입맞춤, 안기, 고백, 선물은 바라지 않는다. 앞 답의 바람을 주인공이 아직 짚지 않았으면 한 번 더 적어도 되지만, 세 답 연달아 같은 바람을 "
     "적지 않는다. 주인공이 바람을 짚었으면 다음 답에서는 새 바람을 고른다. "
     "결말 장면에서는 빈 문자열로 둔다.",
     '- 모양: {"narration": 문자열, "say": 문자열, "inner": 문자열, "face": 문자열, "fx": [문자열], '
@@ -352,7 +356,7 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
                  opening: bool, finale: bool, extra: str, previous_first: str = "",
                  previous_faces: tuple = (), used_phrases: tuple = (), tomorrow: int = 0,
                  place: str = "", events_so_far: tuple = (), wishes: tuple = (),
-                 wish_streak: int = 0) -> str:
+                 wish_streak: int = 0, seed_hint: str = "") -> str:
     if band not in _BAND_LABELS:
         raise ValueError("band는 low, mid, high 중 하나여야 한다: " + repr(band))
 
@@ -382,7 +386,7 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
         if kind not in ("entrance", "event"):
             # 종류가 안 왔으면 등장 장면에서는 등장 씨앗, 그 밖에는 사건 씨앗으로 본다
             kind = "entrance" if opening else "event"
-        sections.append(_seed_section(str(seed), kind))
+        sections.append(_seed_section(str(seed), kind, seed_hint))
 
     sections.append(_RULES_SECTION)
     if place and not opening:
@@ -667,7 +671,7 @@ def build_turn_messages(character: dict, history: list[dict], *, band: str, inte
                         intensity_meaning: str, fx_allowed: list[str], seed: str | None = None,
                         seed_kind: str | None = None, opening: bool = False,
                         finale: bool = False, extra: str = "", place: str = "",
-                        events_so_far: tuple = ()) -> list[dict]:
+                        events_so_far: tuple = (), seed_hint: str = "") -> list[dict]:
     """배우에게 보낼 메시지 목록을 만든다. `[system] + history`이고 `history`는 고치지 않는다."""
     system = _turn_system(
         character, band=band, intensity=intensity, intensity_meaning=intensity_meaning,
@@ -676,7 +680,7 @@ def build_turn_messages(character: dict, history: list[dict], *, band: str, inte
         previous_faces=_recent_faces(history),
         used_phrases=_used_phrases(history)[0], tomorrow=_used_phrases(history)[1],
         place=place, events_so_far=tuple(events_so_far), wishes=_recent_wishes(history),
-        wish_streak=_wish_streak(history),
+        wish_streak=_wish_streak(history), seed_hint=seed_hint,
     )
     return [{"role": "system", "content": system}] + [dict(m) for m in history]
 
@@ -1003,7 +1007,7 @@ def repeated_phrases(reply: Reply, used: dict) -> list[str]:
 
 
 def review_reply(reply: Reply, character: dict, *, banned=None, event_seed=None,
-                 used_phrases=None, tomorrow=0, finale=False, previous=None) -> str | None:
+                 used_phrases=None, tomorrow=0, finale=False, previous=None, stuck_wish="") -> str | None:
     """다시 쓰게 할 점들을 이어 붙인 글. 고칠 것이 없으면 None. 여러 개면 한 번에 다 고치게 한다."""
     problems = []
     texts = reply_texts(reply)
@@ -1034,6 +1038,10 @@ def review_reply(reply: Reply, character: dict, *, banned=None, event_seed=None,
         # 대화 기록 속의 대체 대사 모양을 따라 한 것이다
         problems.append("겉말이 괄호 속 지문 한 줄뿐이고 속마음이 비었다. 그것은 통신이 끊겼을 때의 대체 대사 모양이다. "
                         "캐릭터가 실제로 하는 말을 겉말에 쓰고, 속마음도 채운다.")
+    if not finale and stuck_wish and reply.wish == stuck_wish:
+        # 실전 기록: 젬마가 "어두운 복도에서 내 손을 잡아 주면 좋겠다"를 다섯 답 내내 적었다
+        problems.append('wish의 바람 "' + stuck_wish + '"은 앞의 두 답에서 이미 적었다. 이번 답에서는 지금 장면에서 '
+                        "새 바람을 골라 wish에 적고 속마음에 흘린다.")
     if not finale and wish_hidden(reply, name_words(character)):
         problems.append('wish에 적은 바람 "' + reply.wish + '"이 화면에 나가는 글에 비치지 않는다. 그 바람의 화제를 '
                         "가리키는 낱말을 속마음에 넣어 혼잣말로 은근히 흘린다. 말투 지침에 적힌 속마음의 길이와 꼴은 지킨다.")

@@ -89,12 +89,14 @@ class ScriptedLlm:
         event = re.search(r'사건 씨앗: "([^"]+)"', messages[0]["content"])
         if event and "narration" not in answer:
             answer = dict(answer, narration="지문이다. 그때 " + event.group(1) + ".")
-        # 기본 바람("좋은 말이네")은 기본 속마음에만 비친다. 시험이 화면 글을 바꿔서 바람이 안 보이게 되면
-        # 진짜 모델이 고쳐 쓴 것처럼 바람을 비운다. 그래야 고쳐 쓰기 호출이 끼어들지 않는다
+        # 기본 바람("좋은 말이네 N번")은 기본 속마음에만 비친다. 시험이 화면 글을 바꿔서 바람이 안 보이게 되면
+        # 진짜 모델이 고쳐 쓴 것처럼 바람을 비운다. 그래야 고쳐 쓰기 호출이 끼어들지 않는다.
+        # 같은 바람을 세 번 적으면 고쳐 쓰게 하므로 차례마다 번호를 붙여 바꾼다
         if "wish" not in answer:
+            turn = sum(1 for m in messages if m["role"] == "assistant")
             merged = json.loads(reply_json(**answer))
-            if "좋은 말이네" not in " ".join([merged["narration"], merged["say"], merged["inner"]]):
-                answer = dict(answer, wish="")
+            shown = " ".join([merged["narration"], merged["say"], merged["inner"]])
+            answer = dict(answer, wish=f"좋은 말이네 {turn}번" if "좋은 말이네" in shown else "")
         return reply_json(**answer)
 
     def system_of(self, turn):
@@ -323,6 +325,17 @@ class SeedTest(unittest.TestCase):
         with mock.patch.object(director.actor, "build_turn_messages", wraps=real) as spy:
             play(session)
         return llm, [call.kwargs for call in spy.call_args_list]
+
+    def test_last_event_is_a_closeness_moment(self):
+        hints = content.load_seeds()["event_hints"]
+        for seed in range(8):  # 등장 장소가 달라져도 마지막 사건은 늘 계기가 되는 사건이다
+            llm = ScriptedLlm()
+            play(Session("mistral", llm=llm, rng=random.Random(seed)))
+            last = max(n for n, r in enumerate(content.load_schedule()["replies"], start=1) if r.get("seed") == "event")
+            system = llm.system_of(last)
+            event = re.search(r'사건 씨앗: "([^"]+)"', system).group(1)
+            self.assertIn(event, hints)
+            self.assertIn("순간의 계기가 될 수 있다", system)
 
     def test_entrance_and_event_seeds(self):
         seeds = content.load_seeds()
