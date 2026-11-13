@@ -78,6 +78,16 @@ init -3 python:
         ribbon = Transform(sg_gal("nametag", 36, 0), matrixcolor=TintMatrix(color))
         return Fixed(ribbon, sg_gal("nametag_trim", 36, 0))
 
+    def sg_ink_edge(color):
+        """리본 위 글자에 두르는 테두리색. 대표색이 어떤 밝기여도 이름과 속성이 읽히게 한다.
+
+        글자가 흰색이면(어두운 대표색) 리본색을 더 어둡게, 글자가 어두우면(밝은 대표색)
+        리본색을 더 밝게 한 색이다. 글자색은 sg_core.rpy 의 sg_ink_on 이 밝기로 고른다.
+        """
+        if sg_ink_on(color) == "#ffffff":
+            return Color(color).shade(0.55).hexcode
+        return Color(color).tint(0.4).hexcode
+
     def sg_ribbon(color):
         """끝이 접힌 띠에 색을 입힌 것."""
         return Transform(sg_gal("ribbon", 22, 0), matrixcolor=TintMatrix(color))
@@ -527,10 +537,10 @@ style sg_card_name:
 style sg_card_attr:
     size 16
 
+## 속성 리본 밑의 한 줄. 꼬리표 없이 이 글만 나오므로 본문보다 조금 크고 분홍빛으로 찍는다.
 style sg_card_motif:
-    font gui.interface_text_font
-    size 14
-    color "#9a7896"
+    size 17
+    color "#c2507f"
 
 style sg_card_intro:
     font gui.text_font
@@ -655,9 +665,14 @@ screen sg_card(c):
                 ysize 34
                 padding (26, 3, 26, 9)
                 background sg_ribbon(c["color"])
-                text sg_esc(c["attribute"]) style "sg_card_attr" font sg_cute(c["attribute"]) color sg_ink_on(c["color"]) yalign 0.5
+                text sg_esc(c["attribute"]):
+                    style "sg_card_attr"
+                    font sg_cute(c["attribute"])
+                    color sg_ink_on(c["color"])
+                    outlines [ (absolute(2), sg_ink_edge(c["color"]), absolute(0), absolute(0)) ]
+                    yalign 0.5
 
-            text sg_esc(c["motif"]) style "sg_card_motif"   # 매력 한 줄
+            text sg_esc(c["motif"]) style "sg_card_motif" font sg_cute(c["motif"])   # 매력 한 줄
 
             text sg_esc(c["intro"]) style "sg_card_intro"
 
@@ -758,7 +773,11 @@ screen sg_textbox(name="", color="#8f96b8", note="", raw_name=""):
                         yalign 0.5
 
                         add sg_icon("heart", 15, sg_ink_on(color), 0.9) yalign 0.5
-                        text name style "sg_nametag_text" font sg_cute(raw_name or name) color sg_ink_on(color)
+                        text name:
+                            style "sg_nametag_text"
+                            font sg_cute(raw_name or name)
+                            color sg_ink_on(color)
+                            outlines [ (absolute(2), sg_ink_edge(color), absolute(0), absolute(0)) ]
 
                 if note:
                     frame:
