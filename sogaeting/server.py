@@ -413,6 +413,14 @@ def main(argv=None) -> int:
     print(f"소개팅 서버를 켰습니다: http://{host}:{port}/")
     if args.fake:
         print("가짜 모델로 진행합니다.")
+    else:
+        counts = model.key_counts()
+        print("읽은 키: " + ", ".join(f"{name} {n}개" for name, n in counts.items()))
+        for name in model.dotenv_ignored:
+            print(f"{name} 가 이 컴퓨터의 환경변수에 이미 있어서 .env 의 값을 쓰지 않았습니다.")
+        if not any(counts.values()):
+            print("키를 하나도 읽지 못했습니다. 모든 대답이 괄호 속 행동(대체 대사)으로 나갑니다.")
+            print("레포 맨 위의 .env에 GEMINI_API_KEY=키 를 적었는지 보세요. 점검: python -m sogaeting.check")
     print("끄려면 Ctrl-C를 누르세요.", flush=True)
     try:
         server.serve_forever()

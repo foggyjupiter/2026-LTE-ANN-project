@@ -9,6 +9,7 @@
 #   2. 게임 코드(feat/sogaeting-renpy 브랜치)를 받는다. 켤 때마다 새로 받는다. .env 와 results 는 남긴다.
 #   3. Ren'Py SDK 8.5.3 이 없으면 받는다 (약 160MB, 처음 한 번만).
 #   4. Gemini 키를 처음 한 번 묻고 sogaeting-booth\.env 에 적는다. 그냥 Enter 를 누르면 가짜 모델로 켠다.
+#      키가 있으면 모델마다 짧게 불러 점검하고(python -m sogaeting.check), 답한 곳이 없으면 새 키를 묻는다.
 #   5. python run_booth.py 로 서버와 게임을 켠다.
 #
 # 키를 다시 넣으려면 sogaeting-booth\.env 를 지우고 다시 실행한다.
@@ -117,24 +118,50 @@
     Remove-Item Env:RENPY_SDK -ErrorAction SilentlyContinue   # 다른 곳을 가리키는 값이 있으면 그곳만 보므로 지운다
 
     # 4. 키
-    if (-not (Test-Path $EnvFile)) {
+    function Read-Key($prompt) {
         Write-Host ''
-        Write-Host 'Gemini API 키를 붙여 넣고 Enter 를 누르세요. (화면에는 안 보입니다)'
-        Write-Host '키 없이 가짜 모델로 켜려면 그냥 Enter. 예비 키는 쉼표로 이어 적습니다 (키1,키2).'
-        $secure = Read-Host -AsSecureString '키'
+        Write-Host $prompt
+        Write-Host '예비 키는 쉼표로 이어 적습니다 (키1,키2). 다른 구글 계정에서 만든 키여야 한도가 따로 잡힙니다.'
+        $secure = Read-Host -AsSecureString '키 (화면에는 안 보입니다)'
         $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
-        try { $key = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr).Trim() }
+        try { return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr).Trim() }
         finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
-        # BOM 없는 UTF-8 로 쓴다. 키가 비어 있으면 빈 줄만 남겨 다음부터 묻지 않는다
+    }
+    function Save-Key($key) {
+        # BOM 없는 UTF-8 로 쓴다. 키가 비어 있으면 주석 한 줄만 남겨 다음부터 묻지 않는다
         $line = if ($key) { "GEMINI_API_KEY=$key" } else { '# GEMINI_API_KEY=' }
         [IO.File]::WriteAllText($EnvFile, $line + "`n")
-        $key = $null
+        Copy-Item -Force $EnvFile (Join-Path $Game '.env')
+    }
+    if (-not (Test-Path $EnvFile)) {
+        Save-Key (Read-Key 'Gemini API 키를 붙여 넣고 Enter 를 누르세요. 키 없이 가짜 모델로 켜려면 그냥 Enter.')
     }
     Copy-Item -Force $EnvFile (Join-Path $Game '.env')
     $hasKey = Select-String -Path $EnvFile -Pattern '^\s*GEMINI_API_KEY\s*=\s*\S' -Quiet
+    Set-Location $Game
+
+    if ($hasKey) {
+        # 윈도우 환경변수에 예전 키가 있으면 .env 의 새 키가 무시된다. 이 창에서만 지운다
+        foreach ($name in 'GEMINI_API_KEY', 'GROQ_API_KEY') {
+            $inFile = Select-String -Path $EnvFile -Pattern "^\s*$name\s*=\s*\S" -Quiet
+            if ($inFile -and (Test-Path "Env:$name")) {
+                Say "윈도우 환경변수의 $name 대신 sogaeting-booth\.env 의 값을 씁니다."
+                Remove-Item "Env:$name"
+            }
+        }
+        Say '키를 점검합니다 (모델마다 짧게 한 번씩 부릅니다).'
+        & $pyExe @pyArgs -m sogaeting.check
+        if ($LASTEXITCODE -ne 0) {
+            $new = Read-Key '답한 곳이 없습니다. 새 키를 붙여 넣으면 바꿔서 다시 점검합니다. 그대로 켜려면 그냥 Enter.'
+            if ($new) {
+                Save-Key $new
+                & $pyExe @pyArgs -m sogaeting.check
+            }
+            $new = $null
+        }
+    }
 
     # 5. 켜기
-    Set-Location $Game
     if ($hasKey) {
         Say '실제 모델로 켭니다. 게임 창을 닫으면 서버도 꺼집니다.'
         & $pyExe @pyArgs run_booth.py

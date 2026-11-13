@@ -11,7 +11,8 @@ from sogaeting import llm
 
 FIRST = "gemini-flash-lite"
 SECOND = "gemini-flash-lite-3.1"
-THIRD = "groq"
+THIRD = "gemini-flash-3"
+FOURTH = "groq"
 
 
 class FakeClock:
@@ -79,7 +80,7 @@ class ProvidersTest(unittest.TestCase):
     def test_names_are_unique_and_fast_model_comes_first(self):
         names = [p["name"] for p in llm.PROVIDERS]
         self.assertEqual(len(names), len(set(names)))
-        self.assertEqual(names, [FIRST, SECOND, THIRD])
+        self.assertEqual(names, [FIRST, SECOND, THIRD, FOURTH])
         self.assertEqual(llm.PROVIDERS[0]["model"], "gemini-3.5-flash-lite")
         # 실제로 재 보니 12번 넘게 한 번도 답하지 못한 모델은 목록에 두지 않는다
         self.assertNotIn("gemini-3.8-flash", [p["model"] for p in llm.PROVIDERS])
@@ -214,7 +215,7 @@ class CallLlmTest(LlmTestCase):
     def test_all_busy_then_retries_within_the_same_call(self):
         # 실전 시험에서 본 상황: flash-lite 둘이 같이 503을 냈고 조금 뒤에는 풀려 있었다
         answers = {FIRST: [http_error(503), "두 번째에 답"], SECOND: [http_error(503)],
-                   THIRD: [http_error(503)]}
+                   THIRD: [http_error(503)], FOURTH: [http_error(503)]}
 
         def post(p, *a):
             result = answers[p["name"]].pop(0)
@@ -224,9 +225,10 @@ class CallLlmTest(LlmTestCase):
         self.patch_post(post, takes=1.0)
         trace = []
         self.assertEqual(llm.call_llm([], trace=trace), "두 번째에 답")
-        self.assertEqual(self.names(), [FIRST, SECOND, THIRD, FIRST])
-        self.assertEqual(self.clock.slept, [1.0])  # 맨 먼저 풀리는 제공자까지만 기다린다
-        self.assertEqual([t["ok"] for t in trace], [False, False, False, True])
+        self.assertEqual(self.names(), [FIRST, SECOND, THIRD, FOURTH, FIRST])
+        # 넷째까지 503을 내는 동안(4초) 첫째의 쉬는 시간(3초)이 끝나서 기다리지 않고 바로 다시 부른다
+        self.assertEqual(sum(self.clock.slept), 0)
+        self.assertEqual([t["ok"] for t in trace], [False, False, False, False, True])
         self.assertLessEqual(self.clock.now - 1000.0, llm.TURN_BUDGET_SEC)
 
     def test_gives_up_when_the_budget_runs_out(self):
@@ -258,7 +260,12 @@ class CallLlmTest(LlmTestCase):
         self.patch_post(post, takes=0.5)
         self.assertEqual(llm.call_llm([]), "답")
         self.assertEqual(self.names(), [FIRST, SECOND])
-        self.assertEqual(self.timeouts, [6, llm.TURN_BUDGET_SEC - 0.5])
+        self.assertEqual(self.timeouts, [6, 4])  # 뒤에 셋째 Gemini 모델이 있어서 둘째는 제 시간만 쓴다
+        # 둘째도 쉬는 중이면 셋째가 마지막이라 남은 시간을 다 쓴다
+        llm._blocked_until[FIRST] = llm._blocked_until[SECOND] = 2000.0
+        self.timeouts.clear()
+        llm.call_llm([])
+        self.assertEqual(self.timeouts, [llm.TURN_BUDGET_SEC])
 
     def test_provider_with_others_behind_keeps_its_own_timeout(self):
         self.patch_post(lambda p, *a: "답")
@@ -308,7 +315,7 @@ class CallLlmTest(LlmTestCase):
         self.patch_post(post)
         with self.assertRaises(llm.AllProvidersDown):
             llm.call_llm([])
-        self.assertEqual(self.names(), [FIRST, SECOND, THIRD])  # 같은 호출 안에서 다시 두드리지 않는다
+        self.assertEqual(self.names(), [FIRST, SECOND, THIRD, FOURTH])  # 같은 호출 안에서 다시 두드리지 않는다
         self.assertEqual(self.clock.slept, [])
 
     def test_all_down_raises(self):
@@ -443,7 +450,7 @@ class SpareKeysTest(LlmTestCase):
         self.patch_post_by_key(post)
         with self.assertRaises(llm.AllProvidersDown):
             llm.call_llm([])
-        self.assertEqual(len(self.keys), 4)  # 모델 둘에 키 둘씩, 한 번씩만
+        self.assertEqual(len(self.keys), 6)  # Gemini 모델 셋에 키 둘씩, 한 번씩만
         self.assertEqual(llm.seconds_until_ready(), llm.COOLDOWN_SEC)
 
     def test_key_never_appears_in_the_log(self):

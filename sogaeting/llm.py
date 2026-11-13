@@ -60,6 +60,19 @@ PROVIDERS = [
         "temperature": False,
     },
     {
+        # 2026-11-13 15:40 KST에 flash-lite 둘이 각각 하루 한도(429)와 과부하(503)로 막혔을 때 따로 쟀다.
+        # 실제 지시문 4번 모두 형식에 맞게 답했고 2.2-10.0초였다. 한도가 모델마다 따로라서 하루에 부를 수 있는
+        # 횟수가 그만큼 는다. 생각 단계를 low로 두지 않으면 8초를 넘겼다.
+        # 같은 날 gemini-2.5-flash와 2.5-flash-lite는 "새 사용자는 못 쓴다"(404), gemma-4는 500과 502였다.
+        "name": "gemini-flash-3",
+        "url": GEMINI_URL,
+        "key_env": "GEMINI_API_KEY",
+        "model": "gemini-3-flash-preview",
+        "extra": {"reasoning_effort": "low"},
+        "timeout": 6,
+        "temperature": False,
+    },
+    {
         "name": "groq",
         "url": GROQ_URL,
         "key_env": "GROQ_API_KEY",
@@ -93,17 +106,43 @@ class AllProvidersDown(Exception):
     """쓸 수 있는 제공자가 하나도 없을 때."""
 
 
+def _read_env_text(path):
+    """`.env` 파일의 글. 윈도우 메모장과 PowerShell이 붙이는 BOM과 UTF-16도 읽는다.
+
+    BOM이 붙은 채로 읽으면 첫 줄의 이름이 "\ufeffGEMINI_API_KEY"가 되어 키가 없는 것처럼 된다.
+    그러면 모든 답이 대체 대사(괄호 속 행동)로 나간다.
+    """
+    with open(path, "rb") as f:
+        raw = f.read()
+    if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return raw.decode("utf-16", errors="replace")
+    return raw.decode("utf-8-sig", errors="replace")
+
+
+dotenv_ignored = []  # .env에 있었지만 컴퓨터의 환경변수에 다른 값이 있어서 쓰지 않은 이름
+
+
 def load_dotenv(path=".env"):
     """`.env` 파일의 KEY=VALUE 줄을 환경변수로 읽는다. 이미 있는 값은 덮어쓰지 않는다."""
     if not os.path.exists(path):
         return
-    with open(path, encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, value = line.split("=", 1)
-            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+    for line in _read_env_text(path).splitlines():
+        line = line.strip().lstrip("\ufeff")
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key, value = key.strip(), value.strip().strip('"').strip("'")
+        if key in os.environ and os.environ[key] != value and key not in dotenv_ignored:
+            dotenv_ignored.append(key)  # 컴퓨터의 환경변수가 이긴다. 점검 도구와 서버가 알려 준다
+        os.environ.setdefault(key, value)
+
+
+def key_counts():
+    """키 이름마다 읽은 키의 개수. 키 값은 담지 않는다. 예: {"GEMINI_API_KEY": 2, "GROQ_API_KEY": 0}"""
+    counts = {}
+    for p in PROVIDERS:
+        counts[p["key_env"]] = len(_keys(p))
+    return counts
 
 
 def _providers():
