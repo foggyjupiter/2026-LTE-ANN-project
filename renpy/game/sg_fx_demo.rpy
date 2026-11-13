@@ -80,11 +80,58 @@ init python:
             c.rect((180, 80, 80, 255), (196, 192, 28, 6))
             return rv
 
+    class SgFxBox(renpy.Displayable):
+        """각진 상자. 테두리(edges: 왼쪽, 위, 오른쪽, 아래 두께)와 속을 단색으로 그린다. 가짜 대사창의 바탕이다."""
+
+        def __init__(self, fill, line, edges=(4, 4, 4, 4), **properties):
+            super(SgFxBox, self).__init__(**properties)
+            self.fill = Solid(fill)
+            self.line = Solid(line)
+            self.edges = edges
+
+        def render(self, width, height, st, at):
+            width = int(width)
+            height = int(height)
+            left, top, right, bottom = self.edges
+            rv = renpy.Render(width, height)
+            rv.blit(renpy.render(self.line, width, height, st, at), (0, 0))
+            rv.blit(renpy.render(self.fill, max(0, width - left - right), max(0, height - top - bottom), st, at), (left, top))
+            return rv
+
+    def sg_fx_demo_show_bg(key):
+        """배경을 바꾼다. 진짜 배경 그림(images/bg/<key>.jpg)이 있으면 그것을, 없으면 도형으로 그린 교실을 쓴다."""
+        path = "images/bg/%s.jpg" % key
+        if renpy.loadable(path):
+            renpy.show("sg_fx_demo_bg", what=renpy.displayable(path))
+        else:
+            renpy.show("sg_fx_demo_bg")
+        renpy.restart_interaction()
+
     def sg_fx_demo_setup():
-        """무대를 차린다: 배경과 스탠딩은 master 에, 가짜 대사창은 screens 에."""
+        """
+        무대를 차린다: 배경과 스탠딩은 master 에, 가짜 대사창은 screens 에.
+        진짜 그림이 있으면 그것을 쓴다. 도형 무대에서는 연출의 느낌을 가늠하기 어렵다.
+        """
+        ## 본편이 띄워 둔 무대와 화면을 걷고 시작한다
+        sg_fx_clear()
         renpy.scene()
-        renpy.show("sg_fx_demo_bg")
-        renpy.show("sg_fx_demo_girl", at_list=[Transform(xalign=0.5, yalign=1.0)])
+        renpy.scene("screens")
+        renpy.show_layer_at([], layer="master")
+        sg_fx_demo_show_bg("rooftop")
+
+        ## 스탠딩: 진짜 그림, 자리표시 그림, 도형 순으로 찾는다
+        found = None
+        for folder in ("images/sprites/", "images/placeholder/sprites/"):
+            names = sorted(f for f in renpy.list_files() if f.startswith(folder) and f.endswith("/neutral.png"))
+            if names:
+                found = names[0]
+                break
+        if found:
+            height = renpy.image_size(found)[1]
+            renpy.show("sg_fx_demo_girl", what=Transform(found, zoom=690.0 / height),
+                       at_list=[Transform(xalign=0.5, yalign=1.0)])
+        else:
+            renpy.show("sg_fx_demo_girl", at_list=[Transform(xalign=0.5, yalign=1.0)])
         renpy.show_screen("sg_fx_demo_say")
 
     def sg_fx_demo_go(names, narration=None, line=None, expect=True):
@@ -139,8 +186,8 @@ screen sg_fx_demo_say():
         padding (268, 28, 268, 20)
         vbox:
             spacing 10
-            text "시험장" style "sg_fx_label_text" size 30
-            text sg_fx_demo_line style "sg_fx_label_text" font "fonts/Pretendard-Regular.otf" substitute False
+            text "시험장" font "fonts/Pretendard-Bold.otf" size 30 color sg_fx_ink
+            text sg_fx_demo_line font "fonts/Pretendard-Regular.otf" size 22 color sg_fx_ink substitute False
 
 
 ## 사람이 보는 시험장. 연출을 차례로 틀고, 마지막에 sg_fx_clear 를 시험한다.
@@ -193,8 +240,8 @@ label sg_fx_demo_click:
 testsuite sg_fx_demo:
 
     setup:
-        ## 주 메뉴에서 게임 안으로 들어간다. Jump 로 가면 주 메뉴 화면이 무대를 덮은 채로 남는다
-        run Start("sg_fx_demo_stage")
+        ## 게임은 주 메뉴 없이 곧장 본편으로 들어간다. 거기서 시험 무대로 건너뛴다
+        run Jump("sg_fx_demo_stage")
         pause 1.0
         screenshot "fx_00_before.png"
 
@@ -477,6 +524,23 @@ testsuite sg_fx_demo:
         assert eval (renpy.get_screen("sg_fx_sparks", layer="sg_fx") is not None)
         assert eval (renpy.get_screen("sg_fx_rain", layer="sg_fx") is None)
         $ sg_fx_clear()
+        assert eval sg_fx_demo_clean()
+
+    testcase dark_background:
+        ## 어두운 배경(도서관)에서도 잘 보이는지 본다. 진짜 배경 그림이 없으면 도형 무대 그대로 찍힌다
+        $ sg_fx_demo_show_bg("library")
+        $ sg_fx_demo_go(["꽃잎", "반짝이"], line="어두운 배경: 꽃잎 + 반짝이")
+        pause 1.2
+        screenshot "fx_40_dark_petals_sparks.png"
+        $ sg_fx_demo_go(["비", "하트"], line="어두운 배경: 비 + 하트")
+        pause 1.2
+        screenshot "fx_41_dark_rain_hearts.png"
+        $ sg_fx_demo_go(["자막", "집중선"], line="어두운 배경: 자막 + 집중선")
+        pause 0.9
+        screenshot "fx_42_dark_caption_lines.png"
+        $ sg_fx_clear()
+        $ sg_fx_demo_show_bg("rooftop")
+        pause 0.3
         assert eval sg_fx_demo_clean()
 
     testcase save_while_playing:

@@ -34,8 +34,6 @@ init -10 python:
 ## 색
 define sg_fx_ink = "#1B2559"
 define sg_fx_red = "#E23B4E"
-define sg_fx_marker = "#FFE65A"
-define sg_fx_paper = "#F4F7FB"
 define sg_fx_dark = "#0B1030"
 
 ## 가짜 오류창에 지문이 없을 때 넣는 글
@@ -72,43 +70,6 @@ init python:
         c = renpy.easy.color(c)
         return (c[0], c[1], c[2], int(round(255 * alpha)))
 
-    class SgFxBox(renpy.Displayable):
-        """
-        각진 상자. 테두리와 속, 오른쪽 아래로 떨어진 그림자를 단색으로 그린다.
-        frame 과 button 의 background 로 쓴다.
-
-        edges   왼쪽, 위, 오른쪽, 아래 테두리의 두께
-        shadow  그림자가 오른쪽과 아래로 나가는 길이
-        """
-
-        def __init__(self, fill, line, edges=(4, 4, 4, 4), shadow=(0, 0), **properties):
-            super(SgFxBox, self).__init__(**properties)
-            self.fill = Solid(fill)
-            self.line = Solid(line)
-            self.edges = edges
-            self.shadow = shadow
-
-        def render(self, width, height, st, at):
-            width = int(width)
-            height = int(height)
-            rv = renpy.Render(width, height)
-
-            sx, sy = self.shadow
-            w = max(0, width - sx)
-            h = max(0, height - sy)
-            left, top, right, bottom = self.edges
-
-            line = renpy.render(self.line, w, h, st, at)
-            if sx or sy:
-                rv.blit(line, (sx, sy))
-            rv.blit(line, (0, 0))
-            rv.blit(renpy.render(self.fill, max(0, w - left - right), max(0, h - top - bottom), st, at), (left, top))
-            return rv
-
-        def visit(self):
-            return [self.fill, self.line]
-
-
     class SgFxSprites(renpy.Displayable):
         """
         작은 그림 여러 장을 시간에 맞춰 옮겨 그린다. 꽃잎, 반짝이, 하트, 비가 쓴다.
@@ -136,12 +97,12 @@ init python:
             return it["frames"][f], x, it["y"] + it["dy"] * p
 
         def at_spark(self, it, t):
-            ## 제자리에서 커졌다 작아지기를 두 번 한다
+            ## 커졌다 작아지기를 두 번 하며 아주 천천히 떠오른다
             tt = t - it["delay"]
             if not (0 <= tt < 1.0):
                 return None
             f = int((tt % 0.5) / 0.5 * 10) % 10
-            return it["frames"][f], it["x"], it["y"]
+            return it["frames"][f], it["x"], it["y"] - it["rise"] * tt
 
         def at_heart(self, it, t):
             ## 처음엔 빠르게, 갈수록 천천히 떠오르다가 옅어지며 사라진다
@@ -262,19 +223,21 @@ init python:
         가짜 오류창의 바탕. 같은 크기의 창 석 장을 22픽셀씩 비껴 겹쳐 그린다.
         맨 앞 장의 속(아이콘, 글, 단추)은 이 바탕을 쓰는 frame 이 채운다.
         뒤의 두 장은 제목 줄만 있는 빈 창이다. 0초, 0.08초, 0.16초에 한 장씩 뜬다.
+
+        창 틀은 둥근 모서리와 부드러운 그림자가 있는 그림(sg_fx_win.png)을 늘려 쓴다.
+        그림의 사방 MARGIN 픽셀은 그림자 자리라서 그만큼 바깥으로 내어 그린다.
         """
 
         STEP = 22
-        BORDER = 4
-        SHADOW = 8
+        MARGIN = 24
+        EDGE = 8
         BAR = 44
 
         def __init__(self, life, **properties):
             super(SgFxErrBack, self).__init__(**properties)
             self.life = life
-            self.ink = Solid(sg_fx_ink)
-            self.paper = Solid(sg_fx_paper)
-            self.title = Text("오류", font="fonts/Pretendard-Bold.otf", size=22, color=sg_fx_paper)
+            self.win = Frame("images/fx/sg_fx_win.png", 44, 72, 44, 44)
+            self.title = Text("오류", font="fonts/Pretendard-Bold.otf", size=20, color="#6B4A78")
             self.close = renpy.displayable("images/fx/sg_fx_close.png")
 
         def render(self, width, height, st, at):
@@ -284,13 +247,11 @@ init python:
             if st >= self.life:
                 return rv
 
-            border = self.BORDER
-            w = width - 2 * self.STEP - self.SHADOW
-            h = height - 2 * self.STEP - self.SHADOW
+            m = self.MARGIN
+            w = width - 2 * self.STEP - self.EDGE
+            h = height - 2 * self.STEP - self.EDGE
 
-            edge = renpy.render(self.ink, w, h, st, at)
-            inside = renpy.render(self.paper, w - 2 * border, h - 2 * border, st, at)
-            bar = renpy.render(self.ink, w - 2 * border, self.BAR, st, at)
+            win = renpy.render(self.win, w + 2 * m, h + 2 * m, st, at)
             title = renpy.render(self.title, w, self.BAR, st, at)
             close = renpy.render(self.close, 22, 22, st, at)
 
@@ -299,16 +260,13 @@ init python:
                     renpy.redraw(self, start - st)
                     break
                 o = i * self.STEP
-                rv.blit(edge, (o + self.SHADOW, o + self.SHADOW))
-                rv.blit(edge, (o, o))
-                rv.blit(inside, (o + border, o + border))
-                rv.blit(bar, (o + border, o + border))
-                rv.blit(title, (o + border + 11, o + border + (self.BAR - title.get_size()[1]) // 2))
-                rv.blit(close, (o + w - border - 11 - 22, o + border + 11))
+                rv.blit(win, (o - m, o - m))
+                rv.blit(title, (o + 18, o + (self.BAR - title.get_size()[1]) // 2))
+                rv.blit(close, (o + w - 16 - 22, o + 11))
             return rv
 
         def visit(self):
-            return [self.ink, self.paper, self.title, self.close]
+            return [self.win, self.title, self.close]
 
 
 ################################################################################
@@ -340,11 +298,13 @@ init python:
         float sg_fx_reach = mix(16.0, 90.0, sg_fx_big);
         float sg_fx_odds = mix(0.12, 0.30, sg_fx_big);
         float sg_fx_pick1 = step(sg_fx_hash(vec2(sg_fx_slab, u_sg_fx_seed)), sg_fx_odds);
-        float sg_fx_pick2 = step(sg_fx_hash(vec2(sg_fx_row + 31.0, u_sg_fx_seed + 7.0)), sg_fx_odds * 0.5);
+        float sg_fx_pick2 = step(sg_fx_hash(vec2(sg_fx_row + 31.0, u_sg_fx_seed + 7.0)), sg_fx_odds * 0.8);
         float sg_fx_move1 = (sg_fx_hash(vec2(sg_fx_slab, u_sg_fx_seed + 13.0)) * 2.0 - 1.0) * sg_fx_reach;
         float sg_fx_move2 = (sg_fx_hash(vec2(sg_fx_row, u_sg_fx_seed + 29.0)) * 2.0 - 1.0) * sg_fx_reach;
-        float sg_fx_shift = sg_fx_on * mix(sg_fx_pick2 * sg_fx_move2, sg_fx_move1, sg_fx_pick1);
-        float sg_fx_split = sg_fx_on * mix(4.0, 8.0, sg_fx_big);
+        float sg_fx_line = floor(sg_fx_y / 4.0);
+        float sg_fx_jitter = sg_fx_big * (sg_fx_hash(vec2(sg_fx_line, u_sg_fx_seed + 41.0)) - 0.5) * 10.0;
+        float sg_fx_shift = sg_fx_on * mix(sg_fx_pick2 * sg_fx_move2, sg_fx_move1, sg_fx_pick1) + sg_fx_jitter;
+        float sg_fx_split = sg_fx_on * mix(5.0, 11.0, sg_fx_big);
         sg_fx_uv.x = fract(sg_fx_uv.x + sg_fx_shift / u_model_size.x);
         vec2 sg_fx_d = vec2(sg_fx_split / u_model_size.x, 0.0);
         vec4 sg_fx_a = texture2D(tex0, sg_fx_uv + sg_fx_d);
@@ -372,21 +332,38 @@ transform sg_fx_t_fade(a, hold, b):
     pause hold
     ease b alpha 0.0
 
-## 자막 띠: 세 단계로 펴졌다가 세 단계로 접힌다. 2.8초
+## 자막 띠: 부드럽게 나타났다가 사라진다. 2.8초
 transform sg_fx_t_caption_band(y):
     ypos y
     yanchor 0.5
-    yzoom 0.2
-    pause 0.084
-    yzoom 0.6
-    pause 0.084
-    yzoom 1.0
-    pause 2.464
-    yzoom 0.6
-    pause 0.084
-    yzoom 0.2
-    pause 0.084
     alpha 0.0
+    ease 0.35 alpha 1.0
+    pause 2.05
+    ease 0.4 alpha 0.0
+
+## 자막 글자: 띠보다 조금 늦게, 살짝 떠오르며 서서히 나타난다.
+transform sg_fx_t_caption_text:
+    alpha 0.0
+    yoffset 8
+    pause 0.2
+    ease 0.6 alpha 1.0 yoffset 0
+
+## 자막 장식선: 가운데에서 양옆으로 펴지며 나타난다.
+transform sg_fx_t_caption_orn:
+    alpha 0.0
+    xzoom 0.6
+    pause 0.1
+    ease 0.5 alpha 1.0 xzoom 1.0
+
+## 집중선 뒤의 흰 빛: 얼굴 둘레부터 하얗게 번졌다가 사라진다. 1.4초
+transform sg_fx_t_glow(x, y, z):
+    anchor (0.5, 0.5)
+    pos (x, y)
+    zoom z
+    alpha 0.0
+    easein 0.1 alpha 1.0
+    pause 1.1
+    easeout 0.2 alpha 0.0
 
 ## 집중선 한 장: 세 장이 0.09초씩 번갈아 보이게 lead 만큼 늦게 시작한다.
 transform sg_fx_t_flick(x, y, z, lead):
@@ -506,19 +483,16 @@ transform sg_fx_t_shake(ox, oy):
     xoffset ox
     linear 0.24 zoom 1.0 xoffset 0 yoffset 0
 
-## 줌인: (fx, fy) 를 붙잡고 두 단계로 확 커졌다가 돌아온다. 1.3초
+## 줌인: (fx, fy) 를 붙잡고 두 단계로 확 당겼다가 돌아온다. 1.3초
 transform sg_fx_t_zoom(fx, fy, k1, k2):
-    zoom k1
-    xoffset int(-(k1 - 1.0) * fx)
-    yoffset int(-(k1 - 1.0) * fy)
-    pause 0.2
-    zoom k2
-    xoffset int(-(k2 - 1.0) * fx)
-    yoffset int(-(k2 - 1.0) * fy)
-    pause 1.1
     zoom 1.0
-    xoffset 0
-    yoffset 0
+    xoffset 0.0
+    yoffset 0.0
+    easeout 0.12 zoom k1 xoffset (-(k1 - 1.0) * fx) yoffset (-(k1 - 1.0) * fy)
+    pause 0.08
+    easeout 0.14 zoom k2 xoffset (-(k2 - 1.0) * fx) yoffset (-(k2 - 1.0) * fy)
+    pause 0.76
+    easein 0.2 zoom 1.0 xoffset 0.0 yoffset 0.0
 
 ## 흑백: 색이 부드럽게 빠졌다가 돌아온다. 2.6초
 transform sg_fx_t_mono:
@@ -576,30 +550,29 @@ transform sg_fx_t_glitch(seed):
 
 style sg_fx_frame is empty
 
-style sg_fx_label_text is empty:
+## 가짜 오류창의 단추 글자
+style sg_fx_ok_text is empty:
     font "fonts/Pretendard-Bold.otf"
-    size 22
-    color sg_fx_ink
+    size 20
+    color "#FFFFFF"
 
-style sg_fx_zoom_label is empty:
-    background SgFxBox(sg_fx_marker, sg_fx_ink, (2, 2, 2, 2), (4, 4))
-    padding (13, 3, 17, 7)
-
+## 자막 띠: 위아래가 부드럽게 사라지는 반투명 어두운 띠
 style sg_fx_caption_band is empty:
-    background SgFxBox(sg_fx_marker, sg_fx_ink, (0, 4, 0, 4), (0, 8))
+    background Frame("images/fx/sg_fx_caption_band.png", 0, 62)
     xfill True
-    padding (0, 26, 0, 34)
+    padding (0, 46, 0, 46)
 
+## 가짜 오류창: 왼쪽 위 44픽셀은 뒤에 겹친 두 장의 자리, 그 아래 44픽셀은 제목 줄이다
 style sg_fx_err_frame is empty:
     xsize 536
-    padding (48, 92, 12, 12)
+    padding (44, 88, 8, 8)
 
 style sg_fx_err_ok is empty:
-    background SgFxBox(sg_fx_paper, sg_fx_ink, (2, 2, 2, 2), (4, 4))
-    hover_background SgFxBox(sg_fx_marker, sg_fx_ink, (2, 2, 2, 2), (4, 4))
-    xminimum 136
-    ysize 48
-    padding (24, 2, 28, 6)
+    background Frame("images/fx/sg_fx_btn.png", 20, 20)
+    hover_background Frame("images/fx/sg_fx_btn_hover.png", 20, 20)
+    xminimum 148
+    ysize 52
+    padding (30, 6, 30, 10)
     keyboard_focus False
 
 
@@ -623,44 +596,25 @@ screen sg_fx_sparks(d):
     add d
     timer 2.4 action Function(sg_fx_end, "반짝이")
 
-## 집중선: 가장자리에서 얼굴 쪽으로 모이는 남색 선. 세 장을 번갈아 보여 준다. 1.4초
+## 집중선: 얼굴 둘레가 하얗게 빛나고 가장자리에서 얼굴 쪽으로 남색 선이 모인다. 1.4초
 screen sg_fx_lines(x, y, z):
     layer "sg_fx"
     zorder 30
+    ## 흰 빛 그림은 선 그림의 1/4 크기로 그려져 있다
+    add "images/fx/sg_fx_lines_glow.png" at sg_fx_t_glow(x, y, z * 4.0)
     add "images/fx/sg_fx_lines_1.png" at sg_fx_t_flick(x, y, z, 0.0)
     add "images/fx/sg_fx_lines_2.png" at sg_fx_t_flick(x, y, z, 0.09)
     add "images/fx/sg_fx_lines_3.png" at sg_fx_t_flick(x, y, z, 0.18)
     timer 1.4 action Function(sg_fx_end, "집중선")
 
-## 줌인: 무대가 얼굴 쪽으로 두 단계 커지는 동안 모서리 표시와 배율 딱지를 띄운다. 1.3초
-screen sg_fx_zoom(boxes):
+## 줌인: 무대가 얼굴 쪽으로 두 단계 당겨지는 동안 가장자리가 부드럽게 어두워진다. 1.3초
+screen sg_fx_zoom():
     layer "sg_fx"
     zorder 50
-
-    for i, b in enumerate(boxes):
-        fixed:
-            at sg_fx_t_between(i * 0.2, 0.2 + i * 1.1)
-            pos (b[0], b[1])
-            xysize (b[2], b[3])
-
-            add Solid(sg_fx_ink, xysize=(44, 8))
-            add Solid(sg_fx_ink, xysize=(8, 44))
-            add Solid(sg_fx_ink, xysize=(44, 8)) xalign 1.0
-            add Solid(sg_fx_ink, xysize=(8, 44)) xalign 1.0
-            add Solid(sg_fx_ink, xysize=(44, 8)) yalign 1.0
-            add Solid(sg_fx_ink, xysize=(8, 44)) yalign 1.0
-            add Solid(sg_fx_ink, xysize=(44, 8)) xalign 1.0 yalign 1.0
-            add Solid(sg_fx_ink, xysize=(8, 44)) xalign 1.0 yalign 1.0
-
-            frame:
-                style "sg_fx_zoom_label"
-                xalign 1.0
-                ypos (b[3] + 4)
-                text b[4] style "sg_fx_label_text"
-
+    add Transform("images/fx/sg_fx_vignette.png", zoom=4.0) at sg_fx_t_fade(0.2, 0.9, 0.2)
     timer 1.3 action Function(sg_fx_end, "줌인")
 
-## 자막: 지문을 형광펜 띠 위에 크게 띄운다. 2.8초
+## 자막: 지문을 내레이션 자막처럼 띄운다. 어두운 띠 위에 흰 글자가 서서히 나타난다. 2.8초
 screen sg_fx_caption(d, y):
     layer "sg_fx"
     zorder 60
@@ -668,7 +622,12 @@ screen sg_fx_caption(d, y):
     frame:
         style "sg_fx_caption_band"
         at sg_fx_t_caption_band(y)
-        add d xalign 0.5 at sg_fx_t_between(0.17, 2.63)
+        vbox:
+            xalign 0.5
+            spacing 12
+            add "images/fx/sg_fx_caption_orn.png" xalign 0.5 at sg_fx_t_caption_orn
+            add d xalign 0.5 at sg_fx_t_caption_text
+            add "images/fx/sg_fx_caption_orn.png" xalign 0.5 at sg_fx_t_caption_orn
 
     timer 2.8 action Function(sg_fx_end, "자막")
 
@@ -778,7 +737,7 @@ screen sg_fx_err(d, back, y):
                     style "sg_fx_err_ok"
                     xalign 0.5
                     action Function(sg_fx_end, "가짜 오류창")
-                    text "확인" style "sg_fx_label_text" xalign 0.5 yalign 0.5
+                    text "확인" style "sg_fx_ok_text" xalign 0.5 yalign 0.5
 
     timer 3.9 action Function(sg_fx_end, "가짜 오류창")
 
@@ -825,17 +784,21 @@ init python:
 
         W = env["W"]
         items = []
-        for i in range(24):
-            size = random.choice([0, 1, 1, 2])
-            zoom = (0.8, 1.1, 1.5)[size]
+        for i in range(36):
+            ## 세 개에 하나는 둥근 빛망울, 나머지는 네 갈래 별. 크기를 여러 가지로 섞는다
+            row = 1 if i % 3 == 0 else 0
+            size = random.randrange(5)
+            zoom = (0.5, 0.8, 1.1, 1.5, 1.9)[size]
             px = 72 * zoom
             items.append({
                 "frames": [
-                    sg_fx_cut("spark-%d-%d" % (size, k), "images/fx/sg_fx_spark.png", (k * 72, 0, 72, 72), zoom)
+                    sg_fx_cut("spark-%d-%d-%d" % (row, size, k),
+                              "images/fx/sg_fx_spark.png", (k * 72, row * 72, 72, 72), zoom)
                     for k in range(10)
                 ],
                 "x": random.uniform(0, W - px),
                 "y": random.uniform(0, max(1, env["ui_top"] - px)),
+                "rise": random.uniform(6, 22),
                 "delay": random.uniform(0, 1.3),
             })
         return {"d": SgFxSprites("spark", items, 2.4)}, None
@@ -847,28 +810,16 @@ init python:
 
     def sg_fx_build_zoom(env):
         ## 무대 전체를 키우면 어차피 가장자리가 잘린다. 브라우저판의 작은 쪽 배율을 쓴다
-        steps = (1.25, 1.5)
-        W, cx, cy = env["W"], env["cx"], env["cy"]
-
-        boxes = []
-        for k in steps:
-            w = int(round(env["pw"] * k)) + 44
-            h = int(round(env["ph"] * k)) + 44
-            ## 모서리 표시가 화면 밖이나 대사창 뒤로 나가지 않게 당긴다
-            x0 = max(8, int(cx - w / 2))
-            y0 = max(8, int(cy - h / 2))
-            x1 = min(W - 8, int(cx + w / 2))
-            y1 = min(env["ui_top"] - 52, int(cy + h / 2))
-            boxes.append((x0, y0, max(96, x1 - x0), max(96, y1 - y0), "%g배" % k))
-        return {"boxes": boxes}, sg_fx_t_zoom(cx, cy, steps[0], steps[1])
+        return {}, sg_fx_t_zoom(float(env["cx"]), float(env["cy"]), 1.25, 1.5)
 
     def sg_fx_build_caption(env):
         ## 지문이 없으면 아무 일도 없다
         if not env["text"]:
             return None
         d = SgFxFitText(
-            env["text"], [56, 42, 28], [2, 2, 3], int(env["W"] * 0.86),
-            font="fonts/Pretendard-Bold.otf", color=sg_fx_ink, textalign=0.5,
+            env["text"], [46, 36, 28], [2, 2, 3], int(env["W"] * 0.8),
+            font="fonts/Pretendard-Medium.otf", color="#FFFFFF", textalign=0.5,
+            outlines=[(2, "#0E102CB0", 0, 1)],
             layout="subtitle", language="korean-with-spaces", line_leading=6, line_spacing=6)
         ## 가짜 오류창과 함께 오면 창에 가리지 않게 위로 비킨다
         y = 104 if "가짜 오류창" in env["names"] else env["ui_top"] // 2
@@ -879,27 +830,28 @@ init python:
 
         W, H = env["W"], env["H"]
         items = []
-        for i in range(18):
-            size = random.choice([0, 1, 1, 2, 3])
-            zoom = (0.5, 0.7, 0.9, 1.1)[size]
-            px = 80 * zoom
+        for i in range(28):
+            ## 작은 것은 많이, 큰 것은 드물게
+            size = random.choice([0, 0, 1, 1, 2, 2, 3, 4])
+            zoom = (0.4, 0.55, 0.75, 1.0, 1.35)[size]
+            px = 96 * zoom
             tilt = random.randrange(3)
             items.append({
                 ## 기울기 하나를 골라 불투명도 네 단계를 쓴다
                 "frames": [
                     sg_fx_cut("heart-%d-%d-%d" % (size, tilt, col),
-                              "images/fx/sg_fx_heart.png", (col * 80, tilt * 80, 80, 80), zoom)
+                              "images/fx/sg_fx_heart.png", (col * 96, tilt * 96, 96, 96), zoom)
                     for col in range(4)
                 ],
                 "x": random.uniform(0.03 * W, 0.97 * W - px),
                 "y": H + 4,
                 "rise": random.uniform(0.45, 0.95) * H + px,
-                "drift": random.uniform(-30, 30),
-                "sway": random.uniform(4, 12),
+                "drift": random.uniform(-36, 36),
+                "sway": random.uniform(6, 18),
                 "swing": random.uniform(0.7, 1.1),
                 "phase": random.random(),
-                "dur": random.uniform(1.5, 2.1),
-                "delay": random.uniform(0, 0.7),
+                "dur": random.uniform(1.4, 2.0),
+                "delay": random.uniform(0, 0.8),
             })
         return {"d": SgFxSprites("heart", items, 2.8)}, None
 
@@ -958,21 +910,22 @@ init python:
 
         W = env["W"]
         cell = 22
-        colors = [sg_fx_red, sg_fx_marker, sg_fx_ink, "#2FD3E6", "#2FD3E6", sg_fx_paper]
+        ## 색 줄은 가늘고 반투명하게, 몇 줄만 긋는다. 어긋남과 색 번짐은 셰이더가 맡는다
+        colors = [sg_fx_rgba(sg_fx_red, 0.7), sg_fx_rgba("#2FD3E6", 0.7), sg_fx_rgba("#FFFFFF", 0.75)]
         ## sg_fx_t_glitch 와 같은 차례다. 2: 크게 어긋남, 1: 살짝, 0: 멀쩡
         script = [2, 2, 1, 0, 2, 2, 0, 1, 2, 0, 0, 2, 2, 1, 0]
 
         frames = []
         for level in script:
             bars = []
-            for b in range({2: 6, 1: 2, 0: 0}[level]):
-                bw = random.randint(3, 24) * cell
+            for b in range({2: 3, 1: 1, 0: 0}[level]):
+                bw = random.randint(6, 30) * cell
                 bars.append((
                     random.randrange(len(colors)),
                     random.randint(-4, W // cell) * cell - bw // 2,
                     random.randint(0, max(0, env["ui_top"] // 4 - 6)) * 4,
                     bw,
-                    random.choice([4, 8, 8, 12, 22]),
+                    random.choice([2, 2, 3, 4]),
                 ))
             frames.append(bars)
         return {"d": SgFxBars(colors, frames, 0.1, 1.5)}, sg_fx_t_glitch(float(random.randint(1, 40)))
@@ -980,7 +933,7 @@ init python:
     def sg_fx_build_err(env):
         d = SgFxFitText(
             env["text"] or sg_fx_default_error, [22], [6], 366,
-            font="fonts/Pretendard-Medium.otf", color=sg_fx_ink,
+            font="fonts/Pretendard-Medium.otf", color="#40304C",
             language="korean-with-spaces", line_spacing=7)
         ## 자막과 함께 오면 자막 띠 아래로 비킨다
         y = env["ui_top"] // 2 + (72 if "자막" in env["names"] else 0)
