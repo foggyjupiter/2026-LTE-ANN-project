@@ -420,6 +420,36 @@ class SpareKeysTest(LlmTestCase):
         self.assertIn(FIRST + "#2", self.printed.getvalue())
 
 
+class MainModelTest(LlmTestCase):
+    """.env에 GEMINI_MAIN_MODEL을 적었을 때."""
+
+    def test_default_list_is_unchanged(self):
+        self.assertIs(llm._providers(), llm.PROVIDERS)
+
+    def test_main_model_is_tried_first_then_the_usual_list(self):
+        seen = []
+
+        def post(p, *a):
+            seen.append((p["name"], p["model"]))
+            if p["name"] == "gemini-main":
+                raise http_error(503)
+            return "답"
+        self.patch_post(post)
+        with mock.patch.dict(os.environ, {llm.MAIN_MODEL_ENV: " gemini-3.8-flash "}):
+            self.assertEqual(llm.call_llm([]), "답")
+            main = llm._providers()[0]
+        self.assertEqual(seen, [("gemini-main", "gemini-3.8-flash"), (FIRST, "gemini-3.5-flash-lite")])
+        self.assertIs(main.get("temperature", True), False)
+        self.assertIn(main["extra"]["reasoning_effort"], ("low", "medium", "high"))
+        self.assertLess(main["timeout"], llm.TURN_BUDGET_SEC)
+
+    def test_same_model_is_not_listed_twice(self):
+        with mock.patch.dict(os.environ, {llm.MAIN_MODEL_ENV: "gemini-3.5-flash-lite"}):
+            models = [p["model"] for p in llm._providers()]
+        self.assertEqual(models.count("gemini-3.5-flash-lite"), 1)
+        self.assertEqual(models[0], "gemini-3.5-flash-lite")
+
+
 class PostTest(LlmTestCase):
     """요청 본문에 무엇이 실리는지."""
 

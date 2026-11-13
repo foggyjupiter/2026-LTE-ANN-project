@@ -28,12 +28,11 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 # 답했다. 그래서 flash-lite 둘만 쓴다. gemini-3.8-flash를 예비로 두었더니 flash-lite 둘이
 # 같이 503을 낸 턴에 8초를 더 버리고도 답을 못 받았다. 그 503은 20초 뒤에 풀려 있었다.
 #
-# 유료 등급 키로 바꾸거나 과부하가 풀려서 gemini-3.8-flash를 쓰려면 아래 항목을 목록 맨 위에 넣고
+# 설계 문서의 주 모델은 gemini-3.8-flash(유료 키 기준)다. 유료 등급 키로 바꾸거나 과부하가 풀려서
+# 이 모델을 쓰려면 코드를 고치지 말고 .env에 GEMINI_MAIN_MODEL=gemini-3.8-flash 한 줄을 적는다.
+# 그러면 그 모델을 맨 앞에서 먼저 부른다(_providers). 적은 뒤에는
 # `python3 -m sogaeting.playtest --only haru`로 응답 시간을 잰다. flash-lite만큼 빠르지 않으면
-# 다시 뺀다. reasoning_effort는 low, medium, high만 되고 minimal은 오류다.
-#   {"name": "gemini-flash", "url": GEMINI_URL, "key_env": "GEMINI_API_KEY",
-#    "model": "gemini-3.8-flash", "extra": {"reasoning_effort": "low"}, "timeout": 6,
-#    "temperature": False},
+# 그 줄을 다시 지운다. reasoning_effort는 low, medium, high만 되고 minimal은 오류다.
 #
 # 칸 설명
 #   timeout      이 시간(초) 안에 답이 없으면 다음 제공자로 넘어간다
@@ -69,6 +68,7 @@ PROVIDERS = [
         "timeout": 6,
     },
 ]
+MAIN_MODEL_ENV = "GEMINI_MAIN_MODEL"   # 맨 앞에서 먼저 부를 Gemini 모델 이름. 비어 있으면 쓰지 않는다
 TIMEOUT_SEC = 6          # 제공자에 timeout 칸이 없을 때 쓰는 값
 TURN_BUDGET_SEC = 10     # call_llm 한 번이 쓸 수 있는 시간. 다 쓰면 포기하고 대체 대사로 간다
 MIN_ATTEMPT_SEC = 2      # 남은 시간이 이보다 적으면 새로 시도하지 않는다
@@ -100,6 +100,23 @@ def load_dotenv(path=".env"):
                 continue
             key, value = line.split("=", 1)
             os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+def _providers():
+    """이번에 쓸 제공자 목록. GEMINI_MAIN_MODEL이 적혀 있으면 그 모델을 맨 앞에 둔다."""
+    model = os.environ.get(MAIN_MODEL_ENV, "").strip()
+    if not model:
+        return PROVIDERS
+    main = {
+        "name": "gemini-main",
+        "url": GEMINI_URL,
+        "key_env": "GEMINI_API_KEY",
+        "model": model,
+        "extra": {"reasoning_effort": "low"},
+        "timeout": 6,
+        "temperature": False,
+    }
+    return [main] + [p for p in PROVIDERS if p["model"] != model]
 
 
 def _keys(provider):
@@ -242,7 +259,7 @@ def call_llm(messages, temperature=0.9, json_mode=False, trace=None):
     deadline = time.monotonic() + TURN_BUDGET_SEC
     gave_up = set()  # 이번 호출에서 다시 해 봐야 소용없는 키 자리 (키나 모델명 오류, 빈 응답)
     while True:
-        for p in PROVIDERS:
+        for p in _providers():
             name = p["name"]
             for slot, key in _slots(p):
                 if slot in gave_up or time.time() < _blocked_until.get(slot, 0):
@@ -281,7 +298,7 @@ def seconds_until_ready(skip=()):
     """
     waits = [
         max(0.0, _blocked_until.get(slot, 0) - time.time())
-        for p in PROVIDERS for slot, _ in _slots(p) if slot not in skip
+        for p in _providers() for slot, _ in _slots(p) if slot not in skip
     ]
     return min(waits) if waits else None
 
