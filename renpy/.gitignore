@@ -24,3 +24,6 @@
 /dialogue.tab
 /dialogue.txt
 /strings.json
+
+# 시험 캡처.
+/tests/screenshots
