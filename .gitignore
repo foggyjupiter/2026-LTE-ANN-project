@@ -3,3 +3,7 @@ __pycache__/
 *.pyc
 results/
 art/raw/
+
+# 레포 안에 풀어 둔 Ren'Py SDK
+/renpy-sdk/
+/renpy-*-sdk/

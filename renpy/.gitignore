@@ -27,3 +27,7 @@
 
 # 시험 캡처.
 /tests/screenshots
+
+# run_booth.py 가 레포 맨 위 art/ 에서 복사해 오는 그림. 원본은 art/ 에 있다.
+/game/images/bg
+/game/images/sprites
