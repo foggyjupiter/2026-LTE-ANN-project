@@ -494,6 +494,8 @@ def _rewrite_reason(calls, character, event_seed=None, banned=None, previous=Non
         reasons.append("사건이 안 일어남")
     if event_seed and actor.event_read_aloud(first, event_seed):
         reasons.append("사건 이름을 읽음")
+    if actor.looks_like_fallback(first):
+        reasons.append("대체 대사 모양을 따라 함")
     if actor.wish_hidden(first, actor.name_words(character)):
         reasons.append("바람이 화면에 안 보임")
     if used and actor.repeated_phrases(first, used):

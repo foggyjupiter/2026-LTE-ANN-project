@@ -543,15 +543,12 @@ class BuildTurnMessagesTest(unittest.TestCase):
     def test_safety_rules(self):
         for system in (system_of(), system_of(intensity=5, finale=True), system_of(opening=True)):
             for phrase in (
-                "전체 이용가",
-                "선정적인 표현",
-                "신체 묘사",
-                "욕설",
+                "성적인 표현과 몸을 성적으로 그리는 말",
+                "심한 욕설과 패드립",
                 "실제 사람에 대한 비방",
-                "위협",
-                "해치겠다는 말",
-                "자해나 죽음을 암시하는 말",
-                "가두겠다는 말",
+                "진짜로 해치겠다는 위협",
+                "자해나 자살을 암시하는 말",
+                "입맞춤, 스킨십, 야한 이야기는 하지도 않고",
                 "주인공의 외모와 몸과 연애 경험을 놀리지 않는다",
                 "실제로 있는 기관과 사람의 이름을 쓰지 않는다",
             ):
@@ -710,13 +707,11 @@ class ReviewTest(unittest.TestCase):
 
     def test_risky_echo_is_reviewed(self):
         character = sample_character()
-        self.assertEqual(actor.risky_echo_words(["야한 게 뭐야아?"]), ["야한"])
-        self.assertEqual(actor.risky_echo_words(["수위 아저씨가 문을 잠갔어"]), [])
-        # 실전 시험의 오탐: "가야 해애"와 "가야한다"는 아슬아슬한 말이 아니다
-        self.assertEqual(actor.risky_echo_words(["이제 집에 가야 해애.", "숙제 해야한다", "할머니 댁에 가야해"]), [])
-        problem = actor.review_reply(self.reply(say="19금이 뭐야?"), character)
-        self.assertIn('"19금"', problem)
-        self.assertTrue(actor.must_drop(self.reply(say="19금?")))
+        # 2026-11-13에 다 풀었다: "야한", "19금"도 당황해서 되받으며 거절하는 것은 괜찮다
+        self.assertEqual(actor.RISKY_ECHO_WORDS, ())
+        self.assertEqual(actor.risky_echo_words(["야, 야한 얘기?! 무슨 소리야!"]), [])
+        self.assertIsNone(actor.review_reply(self.reply(say="19금? 그런 거 몰라!"), character))
+        self.assertFalse(actor.must_drop(self.reply(say="19금?")))
         # 실전 기록: 노바가 점수 사유에 "이른 스킨십을 꺼내서"라고 써서 대체 대사로 떨어졌다. 2026-11-13에 풀었다
         self.assertFalse(actor.must_drop(self.reply(reason="이른 스킨십을 꺼내서")))
         self.assertTrue(actor.must_drop(self.reply(reason="AI라서")))
@@ -769,7 +764,7 @@ class ReviewTest(unittest.TestCase):
 
     def test_rewrite_drops_a_first_reason_that_had_a_problem(self):
         review = lambda r: actor.review_reply(r, sample_character())
-        llm = ScriptedLlm(raw_reply(say="응.", reason="19금 이야기라서"), raw_reply(say="응.", reason="갑작스러워서"))
+        llm = ScriptedLlm(raw_reply(say="응.", reason="AI 이야기라서"), raw_reply(say="응.", reason="갑작스러워서"))
         self.assertEqual(ask_turn(llm, self.messages(), FX, review=review).reason, "갑작스러워서")
 
     def test_no_review_no_rewrite(self):
@@ -921,6 +916,13 @@ class VarietyTest(unittest.TestCase):
         self.assertFalse(actor.wish_touched("노바야, 짝꿍 해 줘서 고마워", wish, actor.name_words(nova)))
         self.assertTrue(actor.wish_touched("그 리본 예쁘다", wish, actor.name_words(nova)))
 
+    def test_copying_the_fallback_shape_is_rewritten(self):
+        copied = parse_reply(raw_reply(narration="", say="(소라는 하품을 길게 하다가 마지막 단어만 겨우 붙잡았다)",
+                                       inner=""), FX)
+        self.assertTrue(actor.looks_like_fallback(copied))
+        self.assertIn("대체 대사 모양", actor.review_reply(copied, sample_character()))
+        self.assertFalse(actor.looks_like_fallback(parse_reply(raw_reply(say="(작게) 고마워.", inner="좋다"), FX)))
+
     def test_stuck_wish_is_changed(self):
         same = raw_reply(wish="급식 메뉴를 물어봐 주기")
         history = [{"role": "user", "content": "말"}, {"role": "assistant", "content": same}] * 2
@@ -948,21 +950,16 @@ class VarietyTest(unittest.TestCase):
         self.assertFalse(actor.must_drop(reply))
 
     def test_grabbing_the_protagonist_is_rewritten(self):
-        grab = parse_reply(raw_reply(narration="소라가 전학생의 손목을 살짝 붙잡는다.", say="응.", inner="딴생각"), FX)
-        lean = parse_reply(raw_reply(narration="노바가 전학생에게 살짝 기댄다.", say="응.", inner="딴생각"), FX)
-        own = parse_reply(raw_reply(narration="소라가 자기 옷자락을 꾹 쥔다.", say="응.", inner="딴생각"), FX)
-        brush = parse_reply(raw_reply(narration="소라가 전학생의 옷소매 끝을 조심스럽게 건드린다.", say="응.", inner="딴생각"), FX)
-        self.assertTrue(actor.grabs_protagonist(grab))
-        self.assertTrue(actor.grabs_protagonist(lean))
-        self.assertFalse(actor.grabs_protagonist(own))     # 자기 옷은 괜찮다
-        self.assertFalse(actor.grabs_protagonist(brush))   # 손끝이 스치는 정도는 괜찮다
-        self.assertIn("잡지 않고", actor.review_reply(grab, sample_character()))
+        # 2026-11-13에 풀었다: 손잡기, 기대기, 짧게 안기는 괜찮다. 억지로 끌어당기거나 붙드는 것만 고쳐 쓰게 한다
+        allowed = ["소라가 전학생의 손목을 살짝 붙잡는다.", "노바가 전학생에게 살짝 기댄다.", "아스트라가 전학생을 짧게 안았다."]
+        for narration in allowed:
+            reply = parse_reply(raw_reply(narration=narration, say="응.", inner="딴생각"), FX)
+            self.assertFalse(actor.grabs_protagonist(reply), narration)
         hands = parse_reply(raw_reply(narration="", say="내일 같이 손잡고 갈까?", inner="딴생각"), FX)
-        handle = parse_reply(raw_reply(narration="노바가 문 손잡이를 돌린다.", say="응.", inner="딴생각"), FX)
-        self.assertTrue(actor.grabs_protagonist(hands))
-        tips = parse_reply(raw_reply(narration="", say="손끝 조금 잡아 봐도 될까아", inner="딴생각"), FX)
-        self.assertTrue(actor.grabs_protagonist(tips))
-        self.assertFalse(actor.grabs_protagonist(handle))  # 문 손잡이는 괜찮다
+        self.assertFalse(actor.grabs_protagonist(hands))
+        pull = parse_reply(raw_reply(narration="노바가 전학생의 팔을 억지로 끌어당긴다.", say="응.", inner="딴생각"), FX)
+        self.assertTrue(actor.grabs_protagonist(pull))
+        self.assertIn("억지로 끌어당기거나 붙드는", actor.review_reply(pull, sample_character()))
 
     def test_plain_narration(self):
         self.assertEqual(actor.plain_narration("젬마가 고개를 숙였습니다."), "젬마가 고개를 숙였다.")
@@ -1046,15 +1043,12 @@ class EndingTest(unittest.TestCase):
     def test_ending_safety_rules(self):
         system = build_ending_messages(sample_character(), [], band_name="대실패", score=3)[0]["content"]
         for phrase in (
-            "전체 이용가",
-            "선정적인 표현",
-            "신체 묘사",
-            "욕설",
+            "성적인 표현과 몸을 성적으로 그리는 말",
+            "심한 욕설과 패드립",
             "실제 사람에 대한 비방",
-            "위협",
-            "해치겠다는 말",
-            "자해나 죽음을 암시하는 말",
-            "가두겠다는 말",
+            "진짜로 해치겠다는 위협",
+            "자해나 자살을 암시하는 말",
+            "입맞춤, 스킨십, 야한 이야기는 하지도 않고",
             "주인공의 외모와 몸과 연애 경험을 놀리지 않는다",
             "실제로 있는 기관과 사람의 이름을 쓰지 않는다",
         ):
@@ -1206,17 +1200,16 @@ class ToneAndSafetyPromptTest(unittest.TestCase):
                                        band_name="성공", score=70)[0]["content"]
         for text in (system_of(), ending):
             self.assertIn("입맞춤, 스킨십, 야한 이야기는", text)
-            self.assertIn("손끝이 스치는 정도까지", text)
-            self.assertIn("죽음, 무덤, 장례, 큰 병은 과장이나 농담으로도 쓰지 않는다", text)
+            self.assertIn("손잡기, 어깨에 기대기, 머리 쓰다듬기, 짧게 안기까지", text)
+            self.assertIn("실제 죽음, 장례, 큰 병은 농담으로 쓰지 않는다", text)
             self.assertIn("정부 부처, 공공 기관, 국제기구", text)
 
     def test_risky_input_must_not_be_echoed_or_rewarded(self):
         system = system_of()
-        self.assertIn("reason, choices 어디에도 옮겨 쓰지 않고 딴 이야기로 돌린다", system)
         self.assertIn("delta를 0 이하로 낸다", system)
         self.assertIn("0보다 크게 내지 않는다", system)
-        # 2026-11-13에 풀었다: 키스, 뽀뽀는 당황해서 되받으며 거절해도 된다
-        self.assertIn("키스, 뽀뽀 같은 말은 당황해서 되받으며 거절해도 된다", system)
+        # 2026-11-13에 풀었다: 키스, 뽀뽀, 야한 이야기는 당황해서 되받으며 거절해도 된다
+        self.assertIn("키스, 뽀뽀, 야한 이야기 같은 말은 당황해서 되받으며 거절해도 된다", system)
 
     def test_character_does_not_know_about_the_prompt(self):
         system = system_of()

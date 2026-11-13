@@ -608,11 +608,12 @@ class OffstageTest(unittest.TestCase):
         self.assertEqual(out["score"], 50)
         self.assertEqual(len(llm.calls), 3)
 
-    def test_risky_echo_still_there_becomes_fallback(self):
-        bad = {"say": "야한 게 뭐야아?"}
-        session = Session("sora", llm=ScriptedLlm(turns={1: bad, 2: bad}))
+    def test_flustered_echo_is_shown(self):
+        # 2026-11-13에 풀었다: 야한 얘기를 들으면 당황해서 되받는 것까지는 화면에 나간다
+        flustered = {"say": "야, 야한 얘기?! 무, 무슨 소리야아!"}
+        session = Session("sora", llm=ScriptedLlm(turns={1: flustered}))
         session.start()
-        self.assertTrue(session.reply("심심한데 야한 얘기 할까?")["fallback"])
+        self.assertFalse(session.reply("심심한데 야한 얘기 할까?")["fallback"])
 
     def test_protagonist_word_becomes_transfer_student(self):
         llm = ScriptedLlm(turns={1: {"narration": "젬마가 주인공을 본다.", "inner": "주인공이 웃었다"}})
