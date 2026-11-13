@@ -193,6 +193,8 @@ class Session:
             for name in ("narration", "say", "inner", "reason"):
                 setattr(reply, name, getattr(reply, name).replace("주인공", "전학생"))
             reply.narration = actor.plain_narration(reply.narration)
+            reply.say = actor.fix_stretched_vowels(reply.say)
+            reply.inner = actor.fix_stretched_vowels(reply.inner)
             # 붉어진 얼굴이 세 번 연달아 나오면 웃는 얼굴로 바꾼다. 실제 모델은 답의 3분의 2를 blush로 냈다
             if reply.face == "blush" and (self._faces[-2:] == ["blush", "blush"]
                                           or self._faces.count("blush") >= BLUSH_LIMIT):

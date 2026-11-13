@@ -195,7 +195,8 @@ def _seed_section(seed: str, kind: str) -> list[str]:
         "- 이 낱말로 이번 답에서 사건을 일으켜라. 사건은 캐릭터의 버릇을 거쳐서 일어난다.",
         "- 사건의 내용은 네가 정한다. 주인공이 방금 한 말에 대한 반응과 사건을 한 답 안에 엮는다.",
         "- 사건은 둘 사이가 가까워지는 작은 일이다. 학교에서 있을 법한 일로 쓰고 황당하게 키우지 않는다.",
-        "- 사건은 narration이나 say에서 실제로 벌어져야 한다. choices나 reason에만 넣으면 사건이 아니다.",
+        "- 사건은 narration에서 장면으로 실제로 벌어져야 한다. 사건의 낱말을 대사에 끼워 넣기만 하면 사건이 아니다. "
+        "choices나 reason에만 넣어도 사건이 아니다.",
         "- 사건이 지금 있는 장소와 맞지 않으면 장소를 옮기지 않는다. 그 자리에서 이야기나 물건으로 꺼낸다"
         "(급식실이라면 하굣길 이야기를 한다, 우산을 들고 있다 같은 식).",
     ]
@@ -256,6 +257,8 @@ _TONE_SECTION = [
     "설레는 순간은 이런 것이다: 눈이 마주친다, 사소한 배려를 한다, 주인공이 한 말을 기억하고 있다, "
     "거리가 한 뼘 가까워진다, 솔직한 한마디를 하고는 얼버무린다, 다음 약속을 꺼낸다, 같은 것이다. "
     "narration, say, inner 어디에 넣어도 된다. 앞 답과 같은 종류를 연달아 쓰지 않는다.",
+    "- 속마음은 실제로 있었던 말과 행동만 되새긴다. 캐릭터가 하지 않은 말을 했다고 하거나(\"좋아한다고 말해 버렸어\"), "
+    "주인공이 하지 않은 말을 들었다고 하지 않는다.",
     "- 캐릭터가 마음을 주체하지 못하는 모습을 보여 준다. 말을 더듬는다, 말이 꼬인다, 얼굴이 빨개진다, "
     "허둥대며 변명한다, 속마음이 앞서 달린다. 어떤 모습으로 흔들리는지는 [말투 지침]에 적힌 이 캐릭터의 "
     "방식만 쓴다.",
@@ -672,6 +675,15 @@ def plain_narration(text: str) -> str:
     return _FORMAL_END_RE.sub(r"\1다", text) if isinstance(text, str) else text
 
 
+# 소라처럼 말끝을 늘이는 캐릭터가 "했어아", "모르겠어아"로 틀리게 늘였다. "어" 다음에 늘이는 글자는 "어"다
+_STRETCH_FIX_RE = re.compile(r"어아(?=[\s.,!?…]|$)")
+
+
+def fix_stretched_vowels(text: str) -> str:
+    """'-어아'로 잘못 늘인 말끝을 '-어어'로 고친다."""
+    return _STRETCH_FIX_RE.sub("어어", text) if isinstance(text, str) else text
+
+
 def reply_texts(reply: Reply) -> list[str]:
     """화면에 나가는 글 전부."""
     return [reply.narration, reply.say, reply.inner, reply.reason, *reply.choices]
@@ -833,7 +845,7 @@ def review_reply(reply: Reply, character: dict, *, banned=None, event_seed=None,
                         "주인공이 방금 한 말에 맞춰 새로 쓴다.")
     if event_seed and not event_happened(reply, event_seed):
         problems.append('이번 답의 사건 "' + str(event_seed) + '"이 지문이나 겉말에서 실제로 벌어지지 않았다. '
-                        "그 일이 지금 이 자리에서 일어나게 쓴다.")
+                        "그 일이 지금 이 자리에서 일어나는 장면을 지문에 쓴다. 사건의 낱말만 대사에 끼워 넣지 않는다.")
     if previous and repeats_previous(reply, previous):
         problems.append("지문이나 겉말이 앞 답의 문장을 거의 그대로 되풀이했다. 이번 답만의 새 문장으로 쓴다.")
     repeated = repeated_phrases(reply, dict(used_phrases or ()))

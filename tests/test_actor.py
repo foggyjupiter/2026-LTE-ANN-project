@@ -896,6 +896,11 @@ class VarietyTest(unittest.TestCase):
         self.assertFalse(actor.repeats_previous(new, [line]))
         self.assertIn("되풀이", actor.review_reply(same, sample_character(), previous=[line]))
 
+    def test_fix_stretched_vowels(self):
+        self.assertEqual(actor.fix_stretched_vowels("모르겠어아. 깼어아"), "모르겠어어. 깼어어")
+        self.assertEqual(actor.fix_stretched_vowels("괜찮아아. 그렇구나아"), "괜찮아아. 그렇구나아")  # 맞게 늘인 것은 그대로
+        self.assertEqual(actor.fix_stretched_vowels("어아앙"), "어아앙")
+
     def test_problems_are_joined_into_one_rewrite(self):
         reply = parse_reply(raw_reply(narration="줌인.", say="AI가 뭔데?"), FX)
         problem = actor.review_reply(reply, sample_character())
@@ -1116,7 +1121,7 @@ class ToneAndSafetyPromptTest(unittest.TestCase):
         self.assertIn('narration에는 "주인공"이라는 낱말을 쓰지 않는다', system)
         self.assertIn("장소는 등장 장면의 그곳이다", system)
         self.assertIn("위에 적힌 줄을 먼저 따른다", system)
-        self.assertIn("choices나 reason에만 넣으면 사건이 아니다", system)
+        self.assertIn("choices나 reason에만 넣어도 사건이 아니다", system)
         self.assertIn("dark는 캐릭터가 정말로 가라앉았을 때만 쓴다", system)
         self.assertIn("한두 글자뿐이거나 성의가 없으면 올리지 않는다", system)
 
