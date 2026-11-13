@@ -18,6 +18,9 @@ default sg_fx_demo_line = ""
 ## sg_fx_demo_click 이 몇째 줄까지 넘어갔는지
 default sg_fx_demo_step = 0
 
+## sg_fx_demo 가 끝까지 돌았는지
+default sg_fx_demo_done = False
+
 init python:
 
     class SgFxDemoArt(renpy.Displayable):
@@ -154,10 +157,10 @@ label sg_fx_demo:
     $ sg_fx_clear()
     pause 1.5
 
-    $ sg_fx_demo_line = "끝. 클릭하면 돌아간다"
+    $ sg_fx_demo_done = True
+    $ sg_fx_demo_line = "끝. 클릭하면 연출 없는 무대로 돌아간다"
     pause
-    hide screen sg_fx_demo_say
-    return
+    jump sg_fx_demo_stage
 
 
 ## 자동 시험이 쓰는 무대. 연출 없이 서서 기다린다.
@@ -498,3 +501,13 @@ testsuite sg_fx_demo:
         click pos (1000, 200)
         pause 0.5
         assert eval (sg_fx_demo_step == 3)
+
+    testcase walkthrough:
+        ## 사람이 보는 시험장(label sg_fx_demo)이 처음부터 끝까지 오류 없이 도는지 본다.
+        ## 클릭 한 번에 다음 연출로 넘어간다
+        $ sg_fx_demo_done = False
+        run Jump("sg_fx_demo")
+        pause 0.5
+        click pos (100, 400) until eval sg_fx_demo_done
+        pause 1.0
+        assert eval sg_fx_demo_clean()
