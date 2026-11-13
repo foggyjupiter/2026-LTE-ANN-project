@@ -1,0 +1,4 @@
+# 렌파이가 sg_booth.rpy 옆에 만드는 파일.
+*.rpyc
+*.rpymc
+*.bak
