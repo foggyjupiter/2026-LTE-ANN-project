@@ -184,8 +184,20 @@ def _decode_base64_image(text, status):
 
 # ---------------------------------------------------------------- Cloudflare
 
+# 오류 번호는 developers.cloudflare.com/workers-ai/platform/errors/ 의 표에서 가져왔다.
+CF_DAILY_LIMIT = 3036                        # 하루 무료 한도(10,000 뉴런)를 다 씀. HTTP 429
+CF_BAD_MODEL = (5007, 3042, 5028)            # 없는 모델, 잘못된 모델 이름, 없어진 모델
+CF_NOT_THE_TOKEN = (3023, 3041, 5016, 5018, 5035)   # 403이지만 계정이나 모델 쪽 사정
+CF_REJECTED = 3030   # 그림이 걸러졌을 때의 번호라고 알려져 있으나 공식 표에는 없다
+CF_SCHNELL_PROMPT_MAX = 2048                 # schnell 입력 스키마의 prompt maxLength
+
+
 def decode_cloudflare(status, body):
-    """Workers AI 응답에서 그림 바이트를 꺼낸다. 그림 그대로 오는 경우와 JSON 안에 오는 경우가 있다."""
+    """Workers AI 응답에서 그림 바이트를 꺼낸다.
+
+    FLUX 계열은 {"result": {"image": "base64..."}, "success": true, ...} 모양으로 준다.
+    옛 모델처럼 그림 바이트가 그대로 와도 받는다.
+    """
     if status < 400 and sniff_image(body):
         return body
     doc = _parse_json(status, body)
@@ -196,23 +208,30 @@ def decode_cloudflare(status, body):
         message = str(first.get("message") or _snippet(body))
         text = f"HTTP {status}, 코드 {code}: {message}"
         low = message.lower()
+        if code in CF_NOT_THE_TOKEN:
+            raise ArtError(text, stop=True)
         if status in (401, 403) or code == 10000:
             raise ArtError(
                 text + "\n  → .env의 CLOUDFLARE_ACCOUNT_ID와 CLOUDFLARE_API_TOKEN을 확인하세요. "
                 "토큰에는 Workers AI 권한이 있어야 합니다.",
                 stop=True,
             )
-        if "neuron" in low or "allocation" in low or "daily" in low:
+        if code == CF_DAILY_LIMIT or "neuron" in low or "allocation" in low or "daily" in low:
             raise ArtError(
-                text + "\n  → 오늘의 무료 한도를 다 쓴 것으로 보입니다. "
-                "내일 같은 명령을 다시 실행하면 남은 것부터 이어집니다.",
+                text + "\n  → 하루 무료 한도(10,000 뉴런)를 다 썼습니다. "
+                "한도는 매일 00:00 UTC(한국 시간 오전 9시)에 다시 찹니다. "
+                "그 뒤에 같은 명령을 다시 실행하면 남은 것부터 이어집니다.",
                 stop=True,
             )
-        if code == 3030 or "rejected" in low or "flagged" in low or "nsfw" in low:
+        if code in CF_BAD_MODEL or status in (404, 410):
+            raise ArtError(
+                text + "\n  → CLOUDFLARE_ACCOUNT_ID와 모델 이름(--model)을 확인하세요.", stop=True
+            )
+        if code == CF_REJECTED or "rejected" in low or "flagged" in low or "nsfw" in low:
             raise ArtError(text, reroll=True)
         if status == 429:
             raise ArtError(text, retry=True, quota=True)
-        raise ArtError(text, retry=status >= 500)
+        raise ArtError(text, retry=status == 408 or status >= 500)
     result = doc.get("result", doc)
     image = result.get("image") if isinstance(result, dict) else None
     if not isinstance(image, str):
@@ -222,11 +241,15 @@ def decode_cloudflare(status, body):
 
 class Cloudflare:
     name = "cloudflare"
+    # 문서: "All input images must be smaller than 512x512." 512도 되는지는 적혀 있지 않아서 511로 둔다.
+    ref_max_side = 511
+    max_refs = 4   # 문서: "supports up to 4 image inputs"
 
     def __init__(self, account, token, model=CF_KLEIN):
         self.account = account
         self.token = token
         self.model = model
+        self.send_seed = True
 
     @property
     def uses_reference(self):
@@ -236,19 +259,37 @@ class Cloudflare:
         url = f"{CF_BASE}/accounts/{self.account}/ai/run/{self.model}"
         headers = {"Authorization": f"Bearer {self.token}"}
         if self.uses_reference:
-            # FLUX.2 계열은 글만 보낼 때도 multipart로 보내야 한다.
+            # FLUX.2 계열은 글만 보낼 때도 multipart로 보내야 한다. 크기는 256에서 1920까지.
+            # klein은 4단계로 고정이라 steps는 보내지 않는다.
             fields = {"prompt": prompt, "width": width, "height": height, "seed": seed}
             files = [
                 (f"input_image_{i}", f"ref{i}.{ext}", MIME[ext], data)
-                for i, (ext, data) in enumerate(refs[:4])
+                for i, (ext, data) in enumerate(refs[:self.max_refs])
             ]
             body, content_type = encode_multipart(fields, files)
-        else:
-            # schnell은 크기를 받지 않고 늘 정사각형으로 준다.
-            body = json.dumps({"prompt": prompt, "steps": 4, "seed": seed}).encode("utf-8")
-            content_type = "application/json"
-        headers["Content-Type"] = content_type
-        status, raw = http_post(url, headers, body)
+            status, raw = http_post(url, {**headers, "Content-Type": content_type}, body)
+            return decode_cloudflare(status, raw)
+
+        # schnell의 입력 스키마에는 prompt와 steps뿐이다. 크기도 참고 그림도 받지 않는다.
+        if len(prompt) > CF_SCHNELL_PROMPT_MAX:
+            raise ArtError(
+                f"요청문이 {len(prompt)}자입니다. 이 모델은 {CF_SCHNELL_PROMPT_MAX}자까지만 받습니다."
+            )
+        headers["Content-Type"] = "application/json"
+        payload = {"prompt": prompt, "steps": 4}
+        if self.send_seed:
+            payload["seed"] = seed
+        status, raw = http_post(url, headers, json.dumps(payload).encode("utf-8"))
+        if status == 400 and "seed" in payload:
+            # 문서의 예시는 seed를 보내는데 입력 스키마에는 seed가 없다(additionalProperties: false).
+            # seed 때문에 거절됐을 수 있으니 빼고 한 번 더 보낸다.
+            first_raw = raw
+            payload.pop("seed")
+            status, raw = http_post(url, headers, json.dumps(payload).encode("utf-8"))
+            if status == 400:
+                return decode_cloudflare(400, first_raw)
+            if status < 400:
+                self.send_seed = False
         return decode_cloudflare(status, raw)
 
 
@@ -268,23 +309,68 @@ def find_images(node):
     return found
 
 
+# 그림이 걸러졌거나 만들어지지 않았다는 오류 코드. ai.google.dev/gemini-api/docs/api-errors 의 표.
+GEMINI_BLOCKED = frozenset({
+    "safety", "recitation", "language", "prohibited_content", "spii", "blocklist",
+    "image_safety", "image_prohibited_content", "image_recitation", "image_other",
+    "content_blocked", "no_image",
+})
+
+
+def _gemini_error(doc):
+    """오류 응답 {"error": {"code": "snake_case", "message": "..."}}에서 (코드, 문장)을 꺼낸다."""
+    error = doc.get("error") if isinstance(doc, dict) else None
+    if not isinstance(error, dict):
+        return None, None
+    return error.get("code"), error.get("message")
+
+
+def _gemini_format_refused(raw):
+    """HTTP 400이 형식 지정 탓일 수 있는지. 그림이 걸러졌거나 결제 문제라면 아니다."""
+    try:
+        code, _ = _gemini_error(json.loads(raw))
+    except ValueError:
+        return True
+    return code != "failed_precondition" and code not in GEMINI_BLOCKED
+
+
+def gemini_images(doc):
+    """결과 단계(model_output)의 그림을 먼저 찾는다. 생각 단계(thought)에는 중간 그림이 섞여 있다."""
+    steps = doc.get("steps")
+    outputs = [
+        step for step in steps if isinstance(step, dict) and step.get("type") == "model_output"
+    ] if isinstance(steps, list) else []
+    return find_images(outputs) or find_images(doc)
+
+
 def decode_gemini(status, body):
     doc = _parse_json(status, body)
-    error = doc.get("error")
-    if status >= 400 or error:
-        message = str((error or {}).get("message") or _snippet(body)) if isinstance(error, dict) \
-            else _snippet(body)
-        text = f"HTTP {status}: {message}"
-        if status in (401, 403):
-            raise ArtError(text + "\n  → .env의 GEMINI_API_KEY를 확인하세요.", stop=True)
+    code, message = _gemini_error(doc)
+    if status >= 400 or doc.get("error"):
+        text = f"HTTP {status}, 코드 {code}: {message or _snippet(body)}"
+        if status in (401, 403) or code in ("authentication", "permission_denied"):
+            raise ArtError(
+                text + "\n  → .env의 GEMINI_API_KEY를 확인하세요. "
+                "그림 모델은 결제가 연결된 프로젝트의 키만 쓸 수 있습니다.",
+                stop=True,
+            )
+        if status == 402 or code in ("payment_required", "failed_precondition"):
+            raise ArtError(
+                text + "\n  → 결제 설정과 선불 잔액을 확인하세요. Gemini 그림 모델은 무료 한도가 없습니다.",
+                stop=True,
+            )
+        if status == 404:
+            raise ArtError(text + "\n  → 모델 이름(--model)을 확인하세요.", stop=True)
         if status == 429:
             raise ArtError(
                 text + "\n  → Gemini 그림 모델은 무료 한도가 없습니다. "
                 "결제가 연결된 키인지 확인하세요.",
                 retry=True, quota=True,
             )
-        raise ArtError(text, retry=status >= 500)
-    images = find_images(doc)
+        if code in GEMINI_BLOCKED:
+            raise ArtError(text, reroll=True)
+        raise ArtError(text, retry=status == 408 or status >= 500)
+    images = gemini_images(doc)
     if not images:
         raise ArtError("그림 없이 답이 왔습니다 (걸러졌을 수 있음)", reroll=True)
     return _decode_base64_image(images[-1], status)
@@ -293,6 +379,7 @@ def decode_gemini(status, body):
 class Gemini:
     name = "gemini"
     uses_reference = True
+    ref_max_side = None   # 참고 그림 크기 한도가 문서에 없다
 
     def __init__(self, key, model=GEMINI_MODEL):
         self.key = key
@@ -308,6 +395,8 @@ class Gemini:
                 "mime_type": MIME[ext],
                 "data": base64.b64encode(data).decode("ascii"),
             })
+        # Interactions API. response_format의 mime_type은 image/jpeg 하나뿐이다.
+        # 1K로 받으면 2:3은 848x1264, 16:9는 1376x768로 온다. 게임에 쓸 크기로는 나중에 맞춘다.
         payload = {
             "model": self.model,
             "input": parts,
@@ -319,14 +408,14 @@ class Gemini:
             },
         }
         status, raw = http_post(url, headers, json.dumps(payload).encode("utf-8"))
-        if status == 400:
+        if status == 400 and _gemini_format_refused(raw):
             # 형식 지정을 못 알아듣는 모델일 수 있다. 빼고 한 번 더 보낸다.
-            first_error = _snippet(raw)
+            first_raw = raw
             payload.pop("response_format")
             payload["input"][0]["text"] = f"{prompt} Image aspect ratio {aspect}."
             status, raw = http_post(url, headers, json.dumps(payload).encode("utf-8"))
             if status == 400:
-                raise ArtError(f"HTTP 400: {first_error}")
+                return decode_gemini(400, first_raw)
         return decode_gemini(status, raw)
 
 
@@ -863,8 +952,16 @@ def run(args, cfg):
             return 2
         note = f"{backend.name} {backend.model}"
         say(f"그림 만들 곳: {backend.name} ({backend.model})")
-        if not backend.uses_reference:
+        use_refs = backend.uses_reference
+        ref_side = cfg.get("reference", {}).get("max_side", 512)
+        if backend.ref_max_side:
+            ref_side = min(ref_side, backend.ref_max_side)
+        if not use_refs:
             say("알림: 이 모델은 참고 그림을 받지 않습니다. 표정마다 얼굴이 조금 달라질 수 있습니다.")
+        elif Image is None and backend.ref_max_side:
+            use_refs = False
+            say(f"알림: 이 모델은 참고 그림을 {backend.ref_max_side}픽셀 이하로 줄여 보내야 하는데 "
+                "Pillow가 없어 줄일 수 없습니다. 참고 그림 없이 뽑으므로 표정마다 얼굴이 달라질 수 있습니다.")
 
         # 표정을 만들려면 기준 그림이 먼저 있어야 한다.
         todo = []
@@ -885,7 +982,6 @@ def run(args, cfg):
 
         manifest = _load_manifest(out)
         fresh_bases = set()
-        ref_side = cfg.get("reference", {}).get("max_side", 512)
         count = 0
         for key in jobs:
             left, right = split_key(key)
@@ -903,7 +999,7 @@ def run(args, cfg):
                     failed[key] = "기준 그림이 없어서 건너뜀"
                     say("건너뜀 (기준 그림 없음)")
                     continue
-                if backend.uses_reference:
+                if use_refs:
                     refs = [reference_image(base_raw, ref_side)]
             if sprite:
                 prompt = sprite_prompt(cfg, left, right, variant=bool(refs))
