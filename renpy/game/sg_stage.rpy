@@ -359,11 +359,16 @@ transform sg_stage_emote_sink(x, y, z, delay=0.0):
 init -4 python:
 
     def sg_stage_oops(where):
-        """무대 연기에서 난 오류는 게임을 멈추지 않는다. 개발 중에는 그대로 드러낸다."""
-        if config.developer:
-            raise
-        renpy.display.log.write("sg_stage: %s 에서 오류", where)
-        renpy.display.log.exception()
+        """무대 연기는 조용히 실패한다(부스에서 게임이 멈추면 안 된다). log.txt 에만 남긴다.
+
+        시험(sg_stage_demo)은 기호의 수를 세므로 여기서 삼킨 오류도 시험에서는 드러난다.
+        """
+        try:
+            import traceback
+            renpy.display.log.write("sg_stage: %s 에서 문제가 생겨 건너뛴다.", where)
+            renpy.display.log.write("%s", traceback.format_exc())
+        except Exception:
+            pass
 
     def sg_stage_pick_parts(face, change=0, first=False, fallback=False):
         """표정과 호감도 변화에 맞는 기호를 고른다. (표정 기호 목록, 호감도 기호 목록)을 돌려준다.
