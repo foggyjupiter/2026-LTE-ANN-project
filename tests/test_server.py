@@ -166,15 +166,18 @@ class CharactersTest(ServerCase):
         cards = res.json()
         self.assertEqual([card["id"] for card in cards], ORDER)
         for card in cards:
-            self.assertEqual(set(card), CARD_KEYS | {"intro"})
+            self.assertEqual(set(card), CARD_KEYS | {"intro", "note"})
             for key, value in card.items():
                 self.assertIsInstance(value, str, key)
-                self.assertTrue(value, key)
+                if key != "note":  # 안내는 장치가 있는 캐릭터에게만 있다
+                    self.assertTrue(value, key)
             character = content.load_character(card["id"])
             self.assertEqual(card["name"], character["name"])
             self.assertEqual(card["attribute"], character["attribute"])
             self.assertEqual(card["motif"], character["motif"]["name"])
             self.assertEqual(card["color"], character["color"])
+            # 하이쿠만 속마음이 가려진다는 안내가 붙는다
+            self.assertEqual(bool(card["note"]), card["id"] == "haiku")
 
     def test_intro_is_first_sentence_of_attitude(self):
         cards = {card["id"]: card for card in self.get("/api/characters").json()}

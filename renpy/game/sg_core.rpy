@@ -213,6 +213,7 @@ init -5 python:
                 "attribute": sg_str(item.get("attribute")),
                 "motif": sg_str(item.get("motif")),
                 "intro": sg_str(item.get("intro")),
+                "note": sg_str(item.get("note")),   # 카드 맨 아래 안내 한 줄 (하이쿠: 속마음이 가려진다)
                 "color": sg_color(item.get("color")),
             })
         if not cards:

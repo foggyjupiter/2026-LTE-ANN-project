@@ -118,7 +118,9 @@ class _App:
         cards = []
         for char_id in _ordered_character_ids():
             character = content.load_character(char_id)
-            cards.append({**_card(character), "intro": _first_sentence(character["attitude"])})
+            # note: 고르기 화면 카드에 덧붙이는 안내 한 줄(하이쿠: 속마음이 가려진다). 없으면 빈 문자열
+            cards.append({**_card(character), "intro": _first_sentence(character["attitude"]),
+                          "note": str(character.get("card_note") or "")})
         return cards
 
     def create(self, body):

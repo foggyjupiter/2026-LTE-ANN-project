@@ -553,6 +553,17 @@ style sg_card_intro:
     line_spacing 4
     xsize 166
 
+## 카드 맨 아래 안내 한 줄. 하이쿠처럼 화면에 장치가 있는 캐릭터만 붙는다
+style sg_card_note:
+    font gui.text_font
+    size 14
+    bold True
+    color "#c2507f"
+    line_spacing 3
+    xsize 166
+    top_margin 6
+    language "korean-with-spaces"   # 낱말 가운데서 줄을 바꾸지 않는다 ("보여 / 요." 가 되지 않게)
+
 ## 엔딩 화면 ----------------------------------------------------------------------
 
 style sg_end_card:
@@ -680,6 +691,9 @@ screen sg_card(c):
             text sg_esc(c["motif"]) style "sg_card_motif" font sg_cute(c["motif"])   # 매력 한 줄
 
             text sg_esc(c["intro"]) style "sg_card_intro"
+
+            if c.get("note"):
+                text sg_esc(c["note"]) style "sg_card_note"
 
 
 ################################################################################
@@ -849,7 +863,8 @@ screen sg_talk(v, first):
 
             vbox:
                 spacing 3
-                text ("속마음" + (" (일부 가려짐)" if v["masked"] else "")):
+                ## 가려진 속마음은 드러난 글자의 비율이 그때의 호감도와 같다. 그 숫자를 함께 적는다
+                text ("속마음" + ((" (호감도 %d%%만큼 보임)" % v["score"]) if v["masked"] else "")):
                     style "sg_bubble_label"
                     color sg_on_light(color)
                 text v["inner"] style "sg_bubble_text" size v["inner_size"]
