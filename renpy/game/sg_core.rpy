@@ -510,7 +510,7 @@ init -5 python:
         sg_show_char(store.sg_char["id"], view["face"])
         # 표정과 호감도 변화에 맞는 만화 기호. 등장 턴이면 장소 제목 카드도 뜬다
         sg_stage_call("sg_stage_turn", view["face"], sg_int(turn.get("change")),
-                      first=first, fallback=view["fallback"], place=place)
+                      first=first, fallback=view["fallback"], place=place, score=view["score"])
         # 레이어를 지정한 전환(layer="master")은 쓰지 않는다. 시험 도구가 그 전환이
         # 끝난 것을 알아채지 못해서 다음 클릭에서 멈춘다.
         if first:

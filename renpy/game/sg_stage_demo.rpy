@@ -226,6 +226,25 @@ testsuite sg_stage_demo:
         assert eval (sg_stage_pick_emotes("없는 표정", 0, first=True) == [ ])
         assert eval (len(set(e[1] for e in sg_stage_pick_emotes("smile", 21))) == len(sg_stage_pick_emotes("smile", 21)))
 
+    ## 호감도 기호는 게이지가 움직이는 순간(대사가 나올 때)까지 미뤄진다
+    testcase later:
+        $ sg_score_shown = 50
+        $ sg_show_char(sg_stage_demo_char, "smile")
+        $ sg_stage_turn("smile", 14, score=64)
+        $ renpy.restart_interaction()
+        pause 0.7
+        assert eval (sg_stage_demo_emotes() == 2)
+        assert eval (sg_stage_later is not None)
+        pause 1.2
+        ## 대화 화면이 대사 단계에서 하는 일을 흉내 낸다
+        run SetVariable("sg_score_shown", 64)
+        pause 0.7
+        assert eval (sg_stage_later is None)
+        assert eval (sg_stage_demo_emotes() == 5)
+        screenshot "stage_16b_later_hearts.png"
+        pause 1.4
+        $ sg_score_shown = 50
+
     ## 연출과 함께: 줌인과 흔들림은 master 레이어 자리에 걸리고, 스탠딩과 기호는 그 안에서 같이 움직인다
     testcase with_fx:
         $ sg_stage_demo_go("shock", 0, fx=[ "줌인", "집중선" ])
@@ -254,3 +273,52 @@ testsuite sg_stage_demo:
         assert eval (sg_stage_demo_emotes() == 0)
         assert eval (sg_stage_face is None)
         assert eval sg_stage_demo_layer_free()
+
+
+################################################################################
+## 진짜 흐름에서 확인한다. 가짜 모델 서버를 켜 두고 돌린다.
+##
+##   python3 -m sogaeting.server --fake --port 8104 --results <임시 폴더>
+##   RENPY_SDK=<SDK 폴더> renpy/dev/rtest.sh sg_stage_flow 8104
+################################################################################
+
+testcase sg_stage_flow:
+    pause until screen "sg_select"
+    pause 0.8
+    click "기울희"
+    pause until screen "sg_talk"
+    ## 등장: 스탠딩이 올라오고 장소 제목 카드가 뜬다
+    pause 0.3
+    screenshot "stage_flow_01_enter.png"
+    pause 0.9
+    assert screen "sg_stage_title"
+    screenshot "stage_flow_02_title.png"
+    pause 2.4
+    assert not screen "sg_stage_title"
+    click id "sg_advance" until id "sg_input"
+
+    ## 답 1: 턴이 오면 표정 동작과 표정 기호가 나온다
+    click "좋아, 더 말해줘"
+    pause until eval (sg_turn_no == 1)
+    pause 0.55
+    screenshot "stage_flow_03_turn_face_emote.png"
+    pause 1.6
+
+    ## 대사로 넘어가면 호감도 숫자와 함께 호감도 기호가 나온다
+    click id "sg_advance" until eval (sg_score_shown == sg_view["score"])
+    pause 0.7
+    assert eval (sg_stage_later is None)
+    screenshot "stage_flow_04_say_score_emote.png"
+    pause 1.2
+    click id "sg_advance" until id "sg_input"
+
+    ## 답 2
+    click "좋아, 더 말해줘"
+    pause until eval (sg_turn_no == 2)
+    pause 0.55
+    screenshot "stage_flow_05_turn2.png"
+    pause 1.2
+    click id "sg_advance" until eval (sg_score_shown == sg_view["score"])
+    pause 0.7
+    screenshot "stage_flow_06_turn2_say.png"
+    exit

@@ -9,7 +9,7 @@
 ## 바깥에서 쓰는 것 (sg_core.rpy 의 무대 부분이 부른다. 이 파일이 없어도 게임은 돌아간다)
 ##   sg_stage_char_at(face, place)   스탠딩에 걸 transform 목록(자리, 숨쉬기, 동작)
 ##   sg_stage_bg_at()                배경에 걸 transform 목록
-##   sg_stage_turn(face, change, first, fallback, place)   턴에 맞는 기호와 제목 카드
+##   sg_stage_turn(face, change, first, fallback, place, score)   턴에 맞는 기호와 제목 카드
 ##   sg_stage_ending(band_id)        엔딩 화면에 맞는 기호
 ##   sg_stage_reset()                기호와 제목 카드를 치우고 표정 기억을 지운다
 ##
@@ -63,6 +63,9 @@ define sg_stage_big_change = 14
 ## 한 번에 띄우는 기호의 수.
 define sg_stage_emote_max = 5
 
+## 배경을 아주 느리게 움직일지. 눈에 거슬리면 False 로 바꾼다(배경이 가만히 깔린다).
+define sg_stage_bg_move = True
+
 ## 숨쉬기: 한 번 들이쉬고 내쉬는 시간(초)과 키가 늘어나는 비율.
 define sg_stage_breath_period = 4.6
 define sg_stage_breath_amount = 0.009
@@ -90,6 +93,9 @@ define sg_stage_trans_home = Fade(0.22, 0.04, 0.42, color="#f6f2fb")   # 첫 화
 
 ## 지금 무대에 선 스탠딩의 표정. 같은 표정이 이어지면 큰 동작을 되풀이하지 않으려고 적어 둔다.
 default sg_stage_face = None
+
+## 대사가 나올 때까지 미뤄 둔 호감도 기호: (그때의 점수, 기호 목록, 몇 번째 태그부터 쓸지) 또는 None.
+default sg_stage_later = None
 
 
 ################################################################################
@@ -359,14 +365,15 @@ init -4 python:
         renpy.display.log.write("sg_stage: %s 에서 오류", where)
         renpy.display.log.exception()
 
-    def sg_stage_pick_emotes(face, change=0, first=False, fallback=False):
-        """표정과 호감도 변화에 맞는 기호를 고른다. (기호, 자리, 움직임) 목록을 돌려준다.
+    def sg_stage_pick_parts(face, change=0, first=False, fallback=False):
+        """표정과 호감도 변화에 맞는 기호를 고른다. (표정 기호 목록, 호감도 기호 목록)을 돌려준다.
 
-        표정이 먼저 기호를 정하고, 호감도가 크게 움직였으면 하트 여러 개나 땀방울을 더한다.
+        목록의 항목은 (기호, 자리, 움직임)이다. 표정이 먼저 기호를 정하고, 호감도가 크게
+        움직였으면 하트 여러 개나 땀방울을 더한다. 뒤의 것은 호감도 숫자가 뜨는 순간에 나온다.
         """
         if fallback:
             # 대체 대사: 점수도 표정도 없는 지문 한 줄이다
-            return [ ("dots", "right", "pop") ]
+            return [ ("dots", "right", "pop") ], [ ]
 
         big = sg_stage_big_change
         up, down = change > 0, change < 0
@@ -401,31 +408,44 @@ init -4 python:
             elif not first:
                 out.append(("dots", "right", "pop"))
 
+        more = [ ]
         if change >= big:
             # 크게 올랐다: 하트 여러 개가 떠오른다
-            out.append(("heart", "right_far", "float"))
-            out.append(("heart", "left_far", "float"))
-            out.append(("heart", "left", "float") if face in ("smile", "pout") else ("heart", "right", "float"))
+            more.append(("heart", "right_far", "float"))
+            more.append(("heart", "left_far", "float"))
+            more.append(("heart", "left", "float") if face in ("smile", "pout") else ("heart", "right", "float"))
         elif change <= -big:
             # 크게 내렸다: 땀방울, 그리고 아직 없으면 세로줄
             if not any(e[0] == "sweat" for e in out):
-                out.append(("sweat", "right_low", "drop"))
+                more.append(("sweat", "right_low", "drop"))
             if face not in ("dark", "pout", "shock"):
-                out.append(("gloom", "above", "sink"))
+                more.append(("gloom", "above", "sink"))
 
         # 같은 자리에 둘이 겹치지 않게 뒤에 온 것을 빈자리로 옮긴다
         seen = set()
         spare = [ "right", "left", "right_far", "left_far", "top" ]
-        placed = [ ]
-        for kind, spot, move in out:
-            if spot in seen:
-                free = [ s for s in spare if s not in seen ]
-                if not free:
-                    continue
-                spot = free[0]
-            seen.add(spot)
-            placed.append((kind, spot, move))
-        return placed[:sg_stage_emote_max]
+        parts = [ ]
+        left = sg_stage_emote_max
+        for group in (out, more):
+            placed = [ ]
+            for kind, spot, move in group:
+                if len(placed) >= left:
+                    break
+                if spot in seen:
+                    free = [ s for s in spare if s not in seen ]
+                    if not free:
+                        continue
+                    spot = free[0]
+                seen.add(spot)
+                placed.append((kind, spot, move))
+            left -= len(placed)
+            parts.append(placed)
+        return parts[0], parts[1]
+
+    def sg_stage_pick_emotes(face, change=0, first=False, fallback=False):
+        """한 턴에 뜨는 기호 전부. (기호, 자리, 움직임) 목록."""
+        now, later = sg_stage_pick_parts(face, change, first, fallback)
+        return now + later
 
     def sg_stage_clear_emotes():
         """떠 있는 기호를 전부 치운다."""
@@ -434,18 +454,23 @@ init -4 python:
             if renpy.showing(tag, layer="master"):
                 renpy.hide(tag, layer="master")
 
-    def sg_stage_show_emotes(emotes, cx=640, delay=0.15, step=0.14):
-        """기호를 master 레이어에 띄운다. cx 는 스탠딩이 선 자리, delay 는 첫 기호를 늦추는 시간."""
+    def sg_stage_show_emotes(emotes, cx=640, delay=0.15, step=0.14, start=0):
+        """기호를 master 레이어에 띄운다.
+
+        cx 는 스탠딩이 선 자리, delay 는 첫 기호를 늦추는 시간. start 가 0이면 떠 있던 기호를
+        먼저 치우고, 0이 아니면 그 번호의 태그부터 이어서 띄운다.
+        """
         try:
-            sg_stage_clear_emotes()
+            if not start:
+                sg_stage_clear_emotes()
             hx, hy = sg_stage_head
-            for i, (kind, spot, move) in enumerate(list(emotes)[:sg_stage_emote_max]):
+            for i, (kind, spot, move) in enumerate(list(emotes)[:sg_stage_emote_max - start], start):
                 art = sg_stage_emote_art.get(kind)
                 motion = getattr(store, "sg_stage_emote_" + move, None)
                 if art is None or motion is None or spot not in sg_stage_spots or not renpy.loadable(art[0]):
                     continue
                 dx, dy = sg_stage_spots[spot]
-                at = motion(x=int(cx + hx + dx), y=int(hy + dy), z=art[1], delay=delay + step * i)
+                at = motion(x=int(cx + hx + dx), y=int(hy + dy), z=art[1], delay=delay + step * (i - start))
                 renpy.show("sg_emote%d" % i, what=Image(art[0]), at_list=[ at ], layer="master", zorder=5)
         except Exception:
             sg_stage_oops("sg_stage_show_emotes")
@@ -473,14 +498,24 @@ init -4 python:
 
     def sg_stage_bg_at():
         """배경에 걸 transform 목록."""
-        return [ store.sg_stage_bg_drift ]
+        return [ store.sg_stage_bg_drift ] if sg_stage_bg_move else [ ]
 
-    def sg_stage_turn(face, change=0, first=False, fallback=False, place=""):
-        """턴 하나에 맞는 기호를 띄운다. 등장 턴이면 장소 제목 카드도 띄운다."""
+    def sg_stage_turn(face, change=0, first=False, fallback=False, place="", score=None):
+        """턴 하나에 맞는 기호를 띄운다. 등장 턴이면 장소 제목 카드도 띄운다.
+
+        표정 기호는 표정이 바뀌는 지금 나온다. 호감도 기호(하트 여러 개, 땀방울, 세로줄)는
+        score 를 주면 게이지가 그 점수로 움직이는 순간, 곧 대사와 호감도 숫자가 뜰 때 나온다.
+        (대화 화면이 대사 단계에서 sg_score_shown 을 바꾼다. sg_stage_interact 가 그것을 본다)
+        """
         try:
+            now, later = sg_stage_pick_parts(face, change, first, fallback)
+            store.sg_stage_later = None
+            if later and score is not None and store.sg_score_shown != score:
+                store.sg_stage_later = (score, later, len(now))
+            else:
+                now = now + later
             # 등장 턴은 스탠딩이 올라온 뒤에 기호가 나온다
-            sg_stage_show_emotes(sg_stage_pick_emotes(face, change, first, fallback),
-                                 delay=0.6 if first else 0.15)
+            sg_stage_show_emotes(now, delay=0.6 if first else 0.15)
             renpy.hide_screen("sg_stage_title")
             if first and place:
                 renpy.show_screen("sg_stage_title", place=sg_esc(place))
@@ -491,6 +526,7 @@ init -4 python:
         """엔딩 화면: 스탠딩이 왼쪽(250)으로 비켜선 뒤에 등급에 맞는 기호를 띄운다."""
         try:
             renpy.hide_screen("sg_stage_title")
+            store.sg_stage_later = None
             sg_stage_show_emotes(sg_stage_band_emotes.get(band_id, [ ]), cx=250, delay=0.7)
         except Exception:
             sg_stage_oops("sg_stage_ending")
@@ -501,8 +537,30 @@ init -4 python:
             sg_stage_clear_emotes()
             renpy.hide_screen("sg_stage_title")
             store.sg_stage_face = None
+            store.sg_stage_later = None
         except Exception:
             sg_stage_oops("sg_stage_reset")
+
+    def sg_stage_interact():
+        """미뤄 둔 호감도 기호를 게이지가 움직인 순간에 띄운다.
+
+        화면이 새로 그려지기 시작할 때마다 불린다(config.interact_callbacks). 대화 화면이
+        대사 단계로 넘어가면서 sg_score_shown 을 바꾸면 화면이 새로 그려지므로 그때 걸린다.
+        """
+        later = getattr(store, "sg_stage_later", None)
+        if later is None:
+            return
+        try:
+            score, emotes, start = later
+            if store.sg_score_shown != score:
+                return
+            store.sg_stage_later = None
+            sg_stage_show_emotes(emotes, delay=0.1, start=start)
+        except Exception:
+            store.sg_stage_later = None
+            sg_stage_oops("sg_stage_interact")
+
+    config.interact_callbacks.append(sg_stage_interact)
 
 
 ################################################################################
