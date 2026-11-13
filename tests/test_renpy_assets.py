@@ -92,5 +92,49 @@ class PlaceholderTest(unittest.TestCase):
             self.assertTrue(path.is_file(), f"자리표시 배경이 없다: {path.relative_to(ROOT)}")
 
 
+class UiSkinTest(unittest.TestCase):
+    """미소녀 게임풍 화면 장식: 그림과 글꼴이 빠짐없이 있는지 본다."""
+
+    SCREENS = ("sg_screens.rpy", "screens.rpy")
+
+    def _code_lines(self):
+        for name in self.SCREENS:
+            for line in (GAME / name).read_text(encoding="utf-8").splitlines():
+                if not line.lstrip().startswith("#"):
+                    yield line
+
+    def test_every_decoration_image_exists(self):
+        wanted = set()
+        for line in self._code_lines():
+            for name in re.findall(r'sg_gal\("(\w+)"', line):
+                wanted.add(f"gal_{name}.png")
+            for path in re.findall(r'"images/ui/([\w%]+\.png)"', line):
+                if path == "gal_burst_%s.png":      # 호감도 변화 하트는 네 가지다
+                    wanted.update(path.replace("%s", kind) for kind in ("up", "down", "zero", "nan"))
+                elif "%" not in path:
+                    wanted.add(path)
+        self.assertTrue(wanted)
+        for name in sorted(wanted):
+            self.assertTrue((GAME / "images" / "ui" / name).is_file(), f"장식 그림이 없다: images/ui/{name}")
+
+    def test_cute_font_and_license_exist(self):
+        self.assertTrue((GAME / "fonts" / "Jua-Regular.ttf").is_file())
+        self.assertIn("SIL Open Font License", (GAME / "fonts" / "OFL-Jua.txt").read_text(encoding="utf-8"))
+
+    def test_fixed_text_fits_the_cute_font(self):
+        """화면에 박아 둔 문구의 한글은 Jua에 있는 글자(KS X 1001의 2,350자)여야 한다.
+
+        Jua에 없는 글자를 쓰면 그 자리에 빈 네모가 찍힌다.
+        """
+        for line in self._code_lines():
+            for text in re.findall(r'"([^"\n]*)"', line):
+                for char in text:
+                    if "가" <= char <= "힣":
+                        try:
+                            char.encode("euc_kr")
+                        except UnicodeError:
+                            self.fail(f"Jua에 없는 글자 {char!r}: {line.strip()}")
+
+
 if __name__ == "__main__":
     unittest.main()

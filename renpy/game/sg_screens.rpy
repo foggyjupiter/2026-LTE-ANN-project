@@ -1,7 +1,7 @@
-## 소개팅 화면들.
+## 소개팅 화면들. 겉모습은 미소녀 게임풍이다.
 ##
-##   sg_select       캐릭터 고르기
-##   sg_hud          대화 중 위쪽 표시: 진행, 장소, 호감도 게이지
+##   sg_select       캐릭터 고르기 (히로인 선택)
+##   sg_hud          대화 중 위쪽 표시: 진행, 장소 팻말, 하트 게이지
 ##   sg_talk         턴 하나: 들린 말 → 지문 → 대사 → 선택지(또는 엔딩 보기)
 ##   sg_wait*        서버의 답을 기다리는 동안
 ##   sg_error        서버 오류 안내와 다시 시도
@@ -9,7 +9,12 @@
 ##
 ## 배경과 스탠딩은 여기서 그리지 않는다. sg_core.rpy 가 master 레이어에 올린다.
 ## 서버에서 온 글은 sg_core.rpy 의 sg_build_view 가 sg_esc 를 거쳐서 넘겨준다.
-## 이 파일에서 서버의 글을 직접 찍는 곳(캐릭터 카드)은 sg_esc 를 불러서 쓴다.
+## 이 파일에서 서버의 글을 직접 찍는 곳(캐릭터 카드, 장소)은 sg_esc 를 불러서 쓴다.
+##
+## 장식 그림(images/ui/gal_*.png)은 renpy/dev/make_ui_art.py 가 만든다.
+## 글꼴은 둘이다. 고정 문구(제목, 단추, 이름표)는 귀여운 Jua, 모델이 쓴 글은 Pretendard.
+## Jua에는 한글이 2,367자뿐이라 서버에서 온 글에 쓸 때는 sg_cute 로 글자가 다 있는지 본다.
+## 대사창과 풍선의 글 크기(1092x112, 254x250 등)는 sg_core.rpy 가 재므로 바꾸지 않는다.
 
 
 ################################################################################
@@ -38,12 +43,54 @@ init -3 python:
         return Transform("images/ui/%s.png" % name, xysize=(size, size),
                          matrixcolor=TintMatrix(color), alpha=alpha)
 
+    def sg_gal(name, left, top=None, right=None, bottom=None, tile=False):
+        """미소녀 게임풍 장식 그림을 9칸으로 늘인 것."""
+        if top is None:
+            top = left
+        if right is None:
+            right, bottom = left, top
+        return Frame("images/ui/gal_%s.png" % name, left, top, right, bottom, tile=tile)
+
+    def sg_cute(text):
+        """이 글을 귀여운 글꼴(Jua)로 찍을 수 있으면 그 글꼴, 아니면 Pretendard Bold.
+
+        Jua에는 자주 쓰는 한글(KS X 1001의 2,350자)과 영문, 숫자만 있다.
+        """
+        for ch in str(text):
+            if " " <= ch < "\x7f" and ch != "`":
+                continue
+            # 파이썬의 euc_kr 은 2,350자 밖의 한글도 여덟 바이트로 풀어서 바꿔 준다.
+            # 두 바이트로 바뀌는 글자만 KS X 1001 에 있는 글자다.
+            try:
+                if "가" <= ch <= "힣" and len(ch.encode("euc_kr")) == 2:
+                    continue
+            except (LookupError, UnicodeError):
+                pass
+            return gui.name_text_font
+        return gui.sg_cute_font
+
     def sg_textbox_bg(color):
-        """대사창 바탕. 테두리에 캐릭터의 대표색이 돈다."""
-        return sg_panel(20, "#12162e", 0.84, sg_on_dark(color), 0.9)
+        """대사창 바탕."""
+        return sg_gal("textbox", 56)
 
     def sg_nametag_bg(color):
-        return sg_panel(14, color, 1.0, "#ffffff", 0.55)
+        """이름표 리본. 캐릭터의 대표색을 입히고 흰 바느질 선을 겹친다."""
+        ribbon = Transform(sg_gal("nametag", 36, 0), matrixcolor=TintMatrix(color))
+        return Fixed(ribbon, sg_gal("nametag_trim", 36, 0))
+
+    def sg_ribbon(color):
+        """끝이 접힌 띠에 색을 입힌 것."""
+        return Transform(sg_gal("ribbon", 22, 0), matrixcolor=TintMatrix(color))
+
+    def sg_popup_kind(popup):
+        """호감도 변화 글자를 보고 어떤 하트를 깔지 정한다."""
+        if popup == "NaN":
+            return "nan", "측정 불가?!"
+        if popup.startswith("+"):
+            return "up", "호감도 UP!"
+        if popup.startswith("-"):
+            return "down", "호감도 DOWN"
+        return "zero", "변화 없음"
 
     def sg_face_box(char_id, color, width, height, radius=14):
         """모서리가 둥근 얼굴 그림. 스탠딩이 없는 캐릭터면 물음표를 둔다."""
@@ -61,8 +108,8 @@ init -3 python:
 
 ## 대사 속 " [출처 필요]" 자리에 끼우는 딱지. 글줄 위쪽에 작게 붙는다.
 image sg_cite = Fixed(
-    Transform(sg_box(8, "#9fd8ff"), xysize=(84, 25), xpos=3),
-    Text("출처 필요", size=16, color="#12305a", font="fonts/Pretendard-Bold.otf", xpos=45, xanchor=0.5, ypos=2),
+    Transform(sg_box(8, "#6db8f5"), xysize=(84, 25), xpos=3),
+    Text("출처 필요", size=16, color="#ffffff", font="fonts/Pretendard-Bold.otf", xpos=45, xanchor=0.5, ypos=2),
     xysize=(92, 31))
 
 
@@ -80,7 +127,7 @@ transform sg_char_left:
     xanchor 0.5 ypos 846 yanchor 1.0 zoom 0.7
     ease 0.5 xpos 250
 
-## 통통 튀는 점. 기다리는 표시에 쓴다.
+## 통통 튀는 하트. 기다리는 표시에 쓴다.
 transform sg_bounce(delay=0.0):
     yoffset 0
     pause delay
@@ -90,15 +137,16 @@ transform sg_bounce(delay=0.0):
         pause 0.46
         repeat
 
-## 눌러서 넘기라는 세모.
+## 눌러서 넘기라는 하트.
 transform sg_ctc_blink:
-    alpha 1.0 yoffset 0
+    yoffset 0
     block:
-        ease 0.5 yoffset 5 alpha 0.45
-        ease 0.5 yoffset 0 alpha 1.0
+        easeout 0.28 yoffset -9
+        easein 0.28 yoffset 0
+        pause 0.3
         repeat
 
-## 호감도 변화 글자가 튀어나온다.
+## 호감도 변화가 튀어나온다.
 transform sg_popup_in:
     alpha 0.0 yoffset 26 zoom 0.6
     easeout_back 0.38 alpha 1.0 yoffset 0 zoom 1.0
@@ -124,12 +172,20 @@ transform sg_after(delay):
     pause delay
     linear 0.4 alpha 1.0
 
-## 카드에 마우스를 올리면 살짝 들린다.
+## 카드에 마우스를 올리면 떠오른다.
 transform sg_card_lift:
     on idle:
         easein 0.12 yoffset 0
     on hover:
-        easein 0.12 yoffset -8
+        easein 0.12 yoffset -10
+
+## 선택지에 마우스를 올리면 살짝 커진다.
+transform sg_choice_pop:
+    xalign 0.5
+    on idle:
+        easein 0.1 zoom 1.0
+    on hover:
+        easein 0.1 zoom 1.03
 
 ## 엔딩 보기 단추가 천천히 숨 쉰다.
 transform sg_breathe:
@@ -138,6 +194,12 @@ transform sg_breathe:
         ease 0.7 zoom 1.04
         ease 0.7 zoom 1.0
         repeat
+
+## 도장은 살짝 기울여서, 쾅 찍히듯 나타난다.
+transform sg_stamp_in:
+    rotate -13 alpha 0.0 zoom 1.6
+    pause 0.5
+    easein 0.16 alpha 1.0 zoom 0.84
 
 
 ################################################################################
@@ -155,213 +217,245 @@ style sg_textbox:
 style sg_say_text:
     font gui.interface_text_font
     size 26
-    color gui.sg_paper
+    color gui.sg_plum
     line_spacing 6
     xsize 1092
     slow_abortable True
-    # 투명한 테두리. 형광펜 자리에서만 색이 들어온다 (sg_core.rpy 의 SG_HL_OPEN)
-    outlines [ (absolute(4), "#00000000", absolute(0), absolute(0)) ]
+    # 첫째는 투명한 테두리다. 형광펜 자리에서만 색이 들어온다 (sg_core.rpy 의 SG_HL_OPEN).
+    # 둘째는 글자 밑의 옅은 그림자다.
+    outlines [ (absolute(4), "#00000000", absolute(0), absolute(0)), (absolute(0), "#ffffffd0", absolute(1), absolute(1.5)) ]
 
 style sg_narration_text:
     font gui.text_font
     size 24
-    color "#d5daf5"
+    color "#7a5676"
     line_spacing 6
     xsize 1092
     slow_abortable True
+    outlines [ (absolute(0), "#ffffffd0", absolute(1), absolute(1.5)) ]
 
 style sg_nametag:
-    padding (22, 7, 22, 8)
-    ysize 44
+    padding (44, 6, 44, 14)
+    ysize 52
 
 style sg_nametag_text:
-    font gui.name_text_font
-    size 24
+    font gui.sg_cute_font
+    size 26
     color "#ffffff"
     yalign 0.5
 
 style sg_tagnote:
-    padding (14, 6, 14, 6)
-    yalign 0.5
-    background sg_box(14, "#12162e", 0.84)
+    padding (16, 6, 16, 7)
+    yalign 0.3
+    background sg_gal("plate", 22)
 
 style sg_tagnote_text:
     font gui.interface_text_font
     size 16
-    color gui.sg_yellow
+    color gui.sg_pink_deep
 
 style sg_hint_text:
     font gui.text_font
     size 16
-    color gui.sg_paper_soft
+    color "#9a7896"
 
 ## 위쪽 표시 -----------------------------------------------------------------------
 
 style sg_pill:
-    padding (16, 7, 16, 7)
-    ysize 40
-    background sg_box(20, "#12162e", 0.78)
+    padding (18, 9, 18, 10)
+    ysize 48
+    background sg_gal("plate", 22)
 
 style sg_pill_text:
-    font gui.interface_text_font
-    size 18
-    color gui.sg_paper
+    font gui.sg_cute_font
+    size 21
+    color gui.sg_plum
     yalign 0.5
 
 style sg_pill_num is sg_pill_text:
-    font gui.name_text_font
-    size 22
-    min_width 38
+    size 26
+    color gui.sg_pink_deep
+    min_width 42
     textalign 1.0
 
+style sg_sign:
+    padding (22, 20, 22, 8)
+    ysize 58
+    background sg_gal("sign", 26, 20, 26, 14)
+
+style sg_sign_text:
+    size 20
+    color "#2c5d96"
+    yalign 0.5
+
 style sg_ghost_button:
-    padding (14, 7, 14, 7)
-    ysize 40
-    background sg_box(20, "#12162e", 0.45)
-    hover_background sg_box(20, "#12162e", 0.9)
+    padding (16, 9, 16, 10)
+    ysize 48
+    background Transform(sg_gal("plate", 22), alpha=0.82)
+    hover_background sg_gal("plate", 22)
     keyboard_focus False
 
 style sg_ghost_button_text:
-    font gui.interface_text_font
-    size 16
-    color gui.sg_paper_soft
-    hover_color "#ffffff"
+    font gui.sg_cute_font
+    size 17
+    color "#9a7896"
+    hover_color gui.sg_pink_deep
     yalign 0.5
 
+## 하트 열 개짜리 호감도 게이지. 채운 하트 줄을 점수만큼만 잘라서 빈 하트 줄 위에 보인다.
 style sg_gauge:
-    xysize (180, 16)
+    xysize (240, 24)
     yalign 0.5
-    left_bar sg_box(8, gui.sg_pink)
-    right_bar sg_box(8, "#ffffff", 0.3)
+    left_bar "images/ui/gal_hearts_full.png"
+    right_bar "images/ui/gal_hearts_empty.png"
 
 ## 호감도 변화 ---------------------------------------------------------------------
 
 style sg_popup_text:
     font gui.name_text_font
-    outlines [ (absolute(7), "#171b3638", absolute(0), absolute(2)), (absolute(4), "#ffffff", absolute(0), absolute(0)) ]
-    xalign 1.0
+    outlines [ (absolute(7), "#4a2a4838", absolute(0), absolute(2)), (absolute(4), "#ffffff", absolute(0), absolute(0)) ]
+    xalign 0.5
+    yalign 0.5
+
+style sg_popup_label:
+    font gui.sg_cute_font
+    size 22
+    color "#ffffff"
+    outlines [ (absolute(3), gui.sg_pink_deep, absolute(0), absolute(0)) ]
+    xalign 0.5
 
 style sg_chip:
-    padding (14, 6, 14, 7)
+    padding (16, 8, 16, 9)
     xalign 1.0
-    background sg_box(14, "#12162e", 0.8)
+    background sg_gal("plate", 22)
 
 style sg_chip_text:
     font gui.interface_text_font
     size 17
-    color gui.sg_paper
+    color gui.sg_plum
     xmaximum 262
 
 style sg_note:
     padding (14, 6, 14, 7)
     xalign 1.0
-    background sg_panel(14, gui.sg_yellow, 0.96, gui.sg_ink, 0.9)
+    background sg_panel(14, gui.sg_yellow, 0.97, "#b98a00", 1.0)
 
 style sg_note_text:
     font gui.name_text_font
     size 17
-    color gui.sg_ink
+    color gui.sg_plum
     xmaximum 262
 
 ## 속마음 풍선 ---------------------------------------------------------------------
 
 style sg_bubble:
-    xpos 30
-    ypos 126
-    xsize 290
-    padding (18, 12, 18, 16)
-    background sg_box(20, "#ffffff", 0.95)
+    xpos 4
+    ypos 112
+    xsize 326
+    padding (36, 28, 36, 32)
+    background sg_gal("cloud", 32, tile="integer")
 
 style sg_bubble_label:
-    font gui.name_text_font
-    size 14
+    font gui.sg_cute_font
+    size 16
 
 style sg_bubble_text:
     font gui.interface_text_font
     size 19
-    color gui.sg_ink
+    color gui.sg_plum
     line_spacing 4
     xsize 254
 
 ## 선택지와 직접 말하기 --------------------------------------------------------------
+##
+## 선택지 그림에는 빛이 번질 자리가 둘레에 10픽셀씩 있다. 그래서 단추는 보이는 것보다 20픽셀 크다.
 
 style sg_choice:
-    xsize 600
-    yminimum 52
-    padding (26, 11, 26, 12)
-    background sg_panel(14, "#12162e", 0.8, "#ffffff", 0.3)
-    hover_background sg_panel(14, "#2c3468", 0.95, "#ffffff", 0.95)
+    xsize 620
+    yminimum 72
+    padding (64, 21, 64, 22)
+    background sg_gal("choice", 46, 14)
+    hover_background sg_gal("choice_hover", 46, 14)
 
 style sg_choice_text:
     font gui.interface_text_font
     size 21
-    color gui.sg_paper
-    hover_color "#ffffff"
+    color gui.sg_plum
+    hover_color gui.sg_pink_deep
+    outlines [ (absolute(0), "#ffffffd0", absolute(1), absolute(1.5)) ]
     xalign 0.5
     textalign 0.5
     yalign 0.5
 
+## 직접 말하기 칸은 말풍선이다. 아래 20픽셀은 꼬리가 차지한다.
 style sg_input_box:
     xsize 600
-    padding (20, 10, 12, 10)
-    background sg_panel(14, "#ffffff", 0.95, "#ffffff", 1.0)
+    xalign 0.5
+    padding (24, 13, 14, 32)
+    background sg_gal("speech", 64, 24, 30, 38)
 
 style sg_input:
     font gui.interface_text_font
     size 20
-    color gui.sg_ink
-    caret Solid("#ff5c8a", xysize=(2, 24))
+    color gui.sg_plum
+    caret Solid("#f2558e", xysize=(2, 24))
     xmaximum 452
     adjust_spacing False
 
 style sg_placeholder_text:
-    font gui.interface_text_font
+    font gui.sg_cute_font
     size 20
-    color "#8f96b8"
+    color "#c9a9bf"
 
 style sg_counter_text:
     font gui.text_font
     size 13
-    color "#8f96b8"
+    color "#b093ab"
     xalign 1.0
 
 style sg_send:
     xysize (92, 36)
     xalign 1.0
-    background sg_box(14, gui.sg_pink)
-    hover_background sg_box(14, "#ff3d75")
-    insensitive_background sg_box(14, "#c5c9dc")
+    background sg_panel(14, gui.sg_pink, 1.0, "#ffffff", 0.9)
+    hover_background sg_panel(14, gui.sg_pink_deep, 1.0, "#ffffff", 1.0)
+    insensitive_background sg_box(14, "#d8cdd6")
 
 style sg_send_text:
-    font gui.name_text_font
-    size 17
+    font gui.sg_cute_font
+    size 18
     color "#ffffff"
     xalign 0.5
     yalign 0.5
 
 ## 큰 단추 -----------------------------------------------------------------------
+##
+## 단추 그림도 둘레 8픽셀이 빛이 번질 자리다.
 
 style sg_primary:
-    padding (30, 13, 30, 14)
-    background sg_panel(20, gui.sg_pink, 1.0, "#ffffff", 0.9)
-    hover_background sg_panel(20, "#ff3d75", 1.0, "#ffffff", 1.0)
+    padding (40, 20, 40, 22)
+    yminimum 72
+    background sg_gal("btn", 30)
+    hover_background sg_gal("btn_hover", 30)
 
 style sg_primary_text:
-    font gui.name_text_font
-    size 22
+    font gui.sg_cute_font
+    size 24
     color "#ffffff"
+    outlines [ (absolute(1), "#d63f7c", absolute(0), absolute(1)) ]
     xalign 0.5
     yalign 0.5
 
 style sg_secondary:
-    padding (26, 13, 26, 14)
-    background sg_panel(20, "#ffffff", 1.0, "#171b36", 0.25)
-    hover_background sg_panel(20, "#eef0ff", 1.0, "#171b36", 0.8)
+    padding (36, 20, 36, 22)
+    yminimum 72
+    background sg_gal("btn2", 30)
+    hover_background sg_gal("btn2_hover", 30)
 
 style sg_secondary_text:
-    font gui.name_text_font
-    size 20
-    color gui.sg_ink
+    font gui.sg_cute_font
+    size 22
+    color gui.sg_plum
+    hover_color gui.sg_pink_deep
     xalign 0.5
     yalign 0.5
 
@@ -370,19 +464,19 @@ style sg_secondary_text:
 style sg_modal_panel:
     xalign 0.5
     yalign 0.5
-    padding (44, 34, 44, 34)
-    background sg_panel(20, "#ffffff", 0.98, "#171b36", 0.12)
+    padding (58, 46, 58, 44)
+    background sg_gal("card", 40)
 
 style sg_modal_title:
-    font gui.name_text_font
-    size 26
-    color gui.sg_ink
+    font gui.sg_cute_font
+    size 30
+    color gui.sg_pink_deep
     xalign 0.5
 
 style sg_modal_text:
     font gui.interface_text_font
     size 20
-    color gui.sg_ink
+    color gui.sg_plum
     xalign 0.5
     textalign 0.5
     line_spacing 6
@@ -390,105 +484,105 @@ style sg_modal_text:
 style sg_modal_sub:
     font gui.text_font
     size 16
-    color gui.sg_ink_soft
+    color "#9a7896"
     xalign 0.5
     textalign 0.5
 
 ## 고르기 화면 ---------------------------------------------------------------------
 
-style sg_title:
-    font gui.name_text_font
-    size 46
-    color gui.sg_ink
+style sg_lead:
+    font gui.sg_cute_font
+    size 23
+    color gui.sg_plum
+    outlines [ (absolute(3), "#ffffff", absolute(0), absolute(0)) ]
     xalign 0.5
 
-style sg_lead:
-    font gui.interface_text_font
-    size 21
-    color gui.sg_ink_soft
-    xalign 0.5
+style sg_title is sg_lead:
+    size 40
+    color gui.sg_pink_deep
 
 style sg_foot:
     font gui.text_font
     size 15
-    color gui.sg_ink_soft
+    color "#7a5676"
+    outlines [ (absolute(2), "#ffffffcc", absolute(0), absolute(0)) ]
 
+## 카드 그림도 둘레 10픽셀이 빛이 번질 자리다.
 style sg_card:
-    xysize (190, 446)
-    padding (12, 12, 12, 12)
-    background sg_panel(20, "#ffffff", 0.97, "#171b36", 0.1)
+    xysize (210, 446)
+    padding (22, 22, 22, 22)
+    background sg_gal("card", 40)
+    hover_background sg_gal("card_hover", 40)
 
 style sg_card_name:
-    font gui.name_text_font
-    size 26
-    color gui.sg_ink
+    size 28
+    color gui.sg_plum
 
 style sg_card_attr:
-    font gui.name_text_font
-    size 15
+    size 16
 
 style sg_card_motif:
     font gui.interface_text_font
     size 14
-    color gui.sg_ink_soft
+    color "#9a7896"
 
 style sg_card_intro:
     font gui.text_font
     size 15
-    color "#3b4266"
+    color "#5d3d5a"
     line_spacing 4
     xsize 166
 
 ## 엔딩 화면 ----------------------------------------------------------------------
 
 style sg_end_card:
-    xpos 500
-    ypos 30
-    xysize (748, 660)
-    padding (44, 32, 44, 30)
-    background sg_panel(20, "#ffffff", 0.96, "#171b36", 0.1)
+    xpos 490
+    ypos 26
+    xysize (768, 672)
+    padding (54, 50, 54, 40)
+    background sg_gal("card", 40)
 
 style sg_end_kind:
     font gui.interface_text_font
     size 17
-    color gui.sg_ink_soft
+    color "#9a7896"
 
 style sg_end_band:
-    font gui.name_text_font
-    size 24
-    color "#ffffff"
+    color "#d6263c"
+    xalign 0.5
+    yalign 0.5
 
 style sg_end_title:
     font gui.name_text_font
     size 36
-    color gui.sg_ink
+    color gui.sg_plum
     xsize 660
 
 style sg_end_text:
     font gui.interface_text_font
     size 20
-    color "#2b3156"
+    color "#5d3d5a"
     line_spacing 6
     xsize 660
 
 style sg_end_label:
-    font gui.name_text_font
-    size 15
-    color gui.sg_ink_soft
+    font gui.sg_cute_font
+    size 17
+    color gui.sg_pink_deep
 
 style sg_end_score:
-    font gui.name_text_font
+    font gui.sg_cute_font
     size 46
-    color gui.sg_pink
+    color gui.sg_pink_deep
 
 style sg_end_nick:
-    font gui.name_text_font
     size 22
-    color gui.sg_ink
+    color "#8a5a00"
+    yalign 0.5
 
 style sg_reveal_label:
-    font gui.name_text_font
-    size 15
+    font gui.sg_cute_font
+    size 16
     color "#ffffff"
     xalign 0.5
     yalign 0.5
@@ -496,13 +590,13 @@ style sg_reveal_label:
 style sg_reveal_masked:
     font gui.text_font
     size 16
-    color "#8f96b8"
+    color "#b093ab"
     xsize 730
 
 style sg_reveal_text:
     font gui.interface_text_font
     size 19
-    color gui.sg_ink
+    color gui.sg_plum
     line_spacing 4
     xsize 730
 
@@ -514,20 +608,19 @@ style sg_reveal_text:
 screen sg_select(cards):
 
     ## 배경을 뿌옇게 덮어서 카드가 또렷이 보이게 한다.
-    add Solid("#f1f4ffcc")
+    add Solid("#fff3f8b8")
 
-    vbox:
-        xalign 0.5
-        ypos 40
-        spacing 8
+    ## 흩날리는 꽃잎
+    add SnowBlossom("images/ui/gal_petal.png", count=18, xspeed=(20, 60), yspeed=(50, 110), fast=True)
 
-        text "전학생 환영 소개팅" style "sg_title"
-        text "오늘 ANN고에 전학 온 당신, 누구와 마주 앉을까요?" style "sg_lead"
+    add "images/ui/gal_title.png" xalign 0.5 ypos 4
+
+    text "오늘 ANN고에 전학 온 당신, 누구와 마주 앉을까요?" style "sg_lead" ypos 118
 
     hbox:
         xalign 0.5
-        ypos 168
-        spacing 14
+        ypos 172
+        spacing -6
 
         for c in cards:
             use sg_card(c)
@@ -538,35 +631,29 @@ screen sg_select(cards):
 ## 캐릭터 카드 한 장. c는 서버가 준 카드라서 글은 sg_esc 를 거쳐 찍는다.
 screen sg_card(c):
 
-    fixed:
-        xysize (190, 446)
+    button:
+        style "sg_card"
+        at sg_card_lift
+        action Return(c)
 
-        ## 카드 밑의 그림자
-        add Frame("images/ui/shadow20.png", 38, 38) xpos -16 ypos -8 xysize (222, 482) alpha 0.55
+        vbox:
+            spacing 6
 
-        button:
-            style "sg_card"
-            at sg_card_lift
-            action Return(c)
-            hover_background sg_panel(20, "#ffffff", 1.0, sg_on_light(c["color"]), 1.0, "_line3")
+            add sg_face_box(c["id"], c["color"], 166, 186)
 
-            vbox:
-                spacing 7
+            text sg_esc(c["name"]) style "sg_card_name" font sg_cute(c["name"])
 
-                add sg_face_box(c["id"], c["color"], 166, 186)
+            ## 속성 리본
+            frame:
+                xoffset -8
+                ysize 34
+                padding (26, 3, 26, 9)
+                background sg_ribbon(c["color"])
+                text sg_esc(c["attribute"]) style "sg_card_attr" font sg_cute(c["attribute"]) color sg_ink_on(c["color"]) yalign 0.5
 
-                null height 1
+            text ("모티프 · " + sg_esc(c["motif"])) style "sg_card_motif"
 
-                text sg_esc(c["name"]) style "sg_card_name"
-
-                frame:
-                    padding (10, 3, 10, 4)
-                    background sg_box(8, c["color"])
-                    text sg_esc(c["attribute"]) style "sg_card_attr" color sg_ink_on(c["color"])
-
-                text ("모티프 · " + sg_esc(c["motif"])) style "sg_card_motif"
-
-                text sg_esc(c["intro"]) style "sg_card_intro"
+            text sg_esc(c["intro"]) style "sg_card_intro"
 
 
 ################################################################################
@@ -579,14 +666,15 @@ screen sg_hud():
     ## 단추에 가려서 "엔딩 보러 가기"가 눌리지 않는다.
     zorder 10
 
-    ## 왼쪽: 진행 표시, 장소, 그만두기
+    ## 왼쪽: 진행 표시(꽃), 장소 팻말, 그만두기
     hbox:
-        xpos 28
-        ypos 20
+        xpos 24
+        ypos 8
         spacing 10
 
         frame:
             style "sg_pill"
+            yoffset 10
 
             hbox:
                 spacing 12
@@ -594,38 +682,38 @@ screen sg_hud():
                 text sg_progress style "sg_pill_text"
 
                 hbox:
-                    spacing 5
+                    spacing 3
                     yalign 0.5
 
                     for i in range(sg_total_turns):
                         if i < sg_turn_no:
-                            add sg_icon("dot", 10, gui.sg_pink)
+                            add "images/ui/gal_flower_on.png"
                         else:
-                            add sg_icon("dot", 10, "#ffffff", 0.35)
+                            add "images/ui/gal_flower_off.png"
 
         if sg_place:
             frame:
-                style "sg_pill"
-                text sg_esc(sg_place) style "sg_pill_text"
+                style "sg_sign"
+                text sg_esc(sg_place) style "sg_sign_text" font sg_cute(sg_place)
 
         if not sg_finale:
             textbutton "엔딩 보러 가기":
                 style "sg_ghost_button"
+                yoffset 10
                 action Show("sg_confirm", message="여기서 끝내고 엔딩을 볼까요?",
                             yes_label="엔딩 보기", yes=Jump("sg_finish"), no_label="계속하기")
 
-    ## 오른쪽: 호감도 게이지
+    ## 오른쪽: 하트 게이지
     frame:
         style "sg_pill"
         xalign 1.0
-        xoffset -28
-        ypos 20
+        xoffset -24
+        ypos 18
 
         hbox:
             spacing 10
 
-            add sg_icon("heart", 20, gui.sg_pink) yalign 0.5
-            text "호감도" style "sg_pill_text"
+            text "호감도" style "sg_pill_text" color gui.sg_pink_deep
             bar value AnimatedValue(sg_score_shown, 100, 0.5) style "sg_gauge"
             text "[sg_score_shown]" style "sg_pill_num"
 
@@ -634,16 +722,14 @@ screen sg_hud():
 ## 대화: 대사창
 ################################################################################
 
-## 화면 위아래에 까는 옅은 그늘.
+## 예전에는 화면 위아래에 그늘을 깔았다. 지금은 창마다 바탕이 있어서 아무것도 깔지 않는다.
 screen sg_shades():
-
-    add "images/ui/shade_top.png" xysize (1280, 130)
-    add "images/ui/shade_bottom.png" xysize (1280, 320) ypos 400
+    pass
 
 
-## 아래쪽 대사창과 이름표. 글은 부르는 쪽이 블록으로 넣는다.
-## name과 note는 이미 안전하게 만든 글이어야 한다.
-screen sg_textbox(name="", color="#5a6288", note=""):
+## 아래쪽 대사창과 이름표 리본. 글은 부르는 쪽이 블록으로 넣는다.
+## name과 note는 이미 안전하게 만든 글이어야 한다. raw_name은 글꼴을 고르는 데만 쓴다.
+screen sg_textbox(name="", color="#8f96b8", note="", raw_name=""):
 
     frame:
         style "sg_textbox"
@@ -653,14 +739,20 @@ screen sg_textbox(name="", color="#5a6288", note=""):
 
     if name:
         hbox:
-            xpos 84
-            ypos 514
-            spacing 10
+            xpos 72
+            ypos 504
+            spacing 6
 
             frame:
                 style "sg_nametag"
                 background sg_nametag_bg(color)
-                text name style "sg_nametag_text" color sg_ink_on(color)
+
+                hbox:
+                    spacing 7
+                    yalign 0.5
+
+                    add sg_icon("heart", 15, sg_ink_on(color), 0.9) yalign 0.5
+                    text name style "sg_nametag_text" font sg_cute(raw_name or name) color sg_ink_on(color)
 
             if note:
                 frame:
@@ -692,9 +784,6 @@ screen sg_talk(v, first):
     $ color = sg_char["color"]
     $ talking = stage in ("say", "choices", "finale")
 
-    ## 위쪽 표시와 대사창 뒤를 어둡게 받쳐서 글이 잘 읽히게 한다.
-    use sg_shades
-
     ## 화면 어디를 눌러도 다음 단계로 넘어간다. 대사가 나오는 중이면 먼저 대사가 다 나온다.
     if nxt:
         button:
@@ -709,33 +798,44 @@ screen sg_talk(v, first):
             SetScreenVariable("stage", nxt),
             If(nxt == "say", SetVariable("sg_score_shown", v["score"]), NullAction()) ]
 
-    ## 속마음 풍선: 스탠딩의 왼쪽
+    ## 속마음: 스탠딩 왼쪽의 생각 풍선
     if talking and v["inner"]:
         frame:
             style "sg_bubble"
             at sg_rise(0.25)
 
             vbox:
-                spacing 4
-                text ("속마음" + (" · 일부 가려짐" if v["masked"] else "")):
+                spacing 3
+                text ("속마음" + (" (일부 가려짐)" if v["masked"] else "")):
                     style "sg_bubble_label"
                     color sg_on_light(color)
                 text v["inner"] style "sg_bubble_text" size v["inner_size"]
 
-        add "images/ui/bubble_tail.png" xpos 322 ypos 168 alpha 0.95 at sg_rise(0.25)
+        add "images/ui/gal_cloud_tail.png" xpos 326 ypos 176 at sg_rise(0.25)
 
-    ## 호감도 변화: 게이지 아래
+    ## 호감도 변화: 게이지 아래에서 하트가 터진다
     if talking and v["popup"]:
+        $ kind, label = sg_popup_kind(v["popup"])
+
         vbox:
             xalign 1.0
-            xoffset -30
-            ypos 74
-            spacing 6
+            xoffset -24
+            ypos 76
+            spacing 2
 
-            if v["popup_wild"]:
-                text v["popup"] style "sg_popup_text" color v["popup_color"] size v["popup_size"] at sg_popup_in, sg_wild
-            else:
-                text v["popup"] style "sg_popup_text" color v["popup_color"] size v["popup_size"] at sg_popup_in
+            fixed:
+                xysize (250, 168)
+                xalign 1.0
+                at sg_popup_in
+
+                add ("images/ui/gal_burst_%s.png" % kind) xalign 0.5 ypos 8
+
+                if v["popup_wild"]:
+                    text v["popup"] style "sg_popup_text" color v["popup_color"] size v["popup_size"] yoffset 10 at sg_wild
+                else:
+                    text v["popup"] style "sg_popup_text" color v["popup_color"] size v["popup_size"] yoffset 10
+
+                text label style "sg_popup_label" ypos 0
 
             if v["reason"]:
                 frame:
@@ -751,7 +851,7 @@ screen sg_talk(v, first):
 
     ## 대사창
     if stage == "heard":
-        use sg_textbox("나", "#5a6288", name + "에게는 이렇게 들렸다"):
+        use sg_textbox("나", "#8f96b8", name + "에게는 이렇게 들렸다"):
             text v["heard"] style "sg_say_text"
 
     elif stage == "narration":
@@ -764,33 +864,35 @@ screen sg_talk(v, first):
             text v["say"] style v["say_style"] size v["say_size"]
 
     else:
-        use sg_textbox(name, color):
+        use sg_textbox(name, color, raw_name=sg_char["name"]):
             if stage == "say":
                 text v["say"] style v["say_style"] size v["say_size"] slow_cps sg_text_cps
             else:
                 text v["say"] style v["say_style"] size v["say_size"]
 
     if nxt:
-        add sg_icon("ctc", 22, "#ffffff") xpos 1180 ypos 668 at sg_ctc_blink
+        add "images/ui/gal_ctc.png" xpos 1172 ypos 656 at sg_ctc_blink
 
     ## 선택지와 직접 말하기: 대사창 바로 위, 가운데
     if stage == "choices":
         vbox:
-            xpos 340
+            xpos 336
+            xsize 620
             yanchor 1.0
-            ypos 508
-            spacing 10
+            ypos 512
+            spacing -8
 
             for c in v["choices"]:
                 button:
                     style "sg_choice"
-                    at sg_rise(0.0)
+                    at sg_choice_pop
                     action Return(("reply", c["raw"]))
                     text c["label"] style "sg_choice_text"
 
+            null height 14
+
             frame:
                 style "sg_input_box"
-                at sg_rise(0.0)
 
                 hbox:
                     spacing 12
@@ -827,7 +929,7 @@ screen sg_talk(v, first):
             style "sg_primary"
             xalign 0.5
             yanchor 1.0
-            ypos 496
+            ypos 500
             at sg_breathe
             action Return(("finish",))
 
@@ -848,14 +950,14 @@ screen sg_shield():
         action NullAction()
 
 
-## 통통 튀는 점 세 개.
+## 통통 튀는 하트 세 개.
 screen sg_dots(color, size=12):
 
     hbox:
-        spacing size // 2
+        spacing size // 3
 
         for i in range(3):
-            add sg_icon("dot", size, color) at sg_bounce(i * 0.16)
+            add sg_icon("heart", size + 6, color) at sg_bounce(i * 0.16)
 
 
 ## 가운데에 작은 창을 띄우고 기다린다. (명단 불러오기, 엔딩 불러오기)
@@ -866,21 +968,21 @@ screen sg_wait(message, dim=True):
     use sg_shield
 
     if dim:
-        add Solid("#12162e80")
+        add Solid("#4a2a4866")
 
     frame:
         style "sg_modal_panel"
-        xminimum 420
+        xminimum 440
 
         vbox:
             xalign 0.5
-            spacing 18
+            spacing 16
 
             hbox:
                 xalign 0.5
-                use sg_dots(gui.sg_pink, 14)
+                use sg_dots(gui.sg_pink, 16)
 
-            text message style "sg_modal_text"
+            text message style "sg_modal_title" size 26
 
             text "조금만 기다려 주세요. 길면 30초쯤 걸립니다." style "sg_modal_sub" at sg_after(6.0)
 
@@ -892,16 +994,22 @@ screen sg_wait_start(c):
 
     use sg_shield
 
-    add Solid("#f1f4ffcc")
+    add Solid("#fff3f8cc")
+
+    add SnowBlossom("images/ui/gal_petal.png", count=14, xspeed=(20, 60), yspeed=(50, 110), fast=True)
 
     vbox:
         xalign 0.5
         yalign 0.45
-        spacing 16
+        spacing 12
 
-        add sg_face_box(c["id"], c["color"], 230, 258, 20) xalign 0.5
+        frame:
+            xalign 0.5
+            padding (24, 24, 24, 24)
+            background sg_gal("card", 40)
+            add sg_face_box(c["id"], c["color"], 230, 258, 14)
 
-        text sg_esc(c["name"]) style "sg_title" size 38
+        text sg_esc(c["name"]) style "sg_title" font sg_cute(c["name"])
 
         hbox:
             xalign 0.5
@@ -909,7 +1017,7 @@ screen sg_wait_start(c):
 
             text "만나러 가는 중" style "sg_lead" yalign 0.5
 
-            use sg_dots(sg_on_light(c["color"]), 12)
+            use sg_dots(gui.sg_pink, 13)
 
         text "조금만 기다려 주세요. 길면 30초쯤 걸립니다." style "sg_modal_sub" at sg_after(6.0)
 
@@ -923,26 +1031,22 @@ screen sg_wait_reply(line):
 
     $ name = sg_esc(sg_char["name"])
 
-    use sg_shades
-
     frame:
-        xpos 800
-        ypos 150
-        padding (24, 22, 24, 18)
-        background sg_box(20, "#ffffff", 0.95)
+        xpos 790
+        ypos 140
+        padding (30, 22, 30, 36)
+        background Transform(sg_gal("speech", 64, 24, 30, 38), xzoom=1.0)
         at sg_rise(0.0)
 
-        use sg_dots(sg_on_light(sg_char["color"]), 13)
+        use sg_dots(gui.sg_pink, 14)
 
-    add "images/ui/bubble_tail.png" xpos 792 ypos 196 xzoom -1.0 xanchor 1.0 alpha 0.95
-
-    use sg_textbox("나", "#5a6288"):
+    use sg_textbox("나", "#8f96b8"):
         text sg_esc(line) style "sg_say_text"
 
     hbox:
         xalign 1.0
-        xoffset -84
-        ypos 668
+        xoffset -110
+        ypos 664
         spacing 10
 
         text "조금만 기다려 주세요. 길면 30초쯤 걸립니다." style "sg_hint_text" at sg_after(6.0)
@@ -956,21 +1060,21 @@ screen sg_wait_reply(line):
 ## 가운데 창 하나에 안내와 단추 둘. message는 이미 안전하게 만든 글이어야 한다.
 screen sg_confirm_panel(message, yes_label, yes_action, no_label, no_action):
 
-    add Solid("#12162e99")
+    add Solid("#4a2a4880")
 
     frame:
         style "sg_modal_panel"
-        xminimum 460
+        xminimum 480
 
         vbox:
             xalign 0.5
-            spacing 26
+            spacing 18
 
-            text message style "sg_modal_text"
+            text message style "sg_modal_text" size 22
 
             hbox:
                 xalign 0.5
-                spacing 16
+                spacing 0
 
                 textbutton yes_label style "sg_primary" action yes_action
                 textbutton no_label style "sg_secondary" action no_action
@@ -992,23 +1096,23 @@ screen sg_error(message, buttons):
     modal True
     zorder 70
 
-    add Solid("#12162e99")
+    add Solid("#4a2a4880")
 
     frame:
         style "sg_modal_panel"
-        xminimum 520
+        xminimum 540
 
         vbox:
             xalign 0.5
-            spacing 20
+            spacing 14
 
-            text "연결에 문제가 생겼어요" style "sg_modal_title"
+            text "앗, 연결에 문제가 생겼어요" style "sg_modal_title"
 
             text message style "sg_modal_text"
 
             hbox:
                 xalign 0.5
-                spacing 16
+                spacing 0
 
                 for index, (label, value) in enumerate(buttons):
                     textbutton label:
@@ -1028,68 +1132,57 @@ screen sg_ending(e):
 
     default reveal = False
 
-    add Solid("#12162e40")
+    add Solid("#4a2a4833")
 
     frame:
         style "sg_end_card"
 
         vbox:
-            spacing 14
+            spacing 12
 
-            ## 머리줄: 누구와의 소개팅인지, 등급 도장
+            ## 누구와의 소개팅인지
             hbox:
-                xfill True
+                spacing 10
 
-                hbox:
-                    spacing 10
-                    yalign 0.5
+                text e["name"] style "sg_end_kind"
 
-                    text ("소개팅 성적표 · " + e["name"]) style "sg_end_kind"
-
-                    if e["early"]:
-                        text "(도중에 끝낸 판)" style "sg_end_kind"
-
-                frame:
-                    xalign 1.0
-                    padding (20, 6, 20, 7)
-                    background sg_box(14, e["band_color"])
-                    text e["band"] style "sg_end_band"
+                if e["early"]:
+                    text "(도중에 끝낸 판)" style "sg_end_kind"
 
             text e["title"] style "sg_end_title" size e["title_size"]
 
             if e["epilogue"]:
                 text e["epilogue"] style "sg_end_text" size e["epilogue_size"]
 
-            add Solid("#171b3622") xysize (660, 2)
+            add Solid("#f2558e33") xysize (660, 2)
 
             hbox:
-                spacing 48
+                spacing 26
 
                 vbox:
-                    spacing 4
+                    spacing 2
 
                     text "최종 호감도" style "sg_end_label"
 
                     hbox:
                         spacing 12
 
-                        add sg_icon("heart", 30, gui.sg_pink) yalign 0.5
                         text str(e["score"]) style "sg_end_score"
-                        bar value StaticValue(e["score"], 100):
-                            style "sg_gauge"
-                            xysize (170, 16)
-                            right_bar sg_box(8, "#171b36", 0.14)
+                        bar value StaticValue(e["score"], 100) style "sg_gauge"
 
                 if e["nickname"]:
                     vbox:
-                        spacing 12
+                        spacing 4
 
                         text "칭호" style "sg_end_label"
 
-                        frame:
-                            padding (16, 7, 16, 8)
-                            background sg_panel(14, "#fff3c2", 1.0, "#e2b100", 1.0)
-                            text e["nickname"] style "sg_end_nick"
+                        ## 월계수 배지
+                        hbox:
+                            spacing 6
+
+                            add "images/ui/gal_laurel.png" yalign 0.5 zoom 0.7
+                            text e["nickname"] style "sg_end_nick" font gui.name_text_font
+                            add "images/ui/gal_laurel.png" yalign 0.5 xzoom -0.7 yzoom 0.7
 
             if e["best"]:
                 vbox:
@@ -1100,15 +1193,35 @@ screen sg_ending(e):
                     frame:
                         xsize 660
                         padding (20, 12, 20, 14)
-                        background sg_box(14, "#eef0ff")
+                        background sg_panel(14, "#fff0f6", 1.0, "#ffc3d9", 1.0)
                         text e["best"] style "sg_end_text" size e["best_size"] xsize 620
+
+    ## 카드 위의 리본 머리띠
+    frame:
+        xpos 874
+        xanchor 0.5
+        ypos 14
+        ysize 40
+        padding (44, 4, 44, 10)
+        background sg_ribbon(gui.sg_pink)
+        text "소개팅 성적표" font gui.sg_cute_font size 22 color "#ffffff" yalign 0.5
+
+    ## 등급 도장. 빨간 인주로 살짝 기울여 찍는다.
+    fixed:
+        xpos 1124
+        ypos 4
+        xysize (150, 150)
+        at sg_stamp_in
+
+        add "images/ui/gal_stamp.png"
+        text e["band"] style "sg_end_band" font sg_cute(e["band"]) size (48 if len(e["band"]) <= 2 else 36)
 
     ## 단추
     hbox:
-        xpos 544
+        xpos 530
         yanchor 1.0
-        ypos 664
-        spacing 14
+        ypos 680
+        spacing -4
 
         textbutton "다시 하기" style "sg_primary" action Return("again")
         textbutton "다른 캐릭터 고르기" style "sg_secondary" action Return("other")
@@ -1116,9 +1229,6 @@ screen sg_ending(e):
         if e["reveal"]:
             textbutton "가려졌던 속마음 보기":
                 style "sg_secondary"
-                background sg_panel(20, "#171b36", 1.0, "#ffffff", 0.3)
-                hover_background sg_panel(20, "#2c3468", 1.0, "#ffffff", 0.9)
-                text_color "#ffffff"
                 at sg_breathe
                 action SetScreenVariable("reveal", True)
 
@@ -1126,26 +1236,26 @@ screen sg_ending(e):
     if reveal:
         button:
             xysize (1280, 720)
-            background Solid("#12162ecc")
+            background Solid("#4a2a48b3")
             keyboard_focus False
             action SetScreenVariable("reveal", False)
 
         frame:
             xalign 0.5
             yalign 0.5
-            xysize (940, 620)
-            padding (44, 30, 30, 28)
-            background sg_panel(20, "#ffffff", 0.99, "#171b36", 0.12)
+            xysize (960, 640)
+            padding (56, 44, 42, 34)
+            background sg_gal("card", 40)
 
             vbox:
-                spacing 12
+                spacing 10
 
                 text "가려졌던 속마음" style "sg_modal_title" xalign 0.0
                 text "대화 중에는 호감도만큼만 보였습니다. 아래가 원문입니다." style "sg_modal_sub" xalign 0.0
 
                 viewport:
                     id "sg_reveal_list"
-                    xysize (866, 428)
+                    xysize (862, 404)
                     mousewheel True
                     draggable True
                     scrollbars "vertical"
@@ -1159,7 +1269,7 @@ screen sg_ending(e):
 
                                 frame:
                                     xysize (68, 30)
-                                    background sg_box(14, "#171b36")
+                                    background sg_box(14, gui.sg_pink)
                                     text r["label"] style "sg_reveal_label"
 
                                 vbox:

@@ -61,16 +61,16 @@ screen say(who, what):
     frame:
         id "window"
         style "sg_textbox"
-        background Transform(Frame("images/ui/r20.png", 20, 20), matrixcolor=TintMatrix("#12162e"), alpha=0.84)
+        background Frame("images/ui/gal_textbox.png", 56, 56)
 
         text what id "what" style "sg_say_text"
 
     if who is not None:
         frame:
             style "sg_nametag"
-            xpos 84
-            ypos 514
-            background Transform(Frame("images/ui/r14.png", 14, 14), matrixcolor=TintMatrix("#5a6288"))
+            xpos 72
+            ypos 504
+            background Transform(Frame("images/ui/gal_nametag.png", 36, 0), matrixcolor=TintMatrix("#8f96b8"))
             text who id "who" style "sg_nametag_text"
 
 
@@ -113,7 +113,7 @@ screen notify(message):
         xpos 28
         ypos 80
         padding (16, 8)
-        background Transform(Frame("images/ui/r14.png", 14, 14), matrixcolor=TintMatrix("#12162e"), alpha=0.84)
-        text "[message!tq]" size 16
+        background Frame("images/ui/gal_plate.png", 22, 22)
+        text "[message!tq]" size 16 color gui.sg_plum
 
     timer 3.25 action Hide("notify")
