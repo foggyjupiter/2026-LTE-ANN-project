@@ -195,10 +195,17 @@ class ReluTest(unittest.TestCase):
         self.assertEqual(self.gimmick.adjust_delta(0), (0, None))
 
     def test_positive_passes_above_the_threshold(self):
-        # 점수가 내려가지 않는 대신 문턱 1을 넘은 만큼만 오른다
-        self.assertEqual(gimmicks.RELU_THRESHOLD, 1)
-        self.assertEqual(self.gimmick.adjust_delta(2), (1, None))
-        self.assertEqual(self.gimmick.adjust_delta(1), (0, None))
+        # 문턱을 넘은 만큼만 오른다. 지금 문턱은 0이라 양수는 그대로 지나간다
+        self.assertEqual(gimmicks.RELU_THRESHOLD, 0)
+        self.assertEqual(self.gimmick.adjust_delta(2), (2, None))
+        self.assertEqual(self.gimmick.adjust_delta(1), (1, None))
+        saved = gimmicks.RELU_THRESHOLD
+        try:
+            gimmicks.RELU_THRESHOLD = 1
+            self.assertEqual(self.gimmick.adjust_delta(2), (1, None))
+            self.assertEqual(self.gimmick.adjust_delta(1), (0, None))
+        finally:
+            gimmicks.RELU_THRESHOLD = saved
 
 
 class CitationNeededTest(unittest.TestCase):

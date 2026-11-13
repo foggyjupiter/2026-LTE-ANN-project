@@ -16,7 +16,7 @@ import re
 WORD_MASK = "■■"                 # dropout이 낱말 하나를 가릴 때 쓰는 글자
 CHAR_MASK = "■"                  # blackbox가 글자 하나를 가릴 때 쓰는 글자
 RELU_NOTE = "싫은 소리에도 기죽지 않는다"
-RELU_THRESHOLD = 1               # relu가 delta에서 빼는 문턱
+RELU_THRESHOLD = 0               # relu가 delta에서 빼는 문턱
 CITATION_TAG = " [출처 필요]"    # 앞에 공백 하나가 붙는다
 CITATION_LIMIT = 1               # 한 답에 붙이는 딱지의 최대 개수. 여러 개면 대사가 지저분해진다
 DROPOUT_RATE = 0.3
@@ -160,8 +160,9 @@ class Dropout(Gimmick):
 class Relu(Gimmick):
     """ReLU. 음수는 0이 된다. 문턱(RELU_THRESHOLD)을 넘은 만큼만 지나간다: max(0, delta - 문턱).
 
-    점수가 내려가지 않으니 문턱 없이는 무슨 말을 해도 90점을 넘었다(실전 시험 92-100점).
-    문턱이 1이면 +2는 +1, +1은 0이 된다. 노바를 정말 설레게 한 말만 점수가 된다.
+    한 칸이 5점일 때는 문턱 없이 무슨 말을 해도 90점을 넘어서(실전 시험 92-100점) 문턱을 1로 뒀다.
+    점수표(director.POINTS)를 +1은 2점, +2는 8점으로 바꾸면서 문턱을 0으로 되돌렸다.
+    문턱이 1이면 +1은 0, +2는 +1(2점)이 되어 노바만 거의 오르지 않는다.
     """
 
     name = "relu"

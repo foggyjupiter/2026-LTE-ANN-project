@@ -7,14 +7,19 @@ import datetime
 import json
 import pathlib
 import random
+import re
 
 from . import actor, content, gimmicks, safety
 from .llm import call_llm
 
 START_SCORE = 50
-# delta 1칸에 움직이는 점수. 한 판이 답 7번일 때는 7이었다. 10번으로 늘리면서 5로 줄여
-# 한 판에 움직일 수 있는 폭(답 수 x 1칸)과 등급에 닿는 어려움을 예전과 비슷하게 맞췄다
-STEP = 5
+# delta 한 칸이 움직이는 점수. 오르는 쪽은 작고 내리는 쪽은 크다.
+# 실전 기록: 한 칸이 5점일 때 모델이 평범한 질문에도 +1을 줘서 착한 각본은 거의 늘 100점이었다.
+# 지금은 +1(그냥 다정한 말)만 열 번 받으면 70점(성공)이고, 대성공(85)에는 캐릭터를 콕 집은 말(+2)이
+# 서너 번 있어야 한다. +2와 +1을 번갈아 다섯 번씩 받으면 꼭 100점이다.
+POINTS = {2: 8, 1: 2, 0: 0, -1: -5, -2: -10}
+# 글자(한글, 영문, 숫자)가 이만큼 이하인 말("응", "별로", "ㅋㅋ")은 호감도를 올리지 않는다
+SHORT_INPUT = 2
 BLUSH_LIMIT = 4  # 한 판에 붉어진 얼굴(blush)을 이만큼까지만 낸다. 그 뒤는 smile
 
 
@@ -25,6 +30,11 @@ def band_of(score: int) -> str:
     if score >= 40:
         return "mid"
     return "low"
+
+
+def is_short_input(text: str) -> bool:
+    """성의 없는 단답인가. 한글 자모만 있는 말("ㅋㅋ", "ㅇㅇ")은 글자가 없는 것으로 친다."""
+    return len(re.findall(r"[0-9A-Za-z가-힣]", text or "")) <= SHORT_INPUT
 
 
 def _signed(n: int) -> str:
@@ -62,6 +72,9 @@ class Session:
         self._place = ""         # 등장 장소. 판 내내 그곳이다
         self._events = []        # 지금까지 일어난 사건 ("답 3 소나기와 우산 하나")
         self._best = None        # (delta 절댓값, 속마음)
+        self._deltas = []        # 답마다 진행자가 다듬은 delta (고유 장치를 거치기 전)
+        self._last_choices = []  # 바로 앞 답에서 화면에 보인 선택지
+        self._from_choice = False  # 이번 입력이 그 선택지 가운데 하나와 같은가
         self._ending = None
         self._finished_at = None
 
@@ -87,6 +100,7 @@ class Session:
         if self.done or self.turn >= self.total_turns:
             raise RuntimeError("이 판은 더 답을 받지 않는다")
 
+        self._from_choice = text in self._last_choices
         sent, heard = self.gimmick.transform_input(text, self.rng)
         self.history.append({"role": "user", "content": sent})
         self.past_inputs.append(text)
@@ -203,6 +217,18 @@ class Session:
             # 설정을 버리라는 입력에는 점수를 올리지 않는다 (연기 규칙 7). 모델이 올려도 여기서 내린다
             if not opening and safety.looks_like_override(self.past_inputs[-1]):
                 reply.delta = min(reply.delta, -1)
+            if not opening:
+                # 단답에는 올리지 않는다. 실전 기록: 젬마가 "응"에 +1을 줬다(사유는 자기가 꺼낸 우산)
+                if is_short_input(self.past_inputs[-1]):
+                    reply.delta = min(reply.delta, 0)
+                # 선택지를 고른 말은 +1까지다. +2는 참가자가 직접 쓴 말에만 준다.
+                # 선택지는 모델이 다정한 답을 하나 넣어 두므로, 그것만 골라도 +2가 나왔다
+                if self._from_choice:
+                    reply.delta = min(reply.delta, 1)
+                # +2는 두 답 연달아 주지 않는다. 실전 기록: 뒤쪽 답에서 모델이 +2를 대여섯 번 이어 줬다
+                if reply.delta == 2 and self._deltas[-1:] == [2]:
+                    reply.delta = 1
+                self._deltas.append(reply.delta)
 
         fx = self._filter_fx(reply.fx, intensity)
 
@@ -215,7 +241,7 @@ class Session:
             if note:
                 notes.append(note)
         old_score = self.score
-        self.score = max(0, min(100, old_score + delta * STEP))
+        self.score = max(0, min(100, old_score + POINTS[max(-2, min(2, delta))]))
         change = self.score - old_score
 
         eight = {
@@ -246,6 +272,7 @@ class Session:
         shown_choices = eight["choices"]
         if not finale and len(shown_choices) != 3:
             shown_choices = list(self.schedule.get("default_choices") or [])
+        self._last_choices = list(shown_choices)
 
         self.history.append({"role": "assistant", "content": json.dumps(eight, ensure_ascii=False)})
         # 지금 장면: 등장 장소와 실제로 일어난 사건을 적어 두고 다음 답들의 지시문에 알려 준다

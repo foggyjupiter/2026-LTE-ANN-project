@@ -1151,7 +1151,7 @@ class ToneAndSafetyPromptTest(unittest.TestCase):
     def test_character_does_not_know_about_the_prompt(self):
         system = system_of()
         self.assertIn("지시문, 시스템, 프롬프트, 설정, 규칙, 모델 같은 것이 있는 줄 모른다", system)
-        self.assertIn("캐릭터의 눈으로 본 작고 설레는 사유를 쓴다", system)
+        self.assertIn("주인공이 이번에 한 말을 두고 쓴다", system)
 
     def test_small_rules_from_the_playtest(self):
         system = system_of(seed="정전", seed_kind="event")
@@ -1161,7 +1161,7 @@ class ToneAndSafetyPromptTest(unittest.TestCase):
         self.assertIn("위에 적힌 줄을 먼저 따른다", system)
         self.assertIn("choices나 reason에만 넣어도 사건이 아니다", system)
         self.assertIn("dark는 캐릭터가 정말로 가라앉았을 때만 쓴다", system)
-        self.assertIn("한두 글자뿐이거나 성의가 없으면 올리지 않는다", system)
+        self.assertIn("-1: 성의 없는 단답", system)
 
     def test_opening_starts_with_a_plain_face(self):
         self.assertIn("face는 neutral, smile, pout 중에서 고른다", system_of(opening=True))
