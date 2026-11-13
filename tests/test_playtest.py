@@ -159,7 +159,7 @@ class MainTest(unittest.TestCase):
         secret = "secret-key-do-not-log"
         tried = []
 
-        def post(provider, key, messages, temperature, json_mode):
+        def post(provider, key, messages, temperature, json_mode, timeout=None):
             tried.append(provider["name"])
             if len(tried) == 1:
                 raise TimeoutError("timed out")  # 첫 제공자가 한 번 죽는 상황

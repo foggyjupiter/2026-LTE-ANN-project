@@ -16,23 +16,30 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 # 위에서부터 차례로 시도한다. 키가 없는 제공자는 건너뛴다.
 #
 # 순서의 근거 (2026-11-13 오전, 무료 등급 키로 실제 지시문을 보내 잰 값):
-#   gemini-3.5-flash-lite  68번 중 68번 성공, 0.9-2.5초 (평균 1.5초)
-#   gemini-3.1-flash-lite  1번 중 1번 성공, 2.4초
-#   gemini-3.8-flash       12번 중 0번 성공. 10초에서 30초 넘게 무응답 7번, 503 4번, 429 1번
+#   gemini-3.5-flash-lite  성공한 호출은 0.9-4.2초, 평균 1.5초. 100번 넘게 불러 503이 한 번 났다
+#   gemini-3.1-flash-lite  2번 중 1번 성공(2.4초), 1번은 503
+#   gemini-3.8-flash       13번 중 0번 성공. 8초에서 30초 넘게 무응답 8번, 503 4번, 429 1번
 #                          (20분 뒤에 다시 재도 같았다)
 #   gemini-3.6-flash       1번 중 1번 성공, 16.7초
 #   gemini-3.5-flash, gemini-3.7-flash, gemini-flash-latest, gemini-4-hydrogen  각 1번 중 0번 성공
 # 503의 본문은 "This model is currently experiencing high demand"였다. reasoning_effort를
 # 빼도 같았다. flash 급 모델은 무료 등급에서 과부하로 못 쓰는 상태였고 flash-lite만 빠르고
-# 안 죽었다. 부스에서는 한 턴이 몇 초 안에 나와야 하므로 flash-lite를 맨 앞에 둔다.
-# 유료 등급 키로 바꾸거나 과부하가 풀리면 gemini-flash 를 다시 재 보고, 빠르면 맨 위로 올린다.
+# 안 죽었다. 그래서 flash-lite 둘만 쓴다. gemini-3.8-flash를 예비로 두었더니 flash-lite 둘이
+# 같이 503을 낸 턴에 8초를 더 버리고도 답을 못 받았다. 그 503은 20초 뒤에 풀려 있었다.
+#
+# 유료 등급 키로 바꾸거나 과부하가 풀려서 gemini-3.8-flash를 쓰려면 아래 항목을 목록에 넣는다.
+# 먼저 `python3 -m sogaeting.playtest --only haru`로 응답 시간을 재 보고, flash-lite만큼 빠르면
+# 맨 위에, 아니면 넣지 않는다. reasoning_effort는 low, medium, high만 되고 minimal은 오류다.
+#   {"name": "gemini-flash", "url": GEMINI_URL, "key_env": "GEMINI_API_KEY",
+#    "model": "gemini-3.8-flash", "extra": {"reasoning_effort": "low"}, "timeout": 6,
+#    "temperature": False},
 #
 # 칸 설명
 #   timeout      이 시간(초) 안에 답이 없으면 다음 제공자로 넘어간다
 #   temperature  False면 temperature를 보내지 않는다. Gemini 3.6 이후 모델은 이 값을 무시하고
 #                문서가 요청에서 빼라고 한다 (ai.google.dev/gemini-api/docs/whats-new-gemini-3.6)
-#   extra        요청에 그대로 덧붙일 칸. gemini-3.8-flash의 reasoning_effort는 low, medium, high만
-#                되고 minimal은 오류다. flash-lite는 기본값이 minimal(가장 빠름)이라 비워 둔다
+#   extra        요청에 그대로 덧붙일 칸. flash-lite는 생각 단계의 기본값이 minimal(가장 빠름)이라
+#                비워 둔다
 PROVIDERS = [
     {
         "name": "gemini-flash-lite",
@@ -53,26 +60,21 @@ PROVIDERS = [
         "temperature": False,
     },
     {
-        "name": "gemini-flash",
-        "url": GEMINI_URL,
-        "key_env": "GEMINI_API_KEY",
-        "model": "gemini-3.8-flash",
-        "extra": {"reasoning_effort": "low"},  # 생각 단계를 낮춰 응답을 빠르게
-        "timeout": 8,
-        "temperature": False,
-    },
-    {
         "name": "groq",
         "url": GROQ_URL,
         "key_env": "GROQ_API_KEY",
         "model": "openai/gpt-oss-120b",
         "extra": {"reasoning_effort": "low"},
-        "timeout": 8,
+        "timeout": 6,
     },
 ]
 TIMEOUT_SEC = 6          # 제공자에 timeout 칸이 없을 때 쓰는 값
+TURN_BUDGET_SEC = 10     # call_llm 한 번이 쓸 수 있는 시간. 다 쓰면 포기하고 대체 대사로 간다
+MIN_ATTEMPT_SEC = 2      # 남은 시간이 이보다 적으면 새로 시도하지 않는다
 COOLDOWN_SEC = 60        # 한도 초과(429)가 난 제공자는 이만큼 쉬게 둔다
-BUSY_COOLDOWN_SEC = 20   # 과부하(5xx)나 시간 초과가 난 제공자를 쉬게 두는 시간. 연달아 나면 두 배씩 는다
+# 과부하와 시간 초과가 난 제공자를 쉬게 두는 시간. 연달아 나면 두 배씩 늘고 상한에서 멈춘다.
+BUSY_COOLDOWN_SEC = 3    # 5xx: 서버가 곧바로 거절한 것이라 금방 풀리곤 한다. 같은 턴 안에 다시 해 본다
+SLOW_COOLDOWN_SEC = 20   # 시간 초과와 연결 실패: 기다린 시간을 통째로 버린 것이라 길게 쉰다
 BUSY_COOLDOWN_MAX_SEC = 120
 RETRY_AFTER_MAX_SEC = 600  # 서버가 알려 준 대기 시간을 믿는 상한
 
@@ -99,7 +101,7 @@ def load_dotenv(path=".env"):
             os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
-def _post(provider, key, messages, temperature, json_mode):
+def _post(provider, key, messages, temperature, json_mode, timeout=None):
     body = {"model": provider["model"], "messages": messages, **provider["extra"]}
     if provider.get("temperature", True):
         body["temperature"] = temperature
@@ -114,7 +116,9 @@ def _post(provider, key, messages, temperature, json_mode):
             "User-Agent": "sogaeting-booth/1.0",  # 기본 UA는 차단되는 경우가 있음
         },
     )
-    with urllib.request.urlopen(req, timeout=provider.get("timeout", TIMEOUT_SEC)) as res:
+    if timeout is None:
+        timeout = provider.get("timeout", TIMEOUT_SEC)
+    with urllib.request.urlopen(req, timeout=timeout) as res:
         data = json.load(res)
     return data["choices"][0]["message"]["content"]
 
@@ -156,25 +160,25 @@ def _rest(name, seconds):
     _blocked_until[name] = time.time() + seconds
 
 
-def _rest_busy(name):
+def _rest_busy(name, base):
     """과부하나 시간 초과: 연달아 날수록 오래 쉬게 둔다."""
     streak = _busy_streak.get(name, 0) + 1
     _busy_streak[name] = streak
-    _rest(name, min(BUSY_COOLDOWN_SEC * 2 ** (streak - 1), BUSY_COOLDOWN_MAX_SEC))
+    _rest(name, min(base * 2 ** (streak - 1), BUSY_COOLDOWN_MAX_SEC))
 
 
-def _try_provider(p, key, messages, temperature, json_mode):
+def _try_provider(p, key, messages, temperature, json_mode, timeout):
     """제공자 하나에 요청한다. (답 문자열 또는 None, 실패 사유 또는 None)"""
     name = p["name"]
     use_json = json_mode and name not in _no_json_mode
     try:
         try:
-            text = _post(p, key, messages, temperature, use_json)
+            text = _post(p, key, messages, temperature, use_json, timeout)
         except urllib.error.HTTPError as e:
             if e.code == 400 and use_json:
                 # JSON 강제 옵션을 못 받는 제공자: 기억해 두고 옵션 없이 한 번 더
                 _no_json_mode.add(name)
-                text = _post(p, key, messages, temperature, False)
+                text = _post(p, key, messages, temperature, False, timeout)
             else:
                 raise
         if text and text.strip():
@@ -187,12 +191,12 @@ def _try_provider(p, key, messages, temperature, json_mode):
         if e.code == 429:
             _rest(name, _retry_after(e) or COOLDOWN_SEC)
         elif e.code >= 500:
-            _rest_busy(name)
+            _rest_busy(name, BUSY_COOLDOWN_SEC)
         # 400, 401, 403, 404는 키나 모델명이 틀렸다는 뜻이니 리허설 때 이 로그를 확인할 것
         print(f"[{name}] HTTP {e.code}" + (f" {detail}" if detail else ""))
         return None, f"HTTP {e.code}" + (f" {detail}" if detail else "")
     except Exception as e:  # 시간 초과, 인터넷 끊김, 응답 형식 이상
-        _rest_busy(name)
+        _rest_busy(name, SLOW_COOLDOWN_SEC)
         reason = f"{type(e).__name__}: {e}"
         if key:
             reason = reason.replace(key, "***")
@@ -203,36 +207,54 @@ def _try_provider(p, key, messages, temperature, json_mode):
 def call_llm(messages, temperature=0.9, json_mode=False, trace=None):
     """대화 기록 전체를 보내고 답 문자열을 받는다. 모든 제공자가 실패하면 AllProvidersDown.
 
+    제공자를 위에서부터 돌고, 전부 실패했는데 곧 풀리는 제공자가 있으면 기다렸다가 한 바퀴 더 돈다.
+    다 합쳐 TURN_BUDGET_SEC 안에서만 한다.
     trace에 목록을 주면 시도마다 {"provider", "model", "ok", "sec", "error"}를 덧붙인다.
     키와 요청 헤더는 담지 않는다.
     """
-    for p in PROVIDERS:
-        key = os.environ.get(p["key_env"], "")
-        if not key or time.time() < _blocked_until.get(p["name"], 0):
-            continue
-        stats["calls"] += 1
-        started = time.monotonic()
-        text, error = _try_provider(p, key, messages, temperature, json_mode)
-        sec = round(time.monotonic() - started, 2)
-        if trace is not None:
-            trace.append({"provider": p["name"], "model": p["model"],
-                          "ok": text is not None, "sec": sec, "error": error})
-        if text is not None:
-            stats["last_provider"] = p["name"]
-            stats["last_sec"] = sec
-            return text
-        stats["failures"] += 1
-    raise AllProvidersDown()
+    deadline = time.monotonic() + TURN_BUDGET_SEC
+    gave_up = set()  # 이번 호출에서 다시 해 봐야 소용없는 제공자 (키나 모델명 오류, 빈 응답)
+    while True:
+        for p in PROVIDERS:
+            name = p["name"]
+            key = os.environ.get(p["key_env"], "")
+            if not key or name in gave_up or time.time() < _blocked_until.get(name, 0):
+                continue
+            left = deadline - time.monotonic()
+            if left < MIN_ATTEMPT_SEC:
+                raise AllProvidersDown()
+            stats["calls"] += 1
+            started = time.monotonic()
+            text, error = _try_provider(p, key, messages, temperature, json_mode,
+                                        min(p.get("timeout", TIMEOUT_SEC), left))
+            sec = round(time.monotonic() - started, 2)
+            if trace is not None:
+                trace.append({"provider": name, "model": p["model"],
+                              "ok": text is not None, "sec": sec, "error": error})
+            if text is not None:
+                stats["last_provider"] = name
+                stats["last_sec"] = sec
+                return text
+            stats["failures"] += 1
+            if time.time() >= _blocked_until.get(name, 0):
+                gave_up.add(name)  # 쉬게 둘 실패가 아니었다. 이번 호출에서는 다시 부르지 않는다
+
+        # 한 바퀴를 다 돌았다. 남은 시간 안에 풀리는 제공자가 있으면 그때까지 기다린다
+        wait = seconds_until_ready(skip=gave_up)
+        if wait is None or deadline - time.monotonic() - wait < MIN_ATTEMPT_SEC:
+            raise AllProvidersDown()
+        time.sleep(wait)
 
 
-def seconds_until_ready():
+def seconds_until_ready(skip=()):
     """키가 있는 제공자 가운데 가장 먼저 풀리는 것까지 남은 시간(초).
 
-    지금 바로 쓸 수 있는 제공자가 있으면 0, 키가 하나도 없으면 None.
+    지금 바로 쓸 수 있는 제공자가 있으면 0, 쓸 제공자가 하나도 없으면 None.
+    skip에 든 이름은 없는 셈 친다.
     """
     waits = [
         max(0.0, _blocked_until.get(p["name"], 0) - time.time())
-        for p in PROVIDERS if os.environ.get(p["key_env"], "")
+        for p in PROVIDERS if os.environ.get(p["key_env"], "") and p["name"] not in skip
     ]
     return min(waits) if waits else None
 
