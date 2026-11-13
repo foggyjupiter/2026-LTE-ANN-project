@@ -40,6 +40,13 @@ def _banned_hits(text, banned):
 
 
 class CharacterTest(unittest.TestCase):
+    def test_every_character_has_a_face_note(self):
+        for char_id in CHARACTER_IDS:
+            note = content.load_character(char_id).get("face_note")
+            self.assertIsInstance(note, str)
+            self.assertIn("평소 얼굴은", note)
+            self.assertIn("blush", note)
+
     def test_old_ids_still_load(self):
         # 2026-11-13에 id를 새 이름으로 바꿨다. 예전 id로 불러도 새 캐릭터가 나온다
         for old, new in content.OLD_IDS.items():

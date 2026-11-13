@@ -115,6 +115,7 @@ def _character_section(character: dict) -> list[str]:
         "- 한 줄 소개: " + motif["name"] + ". " + motif["explain"],
         "- 주인공을 부르는 말: " + character["call"],
         "- 주인공을 대하는 태도: " + character["attitude"],
+        *(["- 표정: " + character["face_note"]] if isinstance(character.get("face_note"), str) else []),
         "- 좋아하는 것: " + character["likes"],
         "- 싫어하는 것: " + character["dislikes"],
         "",
@@ -285,7 +286,9 @@ _OUTPUT_SECTION = [
     "- say (문자열): 겉으로 하는 말. 2-3문장. 캐릭터 설정에 다른 길이가 적혀 있으면 그쪽을 따른다. 비우지 않는다.",
     "- inner (문자열): 속마음. 쓰는 법은 말투 지침을 따른다. 띄어쓰기는 평소대로 한다.",
     "- face (문자열): 표정. neutral(평소), smile(웃음), blush(붉어짐), pout(삐침), shock(놀람), dark(어두움) 중 하나. "
-    "이번 답의 say에 어울리는 것을 고른다. dark는 캐릭터가 정말로 가라앉았을 때만 쓴다.",
+    "이번 답의 say에 어울리는 것을 고른다. 평소 대답은 캐릭터 설정에 적힌 평소 표정, 기분이 좋으면 smile, "
+    "토라지거나 놀림받으면 pout, 놀라면 shock을 고른다. blush는 마음을 들켜 얼굴이 빨개진 순간에만 고르고 "
+    "한 판에 서너 번이면 많다. 같은 표정을 세 답 연달아 고르지 않는다. dark는 캐릭터가 정말로 가라앉았을 때만 쓴다.",
     "- fx (문자열 배열): 화면 연출. [화면 연출]의 목록에서 0-2개.",
     "- delta (정수): 주인공의 이번 말 때문에 생긴 호감도 변화. -2에서 2 사이의 정수. "
     "캐릭터가 좋아하는 말이면 올리고 싫어하는 말이면 내린다. 매번 올리기만 하지 않는다. "
@@ -304,7 +307,8 @@ _OUTPUT_SECTION = [
 
 def _turn_system(character: dict, *, band: str, intensity: int, intensity_meaning: str,
                  fx_allowed: list[str], seed: str | None, seed_kind: str | None,
-                 opening: bool, finale: bool, extra: str, previous_first: str = "") -> str:
+                 opening: bool, finale: bool, extra: str, previous_first: str = "",
+                 previous_faces: tuple = ()) -> str:
     if band not in _BAND_LABELS:
         raise ValueError("band는 low, mid, high 중 하나여야 한다: " + repr(band))
 
@@ -337,13 +341,18 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
         sections.append(_seed_section(str(seed), kind))
 
     sections.append(_RULES_SECTION)
-    if previous_first:
+    if previous_first or previous_faces:
         # 모델은 입버릇으로 답마다 말머리를 똑같이 시작하는 버릇이 있다 (소라의 "어라").
+        # 표정도 한쪽으로 쏠렸다: 실제 모델 126답 가운데 blush가 81번이었다.
         # 지시문 맨 끝에 두었더니 출력 형식(선택지 20자)을 덜 지켰다. 연기 규칙 바로 뒤에 둔다
-        sections.append([
-            "[바로 앞 답]",
-            '- 바로 앞 답의 겉말은 "' + previous_first + '"(으)로 시작했다. 이번 답의 겉말은 다른 말로 시작한다.',
-        ])
+        lines = ["[바로 앞 답]"]
+        if previous_first:
+            lines.append('- 바로 앞 답의 겉말은 "' + previous_first + '"(으)로 시작했다. 이번 답의 겉말은 다른 말로 시작한다.')
+        if previous_faces:
+            lines.append("- 앞 답들의 표정(오래된 것부터): " + ", ".join(previous_faces) + ". "
+                         + ("이번 답은 다른 표정을 고른다." if len(previous_faces) >= 2 and len(set(previous_faces)) == 1
+                            else "같은 표정을 세 답 연달아 고르지 않는다."))
+        sections.append(lines)
     sections += [
         _TONE_SECTION,
         _TURN_SAFETY_SECTION,
@@ -399,6 +408,22 @@ def _last_opening(history: list[dict]) -> str:
     return ""
 
 
+def _recent_faces(history: list[dict], count: int = 2) -> tuple:
+    """앞 답들의 표정(오래된 것부터, count개까지). 등장도 센다. 대체 대사와 못 읽은 답은 건너뛴다."""
+    faces = []
+    for message in reversed(history):
+        if message.get("role") != "assistant":
+            continue
+        data = _read_json_object(message.get("content"))
+        face = data.get("face") if data else None
+        say = _text(data.get("say")) if data else ""
+        if face in FACES and say and not say.startswith("("):
+            faces.append(face)
+            if len(faces) == count:
+                break
+    return tuple(reversed(faces))
+
+
 def build_turn_messages(character: dict, history: list[dict], *, band: str, intensity: int,
                         intensity_meaning: str, fx_allowed: list[str], seed: str | None = None,
                         seed_kind: str | None = None, opening: bool = False,
@@ -408,6 +433,7 @@ def build_turn_messages(character: dict, history: list[dict], *, band: str, inte
         character, band=band, intensity=intensity, intensity_meaning=intensity_meaning,
         fx_allowed=fx_allowed, seed=seed, seed_kind=seed_kind, opening=opening,
         finale=finale, extra=extra, previous_first=_last_opening(history),
+        previous_faces=_recent_faces(history),
     )
     return [{"role": "system", "content": system}] + [dict(m) for m in history]
 

@@ -447,6 +447,30 @@ class BannedTest(unittest.TestCase):
         self.assertEqual((out["epilogue"], out["nickname"]), ("", ""))
 
 
+class FaceTest(unittest.TestCase):
+    """실제 모델은 답의 3분의 2를 blush로 냈다. 세 번 연달아면 smile로 바꾼다."""
+
+    def test_third_blush_in_a_row_becomes_smile(self):
+        llm = ScriptedLlm(default={"face": "blush"})
+        session = Session("gemma", llm=llm)
+        outs = play(session, count=5)
+        self.assertEqual([o["face"] for o in outs], ["blush", "blush", "smile", "blush", "blush", "smile"])
+        # 기록에도 바뀐 표정이 남는다. 다음 답의 지시문이 앞 표정을 그대로 알려 준다
+        self.assertEqual(json.loads(session.history[-1]["content"])["face"], "smile")
+
+    def test_fallback_does_not_count(self):
+        llm = ScriptedLlm(turns={0: {"face": "blush"}, 1: {"face": "blush"}, 2: AllProvidersDown(), 3: {"face": "blush"}})
+        outs = play(Session("gemma", llm=llm), count=3)
+        self.assertEqual(outs[3]["face"], "smile")  # 대체 대사를 건너뛰고 앞의 두 blush를 센다
+
+    def test_prompt_names_recent_faces_and_character_face_note(self):
+        llm = ScriptedLlm(default={"face": "blush"})
+        play(Session("astra", llm=llm), count=2)
+        system = llm.system_of(2)
+        self.assertIn("앞 답들의 표정(오래된 것부터): blush, blush. 이번 답은 다른 표정을 고른다.", system)
+        self.assertIn("- 표정: " + content.load_character("astra")["face_note"], system)
+
+
 class OffstageTest(unittest.TestCase):
     """캐릭터가 모르는 말("AI", "프롬프트")은 한 번 고쳐 쓰게 하고, 남으면 대체 대사로 바꾼다."""
 

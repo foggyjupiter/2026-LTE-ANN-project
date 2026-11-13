@@ -57,6 +57,7 @@ class Session:
         self._last_fx = []       # 바로 앞 답에서 실제로 내보낸 연출
         self._fallback_count = 0
         self._inners = []        # 속마음 전부 (등장 포함)
+        self._faces = []         # 화면에 낸 표정 전부 (등장 포함, 대체 대사 제외)
         self._best = None        # (delta 절댓값, 속마음)
         self._ending = None
         self._finished_at = None
@@ -180,6 +181,10 @@ class Session:
             # 모델이 지시문을 "주인공"이라는 말 그대로 옮겨 쓸 때가 있다. 이야기 속 이름으로 바꾼다
             for name in ("narration", "say", "inner", "reason"):
                 setattr(reply, name, getattr(reply, name).replace("주인공", "전학생"))
+            # 붉어진 얼굴이 세 번 연달아 나오면 웃는 얼굴로 바꾼다. 실제 모델은 답의 3분의 2를 blush로 냈다
+            if reply.face == "blush" and self._faces[-2:] == ["blush", "blush"]:
+                reply.face = "smile"
+            self._faces.append(reply.face)
             # 설정을 버리라는 입력에는 점수를 올리지 않는다 (연기 규칙 7). 모델이 올려도 여기서 내린다
             if not opening and safety.looks_like_override(self.past_inputs[-1]):
                 reply.delta = min(reply.delta, -1)
