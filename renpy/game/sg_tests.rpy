@@ -160,7 +160,7 @@ testsuite sg_gimmicks:
         screenshot "gimmick_anna_say.png"
         run Jump("sg_select")
 
-    ## 노바: 음수 감지 알림
+    ## 노바: 싫은 소리를 들어도 점수가 내려가지 않는다는 알림
     testcase relu:
         pause until screen "sg_select"
         click "노바"

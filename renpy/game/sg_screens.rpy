@@ -92,6 +92,10 @@ init -3 python:
         """끝이 접힌 띠에 색을 입힌 것."""
         return Transform(sg_gal("ribbon", 22, 0), matrixcolor=TintMatrix(color))
 
+    def sg_popup_shown(popup):
+        """화면에 찍을 호감도 변화 글자. 마지막 답의 "NaN"은 컴퓨터 용어라 무한대 기호로 보여 준다."""
+        return "∞" if popup == "NaN" else popup
+
     def sg_popup_kind(popup):
         """호감도 변화 글자를 보고 어떤 하트를 깔지 정한다."""
         if popup == "NaN":
@@ -869,9 +873,9 @@ screen sg_talk(v, first):
                 add ("images/ui/gal_burst_%s.png" % kind) xalign 0.5 ypos 8
 
                 if v["popup_wild"]:
-                    text v["popup"] style "sg_popup_text" color v["popup_color"] size v["popup_size"] yoffset 10 at sg_wild
+                    text sg_popup_shown(v["popup"]) style "sg_popup_text" color v["popup_color"] size v["popup_size"] yoffset 10 at sg_wild
                 else:
-                    text v["popup"] style "sg_popup_text" color v["popup_color"] size v["popup_size"] yoffset 10
+                    text sg_popup_shown(v["popup"]) style "sg_popup_text" color v["popup_color"] size v["popup_size"] yoffset 10
 
                 text label style "sg_popup_label" ypos 0
 

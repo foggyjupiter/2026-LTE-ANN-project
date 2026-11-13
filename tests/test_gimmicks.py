@@ -1,11 +1,13 @@
 import inspect
 import random
 import unittest
+from unittest import mock
 
 from sogaeting import gimmicks, safety
 from sogaeting.gimmicks import Gimmick, get_gimmick
 
 TAG = " [출처 필요]"
+gimmicks_default_limit = gimmicks.CITATION_LIMIT   # 시험이 한도를 바꾸기 전의 값
 
 
 def make_reply(**fields):
@@ -177,6 +179,16 @@ class ReluTest(unittest.TestCase):
 class CitationNeededTest(unittest.TestCase):
     def setUp(self):
         self.gimmick = get_gimmick("citation_needed")
+        # 기본 한도는 한 답에 하나다. 여러 개가 붙는 동작은 한도를 3으로 올려 놓고 본다
+        limit = mock.patch.object(gimmicks, "CITATION_LIMIT", 3)
+        limit.start()
+        self.addCleanup(limit.stop)
+
+    def test_default_limit_is_one_tag_per_line(self):
+        with mock.patch.object(gimmicks, "CITATION_LIMIT", gimmicks_default_limit):
+            marked = self.mark("연구에 따르면 130%야")
+        self.assertEqual(gimmicks_default_limit, 1)
+        self.assertEqual(marked, "연구에 [출처 필요] 따르면 130%야")
 
     def mark(self, say):
         return self.gimmick.decorate(make_reply(say=say), make_ctx())["say_marked"]
@@ -327,7 +339,8 @@ class CitationSkipsNonStatNumbersTest(unittest.TestCase):
         self.assertEqual(self.mark("2학년 3반이야"), "2학년 3반이야")
 
     def test_cap_is_kept_for_real_stats(self):
-        out = self.mark("2학년 3반 신입, 심박수가 400% 올라간다는 연구가 2019년 논문에 있어")
+        with mock.patch.object(gimmicks, "CITATION_LIMIT", 3):
+            out = self.mark("2학년 3반 신입, 심박수가 400% 올라간다는 연구가 2019년 논문에 있어")
         self.assertEqual(out.count("[출처 필요]"), 3)
         self.assertIn("400% [출처 필요]", out)
         self.assertIn("연구가 [출처 필요]", out)

@@ -527,7 +527,7 @@ class GimmickTest(unittest.TestCase):
         session.start()
         out = session.reply("정말?")
         self.assertEqual(out["say"], "연구에 따르면 130%야.")
-        self.assertEqual(out["extras"]["say_marked"].count("[출처 필요]"), 2)
+        self.assertEqual(out["extras"]["say_marked"].count("[출처 필요]"), 1)  # 한 답에 하나까지만 붙인다
 
 
 class EndingTest(unittest.TestCase):

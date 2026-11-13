@@ -17,7 +17,7 @@ WORD_MASK = "■■"                 # dropout이 낱말 하나를 가릴 때 �
 CHAR_MASK = "■"                  # blackbox가 글자 하나를 가릴 때 쓰는 글자
 RELU_NOTE = "싫은 소리에도 기죽지 않는다"
 CITATION_TAG = " [출처 필요]"    # 앞에 공백 하나가 붙는다
-CITATION_LIMIT = 3               # 한 답에 붙이는 딱지의 최대 개수
+CITATION_LIMIT = 1               # 한 답에 붙이는 딱지의 최대 개수. 여러 개면 대사가 지저분해진다
 DROPOUT_RATE = 0.3
 MIN_QUOTE_LENGTH = 2             # 이보다 짧은 입력에는 형광펜을 칠하지 않는다
 
