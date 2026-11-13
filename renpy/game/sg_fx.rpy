@@ -2,7 +2,7 @@
 ##
 ## 서버는 턴마다 "fx"(연출 이름 0-2개)를 준다. 이 파일은 그 이름을 받아 화면에 건다.
 ## 연출마다 무엇을 얼마 동안 보여 주는지는 브라우저판(sogaeting/web/fx.js, fx.css)이
-## 기준이고, 여기서는 그것을 Ren'Py 방식으로 옮겼다.
+## 기준이다. 겉모습은 브라우저판의 픽셀 그림이 아니라 매끄러운 미연시 연출로 만들었다.
 ##
 ## 바깥에서 쓰는 것
 ##   sg_fx_play(names, narration="")  연출을 건다. 앞서 걸린 것은 먼저 걷는다
@@ -19,6 +19,9 @@
 ## 연출은 클릭을 가로채지 않는다. 하나만 다르다: 가짜 오류창의 "확인" 단추는 누르면
 ## 그 창만 닫는다(fx.js 와 같다). 다른 곳을 누르면 평소처럼 대사가 넘어간다.
 ##
+## 그림은 images/fx/sg_fx_*.png 에 있다. 꽃잎, 하트, 반짝이는 여러 장을 한 줄로 이어 붙인
+## 그림이고 여기서 한 칸씩 잘라 쓴다.
+##
 ## 이 파일의 이름(화면, transform, 스타일, 함수, 변수)은 전부 sg_fx 로 시작한다.
 ## 효과음은 없다.
 
@@ -28,7 +31,7 @@ init -10 python:
     renpy.add_layer("sg_fx", below="screens", menu_clear=True, sticky=False)
 
 
-## 색 (브라우저판과 같다)
+## 색
 define sg_fx_ink = "#1B2559"
 define sg_fx_red = "#E23B4E"
 define sg_fx_marker = "#FFE65A"
@@ -53,268 +56,14 @@ default sg_fx_ui_top = 535
 
 init python:
 
-    ## 픽셀 그림. 글자 하나가 픽셀 하나이고 "." 은 빈칸이다. fx.js 의 그림 그대로다.
-    sg_fx_art = {
-        ## 꽃잎 한 장이 팔랑 도는 장면: 정면, 비스듬히, 옆. 곧게 선 것과 기운 것 두 벌
-        "petal_a": [
-            "....d....",
-            "...dld...",
-            "..dllpd..",
-            ".dllppqd.",
-            ".dlpppqd.",
-            ".dlpppqd.",
-            "..dppqd..",
-            "...dqd...",
-            "....d....",
-        ],
-        "petal_b": [
-            "....d....",
-            "...dld...",
-            "..dlpqd..",
-            "..dlpqd..",
-            "..dlpqd..",
-            "..dlpqd..",
-            "..dlpqd..",
-            "...dqd...",
-            "....d....",
-        ],
-        "petal_c": [
-            "....d....",
-            "....d....",
-            "...dpd...",
-            "...dpd...",
-            "...dpd...",
-            "...dpd...",
-            "...dpd...",
-            "....d....",
-            "....d....",
-        ],
-        "petal_da": [
-            "......dd.",
-            "....ddpqd",
-            "...dlppqd",
-            "..dllppqd",
-            ".dllpppd.",
-            ".dlpppqd.",
-            "dlpppqd..",
-            "dpqqdd...",
-            ".ddd.....",
-        ],
-        "petal_db": [
-            ".......dd",
-            ".....ddpd",
-            "....dlppd",
-            "...dlppd.",
-            "..dlppd..",
-            ".dlppd...",
-            "dlppd....",
-            "dppd.....",
-            ".dd......",
-        ],
-        "petal_dc": [
-            ".........",
-            ".......d.",
-            "......dpd",
-            ".....dpd.",
-            "....dpd..",
-            "...dpd...",
-            "..dpd....",
-            ".dpd.....",
-            "..d......",
-        ],
-        "heart": [
-            ".oo...oo.",
-            "orro.orro",
-            "orwrorrro",
-            "orrrrrrso",
-            ".orrrrso.",
-            "..orrso..",
-            "...oso...",
-            "....o....",
-        ],
-        "spark_s": [
-            "...........",
-            "...........",
-            "...........",
-            "...........",
-            ".....y.....",
-            "....ywy....",
-            ".....y.....",
-            "...........",
-            "...........",
-            "...........",
-            "...........",
-        ],
-        "spark_m": [
-            "...........",
-            "...........",
-            ".....y.....",
-            ".....y.....",
-            "....yyy....",
-            "..yyywyyy..",
-            "....yyy....",
-            ".....y.....",
-            ".....y.....",
-            "...........",
-            "...........",
-        ],
-        "spark_l": [
-            ".....y.....",
-            ".....y.....",
-            ".....y.....",
-            "....yyy....",
-            "...yywyy...",
-            "yyyywwwyyyy",
-            "...yywyy...",
-            "....yyy....",
-            ".....y.....",
-            ".....y.....",
-            ".....y.....",
-        ],
-        "drop": [
-            "...b", "...b", "...b",
-            "..b.", "..b.", "..b.",
-            ".b..", ".b..", ".b..",
-            "b...", "b...", "b...",
-        ],
-        "saw": [
-            "k.....",
-            "kk....",
-            "kkk...",
-            "kkkk..",
-            "kkkkk.",
-            "kkkkkk",
-            "kkkkkk",
-            "kkkkk.",
-            "kkkk..",
-            "kkk...",
-            "kk....",
-            "k.....",
-        ],
-        "err_icon": [
-            "...ooooo...",
-            "..orrrrro..",
-            ".orrrrrrro.",
-            "orrwrrrwrro",
-            "orrrwrwrrro",
-            "orrrrwrrrro",
-            "orrrwrwrrro",
-            "orrwrrrwrro",
-            ".orrrrrrro.",
-            "..orrrrro..",
-            "...ooooo...",
-        ],
-        ## 닫기 단추: 바탕색 네모 안의 가위표
-        "close": [
-            "ppppppppppp",
-            "ppppppppppp",
-            "ppppppppppp",
-            "pppkpppkppp",
-            "ppppkpkpppp",
-            "pppppkppppp",
-            "ppppkpkpppp",
-            "pppkpppkppp",
-            "ppppppppppp",
-            "ppppppppppp",
-            "ppppppppppp",
-        ],
-    }
-
-    def sg_fx_mirrored(rows):
-        """그림을 좌우로 뒤집는다."""
-        return [r[::-1] for r in rows]
-
-    def sg_fx_transposed(rows):
-        """그림의 가로와 세로를 바꾼다."""
-        return ["".join(r[x] for r in rows) for x in range(len(rows[0]))]
-
-    def sg_fx_turned(rows, quarters):
-        """그림을 시계 방향으로 90도씩 quarters 번 돌린다."""
-        for i in range(quarters % 4):
-            h = len(rows)
-            rows = ["".join(rows[h - 1 - y][x] for y in range(h)) for x in range(len(rows[0]))]
-        return rows
-
-    def sg_fx_outlined(rows, ch):
-        """그림 둘레에 한 픽셀짜리 테두리를 두른다."""
-        h = len(rows)
-        w = len(rows[0])
-
-        def filled(x, y):
-            return 0 <= y < h and 0 <= x < w and rows[y][x] != "."
-
-        out = []
-        for y in range(-1, h + 1):
-            line = ""
-            for x in range(-1, w + 1):
-                if filled(x, y):
-                    line += rows[y][x]
-                elif filled(x - 1, y) or filled(x + 1, y) or filled(x, y - 1) or filled(x, y + 1):
-                    line += ch
-                else:
-                    line += "."
-            out.append(line)
-        return out
-
-    def sg_fx_ring_rows(widths):
-        """화면 가장자리를 두르는 띠 그림. widths 는 바깥부터 띠마다의 칸 수다."""
-        total = sum(widths)
-        n = total * 2 + 1
-        rows = []
-        for y in range(n):
-            line = ""
-            for x in range(n):
-                d = min(x, y, n - 1 - x, n - 1 - y)
-                ch = "."
-                edge = 0
-                for i, width in enumerate(widths):
-                    edge += width
-                    if d < edge:
-                        ch = "123"[i]
-                        break
-                line += ch
-            rows.append(line)
-        return rows
-
-    def sg_fx_png(rows, pal, scale=1, repeat=(1, 1)):
-        """픽셀 그림을 PNG 바이트로 만든다. scale 배로 키우고 repeat 만큼 이어 붙인다."""
-        import struct
-        import zlib
-
-        colors = {}
-        for ch, c in pal.items():
-            c = renpy.easy.color(c)
-            colors[ch] = bytes(bytearray([c[0], c[1], c[2], c[3]]))
-        blank = b"\x00\x00\x00\x00"
-
-        lines = []
-        for row in rows:
-            line = b"".join(colors.get(ch, blank) * scale for ch in row) * repeat[0]
-            lines.extend([b"\x00" + line] * scale)
-        raw = b"".join(lines) * repeat[1]
-
-        w = len(rows[0]) * scale * repeat[0]
-        h = len(rows) * scale * repeat[1]
-
-        def chunk(tag, data):
-            return (struct.pack(">I", len(data)) + tag + data
-                    + struct.pack(">I", zlib.crc32(tag + data) & 0xffffffff))
-
-        return (b"\x89PNG\r\n\x1a\n"
-                + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0))
-                + chunk(b"IDAT", zlib.compress(raw, 9))
-                + chunk(b"IEND", b""))
-
     ## 한 번 만든 그림을 다시 쓴다. 이름표(key)가 같으면 같은 그림이다.
     sg_fx_cache = {}
 
-    def sg_fx_pix(key, rows, pal, scale=1, repeat=(1, 1)):
-        """픽셀 그림을 Ren'Py 그림으로 만든다. rows 는 그림이거나 그림을 돌려주는 함수다."""
+    def sg_fx_cut(key, path, rect, zoom=1.0):
+        """이어 붙인 그림(path)에서 한 칸(rect)을 잘라 zoom 배로 쓴다."""
         d = sg_fx_cache.get(key)
         if d is None:
-            if callable(rows):
-                rows = rows()
-            d = im.Data(sg_fx_png(rows, pal, scale, repeat), "sg_fx/" + key + ".png")
+            d = Transform(path, crop=rect, zoom=zoom)
             sg_fx_cache[key] = d
         return d
 
@@ -322,47 +71,6 @@ init python:
         """색과 불투명도로 (r, g, b, a) 를 만든다."""
         c = renpy.easy.color(c)
         return (c[0], c[1], c[2], int(round(255 * alpha)))
-
-    def sg_fx_dither(level):
-        """
-        암전이 쓰는 모눈 막. level 은 네 칸 가운데 칠한 칸 수(1-3)다.
-        다 칠한 단계는 이 막을 겹치지 않고 단색 한 장으로 덮는다. 창 크기가 화면과 다르면
-        칸 사이로 무대가 실금처럼 비치기 때문이다.
-        """
-        key = "dither-%d" % level
-        d = sg_fx_cache.get("tile-" + key)
-        if d is None:
-            rows = {1: [".k", ".."], 2: [".k", "k."], 3: [".k", "kk"]}[level]
-            d = Tile(sg_fx_pix(key, rows, {"k": sg_fx_dark}, 22, (10, 10)))
-            sg_fx_cache["tile-" + key] = d
-        return d
-
-    def sg_fx_tone():
-        """흑백이 쓰는 망점 막."""
-        d = sg_fx_cache.get("tile-tone")
-        if d is None:
-            rows = ["kk....", "kk....", "......", "......", "......", "......"]
-            d = Tile(sg_fx_pix("tone", rows, {"k": sg_fx_rgba(sg_fx_ink, 0.22)}, 1, (40, 40)))
-            sg_fx_cache["tile-tone"] = d
-        return d
-
-    def sg_fx_ring(widths, alphas):
-        """붉은 화면이 쓰는 테두리. 가운데는 비어 있고 화면 크기에 맞게 늘어난다."""
-        key = "ring-" + "-".join(str(i) for i in widths)
-        d = sg_fx_cache.get("frame-" + key)
-        if d is None:
-            pal = dict(("123"[i], sg_fx_rgba(sg_fx_red, a)) for i, a in enumerate(alphas))
-            edge = sum(widths) * 22
-            d = Frame(sg_fx_pix(key, lambda: sg_fx_ring_rows(widths), pal, 22), edge, edge)
-            sg_fx_cache["frame-" + key] = d
-        return d
-
-    def sg_fx_saw(side):
-        """흔들림이 쓰는 톱니 띠. 화면 높이보다 길게 이어 붙인 한 장이다."""
-        if side == "left":
-            return sg_fx_pix("saw-left", sg_fx_art["saw"], {"k": sg_fx_ink}, 4, (1, 18))
-        return sg_fx_pix("saw-right", lambda: sg_fx_mirrored(sg_fx_art["saw"]), {"k": sg_fx_ink}, 4, (1, 18))
-
 
     class SgFxBox(renpy.Displayable):
         """
@@ -403,8 +111,7 @@ init python:
 
     class SgFxSprites(renpy.Displayable):
         """
-        픽셀 그림 여러 장을 시간에 맞춰 옮겨 그린다. 꽃잎, 반짝이, 하트, 비가 쓴다.
-        움직임은 브라우저판처럼 뚝뚝 끊어서 옮긴다.
+        작은 그림 여러 장을 시간에 맞춰 옮겨 그린다. 꽃잎, 반짝이, 하트, 비가 쓴다.
 
         kind   움직이는 법 ("petal", "spark", "heart", "drop")
         items  낱개마다의 숫자 묶음
@@ -418,39 +125,40 @@ init python:
             self.life = life
 
         def at_petal(self, it, t):
-            ## 한 장이 같은 길을 두 번 떨어진다. 떨어지는 동안 팔랑 돈다
-            tt = t - it["delay"]
-            if tt < 0:
-                return None
-            loop = int(tt // it["dur"])
-            if loop >= 2:
-                return None
-            k = int((tt - loop * it["dur"]) / it["dur"] * it["n"])
-            f = int((tt % it["spin"]) / it["spin"] * 12) % 12
-            return it["frames"][f], it["x"] + it["sx"] * k, it["y"] + it["sy"] * k
-
-        def at_spark(self, it, t):
-            ## 제자리에서 작게, 크게, 작게 두 번 깜빡인다
-            tt = t - it["delay"]
-            if not (0 <= tt < 1.0):
-                return None
-            f = int((tt % 0.5) / 0.5 * 5) % 5
-            return it["frames"][f], it["x"], it["y"]
-
-        def at_heart(self, it, t):
-            ## 좌우로 한 픽셀씩 흔들리며 떠오르다가 사라진다
+            ## 좌우로 살랑이며 비스듬히 한 번 떨어진다. 떨어지는 동안 돌며 뒤집힌다
+            import math
             tt = t - it["delay"]
             if not (0 <= tt < it["dur"]):
                 return None
-            k = int(tt / it["dur"] * it["n"])
-            sway = -it["unit"] if (tt % 0.4) < 0.2 else it["unit"]
-            return it["frames"][0], it["x"] + it["sx"] * k + sway, it["y"] - it["sy"] * k
+            p = tt / it["dur"]
+            x = it["x"] + it["dx"] * p + it["sway"] * math.sin((p * it["waves"] + it["phase"]) * 2 * math.pi)
+            f = int((tt / it["spin"] + it["phase"]) * 16) % 16
+            return it["frames"][f], x, it["y"] + it["dy"] * p
+
+        def at_spark(self, it, t):
+            ## 제자리에서 커졌다 작아지기를 두 번 한다
+            tt = t - it["delay"]
+            if not (0 <= tt < 1.0):
+                return None
+            f = int((tt % 0.5) / 0.5 * 10) % 10
+            return it["frames"][f], it["x"], it["y"]
+
+        def at_heart(self, it, t):
+            ## 처음엔 빠르게, 갈수록 천천히 떠오르다가 옅어지며 사라진다
+            import math
+            tt = t - it["delay"]
+            if not (0 <= tt < it["dur"]):
+                return None
+            p = tt / it["dur"]
+            up = 1.0 - (1.0 - p) ** 2
+            x = it["x"] + it["drift"] * p + it["sway"] * math.sin((tt / it["swing"] + it["phase"]) * 2 * math.pi)
+            level = 0 if p < 0.7 else min(3, 1 + int((p - 0.7) / 0.3 * 3))
+            return it["frames"][level], x, it["y"] - it["rise"] * up
 
         def at_drop(self, it, t):
             ## 같은 길을 되풀이해 떨어진다
-            tt = t - it["delay"]
-            k = int((tt % it["dur"]) / it["dur"] * it["n"])
-            return it["frames"][0], it["x"] + it["sx"] * k, it["y"] + it["sy"] * k
+            p = ((t - it["delay"]) % it["dur"]) / it["dur"]
+            return it["frames"][0], it["x"] + it["dx"] * p, it["y"] + it["dy"] * p
 
         def render(self, width, height, st, at):
             rv = renpy.Render(width, height)
@@ -479,188 +187,6 @@ init python:
                     if d not in seen:
                         seen.append(d)
             return seen
-
-
-    class SgFxLines(renpy.Displayable):
-        """
-        집중선. 가장자리에서 얼굴 쪽으로 모이는 남색 쐐기를 낮은 해상도로 그린다.
-        서로 다른 세 장을 0.09초씩 번갈아 보여 준다. 바깥에서 unit 배로 키워 쓴다.
-        """
-
-        STEP = 0.09
-
-        def __init__(self, W, H, cx, cy, clear, unit, life, **properties):
-            super(SgFxLines, self).__init__(**properties)
-            import math
-            self.cw = int(math.ceil(W / float(unit)))
-            self.ch = int(math.ceil(H / float(unit)))
-            self.life = life
-            self.color = sg_fx_rgba(sg_fx_ink)
-            self.frames = [
-                self.make(cx / float(unit), cy / float(unit), clear / float(unit))
-                for i in range(3)
-            ]
-
-        def make(self, cx, cy, clear):
-            import math
-            import random
-
-            bins = 1440
-            far = float(self.cw + self.ch)
-            ## 위아래로 눌린 타원 둘레를 비워 둔다
-            squash = 1.0 / math.sqrt(1.35)
-
-            def point(r, angle):
-                return (int(round(cx + r * math.cos(angle))), int(round(cy + r * math.sin(angle) * squash)))
-
-            polys = []
-            a = random.randint(0, 10)
-            while a < bins:
-                width = random.randint(3, 13)
-                tip = clear * random.uniform(1.0, 1.8)
-                taper = clear * random.uniform(0.5, 1.4)
-                a0 = a / float(bins) * 2 * math.pi
-                a1 = (a + width) / float(bins) * 2 * math.pi
-                polys.append([
-                    point(tip, (a0 + a1) / 2),
-                    point(tip + taper, a0),
-                    point(far, a0),
-                    point(far, a1),
-                    point(tip + taper, a1),
-                ])
-                a += width + random.randint(8, 26)
-            return polys
-
-        def render(self, width, height, st, at):
-            rv = renpy.Render(self.cw, self.ch)
-            if st >= self.life:
-                return rv
-            canvas = rv.canvas()
-            for points in self.frames[int(st / self.STEP) % len(self.frames)]:
-                canvas.polygon(self.color, points)
-            renpy.redraw(self, self.STEP - (st % self.STEP))
-            return rv
-
-
-    class SgFxBolt(renpy.Displayable):
-        """
-        번개 한 줄기. 길게 내리긋고 옆으로 짧게 꺾이기를 되풀이하는 지그재그에 가지 하나가 붙는다.
-        남색 테두리, 형광 노랑, 흰 심의 세 겹이고 아래로 갈수록 가늘다.
-        낮은 해상도로 그리고 바깥에서 unit 배로 키워 쓴다.
-        """
-
-        def __init__(self, W, H, reach, unit, **properties):
-            super(SgFxBolt, self).__init__(**properties)
-            import math
-            import random
-
-            self.cw = int(math.ceil(W / float(unit)))
-            self.ch = int(math.ceil(H / float(unit)))
-
-            way = random.choice([-1, 1])
-            x = self.cw * random.uniform(0.3, 0.7)
-            y = -4.0
-            y_end = reach / float(unit) * random.uniform(0.6, 0.74)
-            pts = [(x, y)]
-            while y < y_end:
-                y += random.uniform(17, 25)
-                x += way * random.uniform(7, 12)
-                pts.append((x, y))
-                y += random.uniform(0, 2)
-                x -= way * random.uniform(10, 15)
-                pts.append((x, y))
-            y += random.uniform(16, 22)
-            x += way * random.uniform(8, 12)
-            pts.append((x, y))
-
-            ## 꺾이는 자리에서 뻗는 가지 하나
-            at = 2 * random.randint(1, max(1, (len(pts) - 3) // 2))
-            bx, by = pts[at]
-            mid = (bx - way * random.uniform(9, 13), by + random.uniform(10, 14))
-            tip = (mid[0] - way * random.uniform(4, 7), mid[1] + random.uniform(11, 14) * 0.6)
-            branch = [(bx, by), mid, tip]
-
-            self.rects = []
-            self.stroke(pts, 8, sg_fx_rgba(sg_fx_ink))
-            self.stroke(branch, 5, sg_fx_rgba(sg_fx_ink))
-            self.stroke(pts, 5, sg_fx_rgba(sg_fx_marker))
-            self.stroke(branch, 2, sg_fx_rgba(sg_fx_marker))
-            self.stroke(pts, 2, sg_fx_rgba("#FFFFFF"))
-
-        def stroke(self, path, size, color):
-            import math
-            last = len(path) - 1
-            for i in range(last):
-                x0, y0 = path[i]
-                x1, y1 = path[i + 1]
-                steps = max(1, int(math.ceil(max(abs(x1 - x0), abs(y1 - y0)))))
-                for s in range(steps + 1):
-                    t = s / float(steps)
-                    whole = (i + t) / float(last)
-                    b = max(1, int(round(size * (1 - 0.5 * whole))))
-                    px = int(round(x0 + (x1 - x0) * t - b / 2.0))
-                    py = int(round(y0 + (y1 - y0) * t - b / 2.0))
-                    self.rects.append((color, (px, py, b, b)))
-
-        def render(self, width, height, st, at):
-            rv = renpy.Render(self.cw, self.ch)
-            canvas = rv.canvas()
-            for color, rect in self.rects:
-                canvas.rect(color, rect)
-            return rv
-
-
-    class SgFxSpot(renpy.Displayable):
-        """
-        스포트라이트의 어두운 막. 얼굴 둘레의 동그라미만 뚫려 있고, 위에서 내려오는
-        빛기둥 자리는 조금 덜 어둡다. 낮은 해상도로 그리고 바깥에서 unit 배로 키워 쓴다.
-        막을 조금 움직여도 가장자리가 드러나지 않게 사방으로 pad 칸씩 넉넉히 그린다.
-        """
-
-        def __init__(self, W, H, cx, cy, radius, unit, pad, **properties):
-            super(SgFxSpot, self).__init__(**properties)
-            import math
-
-            self.cw = int(math.ceil(W / float(unit))) + pad * 2
-            self.ch = int(math.ceil(H / float(unit))) + pad * 2
-
-            cx = cx / float(unit) + pad
-            cy = cy / float(unit) + pad
-            radius = radius / float(unit)
-            ring = 2
-
-            ## 같은 값이 이어지는 가로 토막으로 적어 둔다: (불투명도, x, y, 길이)
-            self.runs = []
-            for y in range(self.ch):
-                start = 0
-                last = None
-                for x in range(self.cw + 1):
-                    alpha = None
-                    if x < self.cw:
-                        dx = x + 0.5 - cx
-                        dy = y + 0.5 - cy
-                        r = math.sqrt(dx * dx + dy * dy)
-                        alpha = 205
-                        if r <= radius:
-                            alpha = 0
-                        elif r <= radius + ring:
-                            alpha = 110
-                        elif dy < 0:
-                            t = min(1.0, max(0.0, y / max(1.0, cy)))
-                            if abs(dx) <= radius * (0.35 + 0.65 * t):
-                                alpha = 140
-                    if alpha != last:
-                        if last:
-                            self.runs.append((last, start, y, x - start))
-                        start = x
-                        last = alpha
-
-        def render(self, width, height, st, at):
-            rv = renpy.Render(self.cw, self.ch)
-            surf = rv.canvas().get_surface()
-            for alpha, x, y, w in self.runs:
-                surf.fill((11, 16, 48, alpha), (x, y, w, 1))
-            return rv
 
 
     class SgFxBars(renpy.Displayable):
@@ -749,7 +275,7 @@ init python:
             self.ink = Solid(sg_fx_ink)
             self.paper = Solid(sg_fx_paper)
             self.title = Text("오류", font="fonts/Pretendard-Bold.otf", size=22, color=sg_fx_paper)
-            self.close = sg_fx_pix("close", sg_fx_art["close"], {"p": sg_fx_paper, "k": sg_fx_ink}, 2)
+            self.close = renpy.displayable("images/fx/sg_fx_close.png")
 
         def render(self, width, height, st, at):
             width = int(width)
@@ -839,17 +365,12 @@ transform sg_fx_t_between(t0, t1):
     pause (t1 - t0)
     alpha 0.0
 
-## a0 초부터 a1 초까지, 그리고 b0 초부터 b1 초까지만 보인다.
-transform sg_fx_t_twice(a0, a1, b0, b1):
+## a 초 동안 부드럽게 나타나 hold 초 머물고 b 초 동안 부드럽게 사라진다.
+transform sg_fx_t_fade(a, hold, b):
     alpha 0.0
-    pause a0
-    alpha 1.0
-    pause (a1 - a0)
-    alpha 0.0
-    pause (b0 - a1)
-    alpha 1.0
-    pause (b1 - b0)
-    alpha 0.0
+    ease a alpha 1.0
+    pause hold
+    ease b alpha 0.0
 
 ## 자막 띠: 세 단계로 펴졌다가 세 단계로 접힌다. 2.8초
 transform sg_fx_t_caption_band(y):
@@ -867,14 +388,18 @@ transform sg_fx_t_caption_band(y):
     pause 0.084
     alpha 0.0
 
-## 흔들림의 톱니: 0.08초마다 위아래로 튄다.
-transform sg_fx_t_jolt(x, a, b):
-    pos (x, -48)
+## 집중선 한 장: 세 장이 0.09초씩 번갈아 보이게 lead 만큼 늦게 시작한다.
+transform sg_fx_t_flick(x, y, z, lead):
+    anchor (0.5, 0.5)
+    pos (x, y)
+    zoom z
+    alpha 0.0
+    pause lead
     block:
-        yoffset a
-        pause 0.08
-        yoffset b
-        pause 0.08
+        alpha 1.0
+        pause 0.09
+        alpha 0.0
+        pause 0.18
         repeat
 
 ## 암전 속의 눈: 0.6초에 뜨고 한 번 깜빡인 뒤 1.8초에 사라진다.
@@ -883,13 +408,12 @@ transform sg_fx_t_eyes(x, y):
     anchor (0.5, 0.5)
     alpha 0.0
     pause 0.6
-    alpha 1.0
-    pause 0.48
-    yzoom 0.25
-    pause 0.12
-    yzoom 1.0
-    pause 0.6
-    alpha 0.0
+    linear 0.1 alpha 1.0
+    pause 0.38
+    ease 0.07 yzoom 0.1
+    ease 0.07 yzoom 1.0
+    pause 0.4
+    linear 0.18 alpha 0.0
 
 ## 붉은 화면: 막이 덮이고 맥박처럼 두 번 뛴다. 2.2초
 ## 번쩍이지 않게 브라우저판보다 옅게, 부드럽게 오르내린다.
@@ -924,16 +448,6 @@ transform sg_fx_t_red_beat:
     pause 0.08
     easeout 0.2 alpha 0.0
 
-## 흑백의 위아래 띠: 반쯤 나왔다가 다 나오고, 끝날 때 거꾸로 들어간다. 2.6초
-transform sg_fx_t_bar(y_out, y_half, y_in):
-    ypos y_half
-    pause 0.13
-    ypos y_in
-    pause 2.34
-    ypos y_half
-    pause 0.13
-    ypos y_out
-
 ## 번개: 한 번만 옅게 번쩍이고, 번개 줄기는 깜빡이지 않고 한 번 떴다가 사라진다. 1.5초
 ## 브라우저판은 두 번 세게 번쩍이지만 여기서는 번쩍임을 줄였다.
 transform sg_fx_t_bolt_flash:
@@ -946,49 +460,51 @@ transform sg_fx_t_bolt_dark:
     linear 1.0 alpha 0.3
     linear 0.38 alpha 0.0
 
-transform sg_fx_t_bolt_line:
+transform sg_fx_t_bolt_line(x, z):
+    xanchor 0.5
+    pos (x, 0)
+    zoom z
     alpha 1.0
     pause 0.9
     linear 0.3 alpha 0.0
 
-## 스포트라이트: 불빛이 자리를 찾느라 두 번 헛짚는다. 3초
-transform sg_fx_t_spot(x, y):
-    pos (x - 72, y + 24)
-    alpha 0.55
-    pause 0.15
-    pos (x + 40, y - 16)
-    alpha 1.0
-    pause 0.15
-    pos (x, y)
-    pause 2.52
-    alpha 0.55
-    pause 0.18
+## 스포트라이트: 불빛이 자리를 찾느라 두 번 헛짚고 얼굴에 멎는다. 3초
+transform sg_fx_t_spot(x, y, z):
+    anchor (0.5, 0.5)
+    zoom z
+    pos (x - 90, y + 30)
     alpha 0.0
+    easein 0.18 alpha 0.7
+    ease 0.22 pos (x + 48, y - 18) alpha 1.0
+    ease 0.22 pos (x, y)
+    pause 2.0
+    easeout 0.38 alpha 0.0
 
 
 ## ---------- master 레이어에 거는 것 ----------
 
-## 흔들림: 왼쪽으로 덜컹 튀었다가 제자리로 돌아오기를 다섯 번, 점점 약하게. 0.8초
-transform sg_fx_t_shake:
-    xoffset -24
+## 흔들림: 좌우로 덜컹거리다 잦아든다. 0.8초
+## 흔드는 동안 무대를 1.05배로 키워 가장자리가 드러나지 않게 한다. (ox, oy) 는 키운 무대를
+## 한가운데에 두는 자리다.
+transform sg_fx_t_shake(ox, oy):
+    zoom 1.05
+    yoffset oy
+    xoffset (ox - 24)
     pause 0.08
-    xoffset 0
+    xoffset (ox + 20)
     pause 0.08
-    xoffset -20
+    xoffset (ox - 16)
     pause 0.08
-    xoffset 0
+    xoffset (ox + 12)
     pause 0.08
-    xoffset -16
+    xoffset (ox - 8)
     pause 0.08
-    xoffset 0
+    xoffset (ox + 6)
     pause 0.08
-    xoffset -10
+    xoffset (ox - 3)
     pause 0.08
-    xoffset 0
-    pause 0.08
-    xoffset -6
-    pause 0.08
-    xoffset 0
+    xoffset ox
+    linear 0.24 zoom 1.0 xoffset 0 yoffset 0
 
 ## 줌인: (fx, fy) 를 붙잡고 두 단계로 확 커졌다가 돌아온다. 1.3초
 transform sg_fx_t_zoom(fx, fy, k1, k2):
@@ -1004,15 +520,12 @@ transform sg_fx_t_zoom(fx, fy, k1, k2):
     xoffset 0
     yoffset 0
 
-## 흑백: 두 단계로 흑백이 되었다가 돌아온다. 2.6초
+## 흑백: 색이 부드럽게 빠졌다가 돌아온다. 2.6초
 transform sg_fx_t_mono:
-    matrixcolor SaturationMatrix(0.45)
-    pause 0.13
-    matrixcolor (ContrastMatrix(1.15) * SaturationMatrix(0.0))
-    pause 2.34
-    matrixcolor SaturationMatrix(0.45)
-    pause 0.13
     matrixcolor SaturationMatrix(1.0)
+    linear 0.3 matrixcolor SaturationMatrix(0.0)
+    pause 2.0
+    linear 0.3 matrixcolor SaturationMatrix(1.0)
 
 ## 화면 깨짐: 0.1초마다 크게(2), 살짝(1), 멀쩡(0)을 오간다. 1.5초
 transform sg_fx_t_glitch(seed):
@@ -1096,25 +609,27 @@ style sg_fx_err_ok is empty:
 ## 막 < 입자 < 글자 < 오류창
 ################################################################################
 
-## 꽃잎: 분홍 픽셀 꽃잎이 팔랑거리며 위에서 비스듬히 떨어진다. 2.9초
+## 꽃잎: 벚꽃잎이 팔랑거리며 위에서 비스듬히 떨어진다. 2.9초
 screen sg_fx_petals(d):
     layer "sg_fx"
     zorder 40
     add d
     timer 2.9 action Function(sg_fx_end, "꽃잎")
 
-## 반짝이: 십자 모양 픽셀 반짝임이 여기저기 깜빡인다. 2.4초
+## 반짝이: 네 갈래 반짝임이 여기저기서 커졌다 작아진다. 2.4초
 screen sg_fx_sparks(d):
     layer "sg_fx"
     zorder 42
     add d
     timer 2.4 action Function(sg_fx_end, "반짝이")
 
-## 집중선: 가장자리에서 얼굴 쪽으로 모이는 남색 선. 1.4초
-screen sg_fx_lines(d):
+## 집중선: 가장자리에서 얼굴 쪽으로 모이는 남색 선. 세 장을 번갈아 보여 준다. 1.4초
+screen sg_fx_lines(x, y, z):
     layer "sg_fx"
     zorder 30
-    add d
+    add "images/fx/sg_fx_lines_1.png" at sg_fx_t_flick(x, y, z, 0.0)
+    add "images/fx/sg_fx_lines_2.png" at sg_fx_t_flick(x, y, z, 0.09)
+    add "images/fx/sg_fx_lines_3.png" at sg_fx_t_flick(x, y, z, 0.18)
     timer 1.4 action Function(sg_fx_end, "집중선")
 
 ## 줌인: 무대가 얼굴 쪽으로 두 단계 커지는 동안 모서리 표시와 배율 딱지를 띄운다. 1.3초
@@ -1157,37 +672,25 @@ screen sg_fx_caption(d, y):
 
     timer 2.8 action Function(sg_fx_end, "자막")
 
-## 하트: 빨간 픽셀 하트가 아래에서 떠오른다. 2.8초
+## 하트: 통통한 하트가 아래에서 떠오른다. 2.8초
 screen sg_fx_hearts(d):
     layer "sg_fx"
     zorder 44
     add d
     timer 2.8 action Function(sg_fx_end, "하트")
 
-## 흔들림: 무대가 덜컹거리는 동안 양옆에 남색 톱니가 튄다. 0.8초
+## 흔들림: 무대만 흔든다. 덮는 그림은 없고 수명만 잰다. 0.8초
 screen sg_fx_shake():
     layer "sg_fx"
     zorder 26
-    add sg_fx_saw("left") at sg_fx_t_jolt(0, 0, 24)
-    add sg_fx_saw("right") at sg_fx_t_jolt(config.screen_width - 24, 24, 0)
     timer 0.8 action Function(sg_fx_end, "흔들림")
 
-## 암전: 모눈 칸을 네 단계로 칠해 어두워졌다가 돌아온다. 어둠 속에서 눈만 깜빡인다. 2.2초
+## 암전: 부드럽게 어두워졌다가 돌아온다. 어둠 속에서 눈만 깜빡인다. 2.2초
 screen sg_fx_blackout(x, y):
     layer "sg_fx"
     zorder 10
-    ## 0.12초마다 한 칸씩 더 칠해 어두워지고, 끝날 때 거꾸로 밝아진다
-    add sg_fx_dither(1) at sg_fx_t_twice(0.0, 0.12, 2.08, 2.2)
-    add sg_fx_dither(2) at sg_fx_t_twice(0.12, 0.24, 1.96, 2.08)
-    add sg_fx_dither(3) at sg_fx_t_twice(0.24, 0.36, 1.84, 1.96)
-    add Solid(sg_fx_dark) at sg_fx_t_between(0.36, 1.84)
-
-    fixed:
-        at sg_fx_t_eyes(x, y)
-        xysize (110, 44)
-        add Solid(sg_fx_paper, xysize=(22, 44))
-        add Solid(sg_fx_paper, xysize=(22, 44)) xalign 1.0
-
+    add Solid(sg_fx_dark) at sg_fx_t_fade(0.4, 1.4, 0.4)
+    add "images/fx/sg_fx_eyes.png" at sg_fx_t_eyes(x, y)
     timer 2.2 action Function(sg_fx_end, "암전")
 
 ## 붉은 화면: 붉은 막이 덮이고 맥박처럼 두 번 뛴다. 2.2초
@@ -1195,41 +698,42 @@ screen sg_fx_red():
     layer "sg_fx"
     zorder 12
     add Solid(sg_fx_red) at sg_fx_t_red_film
-    add sg_fx_ring((1, 1, 1), (1.0, 0.55, 0.28)) at sg_fx_t_red_frame
-    add sg_fx_ring((3, 2, 2), (1.0, 0.55, 0.28)) at sg_fx_t_red_beat
+    ## 가장자리의 붉은 물듦. 맥박이 뛸 때 한 겹 더 짙어진다
+    add Transform("images/fx/sg_fx_vignette_red.png", zoom=4.0) at sg_fx_t_red_frame
+    add Transform("images/fx/sg_fx_vignette_red.png", zoom=4.0) at sg_fx_t_red_beat
     timer 2.2 action Function(sg_fx_end, "붉은 화면")
 
-## 흑백: 무대가 흑백이 되는 동안 망점과 위아래 띠가 덮인다. 2.6초
+## 흑백: 무대의 색이 빠지는 동안 가장자리가 옅게 어두워진다. 2.6초
 screen sg_fx_mono():
     layer "sg_fx"
     zorder 14
-    add sg_fx_tone()
-    add Solid(sg_fx_dark, xysize=(config.screen_width, 44)) at sg_fx_t_bar(-44, -22, 0)
-    add Solid(sg_fx_dark, xysize=(config.screen_width, 44)) at sg_fx_t_bar(config.screen_height, config.screen_height - 22, config.screen_height - 44)
+    add Transform("images/fx/sg_fx_vignette.png", zoom=4.0) at sg_fx_t_fade(0.3, 2.0, 0.3)
     timer 2.6 action Function(sg_fx_end, "흑백")
 
-## 비: 비스듬한 픽셀 빗줄기가 쏟아지고 화면이 조금 어두워진다. 3.4초
+## 비: 비스듬한 빗줄기가 쏟아지고 화면이 조금 어두워진다. 3.4초
 screen sg_fx_rain(d):
     layer "sg_fx"
     zorder 20
-    add Solid(sg_fx_rgba(sg_fx_ink, 0.2))
-    add d
+    fixed:
+        at sg_fx_t_fade(0.3, 2.7, 0.4)
+        add Solid(sg_fx_rgba(sg_fx_ink, 0.2))
+        add d
     timer 3.4 action Function(sg_fx_end, "비")
 
-## 번개: 화면이 한 번 번쩍이고 픽셀 번개 한 줄기가 내리친다. 1.5초
-screen sg_fx_bolt(d):
+## 번개: 화면이 한 번 옅게 번쩍이고 번개 한 줄기가 내리친다. 1.5초
+screen sg_fx_bolt(d, x, z):
     layer "sg_fx"
     zorder 22
     add Solid(sg_fx_dark) at sg_fx_t_bolt_dark
     add Solid("#FFFFFF") at sg_fx_t_bolt_flash
-    add d at sg_fx_t_bolt_line
+    add d at sg_fx_t_bolt_line(x, z)
     timer 1.5 action Function(sg_fx_end, "번개")
 
 ## 스포트라이트: 얼굴 둘레만 남기고 어두워진다. 3초
-screen sg_fx_spot(d, x, y):
+screen sg_fx_spot(x, y, z):
     layer "sg_fx"
     zorder 16
-    add d at sg_fx_t_spot(x, y)
+    add "images/fx/sg_fx_spot.png" at sg_fx_t_spot(x, y, z)
     timer 3.0 action Function(sg_fx_end, "스포트라이트")
 
 ## 화면 깨짐: 무대가 가로 조각으로 어긋나는 동안 색 막대가 튄다. 1.5초
@@ -1263,7 +767,7 @@ screen sg_fx_err(d, back, y):
                 padding (22, 22, 22, 22)
                 hbox:
                     spacing 22
-                    add sg_fx_pix("err-icon", sg_fx_art["err_icon"], {"o": sg_fx_ink, "r": sg_fx_red, "w": "#FFFFFF"}, 4)
+                    add "images/fx/sg_fx_err_icon.png"
                     add d
 
             frame:
@@ -1286,85 +790,60 @@ screen sg_fx_err(d, back, y):
 init python:
 
     def sg_fx_build_petals(env):
-        import math
         import random
 
         W, H = env["W"], env["H"]
-        art = sg_fx_art
-        pal = {"d": "#D94F7C", "p": "#FF8FB0", "l": "#FFD0DC", "q": "#F26B94"}
-        shapes = {
-            "a": lambda: art["petal_a"],
-            "b": lambda: art["petal_b"],
-            "c": lambda: art["petal_c"],
-            "ma": lambda: sg_fx_mirrored(art["petal_a"]),
-            "mb": lambda: sg_fx_mirrored(art["petal_b"]),
-            "da": lambda: art["petal_da"],
-            "db": lambda: art["petal_db"],
-            "dc": lambda: art["petal_dc"],
-            "ta": lambda: sg_fx_transposed(art["petal_da"]),
-            "tb": lambda: sg_fx_transposed(art["petal_db"]),
-        }
-        ## 팔랑 한 바퀴: 곧게 선 것과 기운 것
-        orders = [
-            ["a", "a", "a", "b", "c", "mb", "ma", "ma", "ma", "mb", "c", "b"],
-            ["da", "da", "da", "db", "dc", "tb", "ta", "ta", "ta", "tb", "dc", "db"],
-        ]
-
-        def frame(name, turn, unit):
-            return sg_fx_pix("petal-%s-%d-%d" % (name, turn, unit),
-                             lambda: sg_fx_turned(shapes[name](), turn), pal, unit)
-
         items = []
-        for i in range(44):
-            unit = random.choice([3, 4, 4, 5, 6])
-            turn = random.randrange(4)
-            size = 9 * unit
-            dur = random.uniform(1.15, 1.4)
-            n = int(round(dur * 12))
-            sy = int(math.ceil((H + size * 2) / float(n) / unit)) * unit
-            sx = int(round(sy * random.uniform(0.3, 0.55) / unit)) * unit
+        for i in range(56):
+            sheet = "ab"[i % 2]
+            size = random.choice([0, 1, 1, 2])
+            zoom = (0.7, 0.95, 1.25)[size]
+            px = 64 * zoom
+            dur = random.uniform(1.5, 2.1)
             items.append({
-                "frames": [frame(name, turn, unit) for name in orders[0 if i % 3 == 0 else 1]],
-                "x": random.uniform(-sx * n, W - size * 0.5),
-                "y": -size,
-                "sx": sx,
-                "sy": sy,
-                "n": n,
+                "frames": [
+                    sg_fx_cut("petal-%s-%d-%d" % (sheet, size, k),
+                              "images/fx/sg_fx_petal_%s.png" % sheet, (k * 64, 0, 64, 64), zoom)
+                    for k in range(16)
+                ],
+                "x": random.uniform(-0.3 * W, 0.95 * W),
+                "y": -px,
+                "dx": random.uniform(0.15, 0.4) * H,
+                "dy": H + 2 * px,
                 "dur": dur,
                 ## 처음부터 화면이 차 있고, 2.9초 전에 마지막 장이 빠진다
-                "delay": random.uniform(-dur, 2.8 - 2 * dur),
-                "spin": random.uniform(0.9, 1.3),
+                "delay": random.uniform(-0.8 * dur, 2.85 - dur),
+                "sway": random.uniform(6, 22),
+                "waves": random.uniform(0.8, 1.8),
+                "phase": random.random(),
+                "spin": random.uniform(0.9, 1.5),
             })
         return {"d": SgFxSprites("petal", items, 2.9)}, None
 
     def sg_fx_build_sparks(env):
         import random
 
-        W, H = env["W"], env["H"]
-        art = sg_fx_art
-        pal = {"y": sg_fx_marker, "w": "#FFFFFF", "o": sg_fx_ink}
-        order = ["s", "m", "l", "m", "s"]
-
+        W = env["W"]
         items = []
         for i in range(24):
-            unit = random.choice([3, 4, 4, 6])
-            size = 13 * unit
+            size = random.choice([0, 1, 1, 2])
+            zoom = (0.8, 1.1, 1.5)[size]
+            px = 72 * zoom
             items.append({
                 "frames": [
-                    sg_fx_pix("spark-%s-%d" % (name, unit),
-                              lambda: sg_fx_outlined(art["spark_" + name], "o"), pal, unit)
-                    for name in order
+                    sg_fx_cut("spark-%d-%d" % (size, k), "images/fx/sg_fx_spark.png", (k * 72, 0, 72, 72), zoom)
+                    for k in range(10)
                 ],
-                "x": random.uniform(0, W - size),
-                "y": random.uniform(0, H - size),
+                "x": random.uniform(0, W - px),
+                "y": random.uniform(0, max(1, env["ui_top"] - px)),
                 "delay": random.uniform(0, 1.3),
             })
         return {"d": SgFxSprites("spark", items, 2.4)}, None
 
     def sg_fx_build_lines(env):
-        unit = 4
-        d = SgFxLines(env["W"], env["H"], env["cx"], env["cy"], max(env["pw"], env["ph"]) * 0.62, unit, 1.4)
-        return {"d": Transform(d, zoom=unit, nearest=True)}, None
+        ## 그림은 비워 두는 반지름 186픽셀을 기준으로 절반 크기로 그려져 있다
+        z = 2.0 * max(env["pw"], env["ph"]) * 0.62 / 186.0
+        return {"x": env["cx"], "y": env["cy"], "z": z}, None
 
     def sg_fx_build_zoom(env):
         ## 무대 전체를 키우면 어차피 가장자리가 잘린다. 브라우저판의 작은 쪽 배율을 쓴다
@@ -1399,31 +878,33 @@ init python:
         import random
 
         W, H = env["W"], env["H"]
-        pal = {"o": sg_fx_ink, "r": sg_fx_red, "w": "#FFFFFF", "s": "#A81F36"}
-
         items = []
         for i in range(18):
-            unit = random.choice([4, 6, 6, 8])
-            w = 9 * unit
-            h = 8 * unit
-            dur = random.uniform(1.3, 1.9)
-            n = int(round(dur * 11))
-            rise = random.uniform(0.45, 0.95) * H + h
+            size = random.choice([0, 1, 1, 2, 3])
+            zoom = (0.5, 0.7, 0.9, 1.1)[size]
+            px = 80 * zoom
+            tilt = random.randrange(3)
             items.append({
-                "frames": [sg_fx_pix("heart-%d" % unit, sg_fx_art["heart"], pal, unit)],
-                "x": random.uniform(w * 0.5, W - w * 1.5),
-                "y": H + unit,
-                "sx": random.randint(-1, 1) * unit,
-                "sy": int(round(rise / n / unit)) * unit,
-                "n": n,
-                "dur": dur,
-                "delay": random.uniform(0, 0.8),
-                "unit": unit,
+                ## 기울기 하나를 골라 불투명도 네 단계를 쓴다
+                "frames": [
+                    sg_fx_cut("heart-%d-%d-%d" % (size, tilt, col),
+                              "images/fx/sg_fx_heart.png", (col * 80, tilt * 80, 80, 80), zoom)
+                    for col in range(4)
+                ],
+                "x": random.uniform(0.03 * W, 0.97 * W - px),
+                "y": H + 4,
+                "rise": random.uniform(0.45, 0.95) * H + px,
+                "drift": random.uniform(-30, 30),
+                "sway": random.uniform(4, 12),
+                "swing": random.uniform(0.7, 1.1),
+                "phase": random.random(),
+                "dur": random.uniform(1.5, 2.1),
+                "delay": random.uniform(0, 0.7),
             })
         return {"d": SgFxSprites("heart", items, 2.8)}, None
 
     def sg_fx_build_shake(env):
-        return {}, sg_fx_t_shake
+        return {}, sg_fx_t_shake(-int(env["W"] * 0.025), -int(env["H"] * 0.025))
 
     def sg_fx_build_blackout(env):
         return {"x": env["cx"], "y": env["cy"]}, None
@@ -1435,46 +916,42 @@ init python:
         return {}, sg_fx_t_mono
 
     def sg_fx_build_rain(env):
-        import math
         import random
 
         W, H = env["W"], env["H"]
-        near = sg_fx_pix("drop-near", sg_fx_art["drop"], {"b": sg_fx_ink}, 4)
-        far = sg_fx_pix("drop-far", sg_fx_art["drop"], {"b": "#5E78C4"}, 2)
+        near = renpy.displayable("images/fx/sg_fx_drop_near.png")
+        far = renpy.displayable("images/fx/sg_fx_drop_far.png")
 
         items = []
         for i in range(84):
             is_near = (i % 2 == 0)
-            unit = 4 if is_near else 2
-            h = 12 * unit
-            dur = random.uniform(0.5, 0.7) if is_near else random.uniform(0.8, 1.1)
-            n = int(round(dur * 14))
-            sy = int(math.ceil((H + h * 2) / float(n) / (unit * 3))) * unit * 3
+            h = 72 if is_near else 44
+            dy = H + 2 * h
             items.append({
                 "frames": [near if is_near else far],
-                "x": random.uniform(0, W + sy * n / 3.0),
+                "x": random.uniform(0, W + 0.26 * dy),
                 "y": -h,
-                "sx": -sy // 3,
-                "sy": sy,
-                "n": n,
-                "dur": dur,
-                "delay": -random.uniform(0, dur),
+                ## 그림 속 빗줄기의 기울기와 같은 쪽으로 떨어진다
+                "dx": -0.26 * dy,
+                "dy": dy,
+                "dur": random.uniform(0.42, 0.58) if is_near else random.uniform(0.7, 0.95),
+                "delay": -random.uniform(0, 1.0),
             })
         return {"d": SgFxSprites("drop", items, 3.4)}, None
 
     def sg_fx_build_bolt(env):
-        unit = 6
-        ## 번개 끝이 대사창 위에서 보이게 무대 높이에 맞춘다
-        d = SgFxBolt(env["W"], env["H"], env["ui_top"], unit)
-        return {"d": Transform(d, zoom=unit, nearest=True)}, None
+        import random
+
+        ## 세 가지 줄기 가운데 하나를 골라 좌우를 뒤집거나 그대로 쓴다.
+        ## 그림은 대사창 윗변이 535 일 때를 기준으로 그려져 있다
+        d = Transform("images/fx/sg_fx_bolt_%d.png" % random.randint(1, 3), xzoom=random.choice([-1.0, 1.0]))
+        return {"d": d, "x": int(env["W"] * random.uniform(0.3, 0.7)), "z": env["ui_top"] / 535.0}, None
 
     def sg_fx_build_spot(env):
         import math
-        unit = 8
-        pad = 12
+        ## 그림은 반지름 208픽셀을 기준으로 1/8 크기로 그려져 있다
         radius = math.sqrt(env["pw"] ** 2 + env["ph"] ** 2) / 2 * 0.98
-        d = SgFxSpot(env["W"], env["H"], env["cx"], env["cy"], radius, unit, pad)
-        return {"d": Transform(d, zoom=unit, nearest=True), "x": -pad * unit, "y": -pad * unit}, None
+        return {"x": env["cx"], "y": env["cy"], "z": 8.0 * radius / 208.0}, None
 
     def sg_fx_build_glitch(env):
         import random
