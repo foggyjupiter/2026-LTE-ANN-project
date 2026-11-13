@@ -1,0 +1,287 @@
+"""진행자: 한 판(등장, 답 7번, 엔딩)의 틀을 쥔다.
+
+배우(actor)에게 지시문을 보내고, 받은 답을 규칙대로 다듬어 dict로 돌려준다.
+돌려주는 값은 전부 JSON으로 바꿀 수 있어서 서버와 화면이 그대로 받아 쓴다.
+"""
+import datetime
+import json
+import pathlib
+import random
+
+from . import actor, content, gimmicks, safety
+from .llm import call_llm
+
+START_SCORE = 50
+STEP = 7  # delta 1칸에 움직이는 점수
+
+
+def band_of(score: int) -> str:
+    """배우에게 알려 줄 호감도 구간."""
+    if score >= 65:
+        return "high"
+    if score >= 40:
+        return "mid"
+    return "low"
+
+
+def _signed(n: int) -> str:
+    """팝업에 띄울 숫자: "+14", "-7", "±0"."""
+    return "±0" if n == 0 else f"{n:+d}"
+
+
+class Session:
+    """한 판. start() → reply() 여러 번 → finish() → result() 순서로 부른다."""
+
+    def __init__(self, character_id: str, *, llm=None, rng: random.Random | None = None):
+        self.character = content.load_character(character_id)  # 없으면 KeyError
+        self.llm = llm if llm is not None else (lambda m: call_llm(m, json_mode=True))
+        self.rng = rng if rng is not None else random.Random()
+        self.gimmick = gimmicks.get_gimmick(self.character.get("gimmick"))
+
+        self.seeds = content.load_seeds()
+        self.fx = content.load_fx()
+        self.schedule = content.load_schedule()
+        self.banned = content.load_banned()
+        self.endings = content.load_endings()
+        self.total_turns = len(self.schedule["replies"])
+
+        self.score = START_SCORE
+        self.turn = 0            # 지금까지 한 답의 수
+        self.started = False
+        self.done = False        # 엔딩까지 끝났는가
+        self.history = []        # 배우와 주고받은 기록
+        self.past_inputs = []    # 참가자가 친 글 (다듬은 원문)
+        self._used_seeds = set()
+        self._last_fx = []       # 바로 앞 답에서 실제로 내보낸 연출
+        self._fallback_count = 0
+        self._inners = []        # 속마음 전부 (등장 포함)
+        self._best = None        # (delta 절댓값, 속마음)
+        self._ending = None
+        self._finished_at = None
+
+    # ---- 바깥에서 부르는 것 ----
+
+    def start(self) -> dict:
+        """등장. 한 번만 부른다."""
+        if self.started:
+            raise RuntimeError("start()는 한 번만 부를 수 있다")
+        self.started = True
+        self.history = [{"role": "user", "content": actor.OPENING_CUE}]
+        return self._play(self.schedule["opening"], opening=True, heard=None)
+
+    def reply(self, user_text: str) -> dict:
+        """참가자의 입력 하나에 캐릭터가 답한다."""
+        if not isinstance(user_text, str):
+            raise ValueError("입력은 문자열이어야 한다")
+        text = safety.clean_input(user_text)
+        if not text:
+            raise ValueError("빈 입력은 보낼 수 없다")
+        if not self.started:
+            raise RuntimeError("start()를 먼저 불러야 한다")
+        if self.done or self.turn >= self.total_turns:
+            raise RuntimeError("이 판은 더 답을 받지 않는다")
+
+        sent, heard = self.gimmick.transform_input(text, self.rng)
+        self.history.append({"role": "user", "content": sent})
+        self.past_inputs.append(text)
+        self.turn += 1
+        return self._play(self.schedule["replies"][self.turn - 1], opening=False, heard=heard)
+
+    def finish(self) -> dict:
+        """엔딩 카드. 여러 번 불러도 같은 값을 돌려준다."""
+        if not self.started:
+            raise RuntimeError("start()를 먼저 불러야 한다")
+        if self._ending is not None:
+            return self._ending
+
+        grade = self._grade()
+        messages = actor.build_ending_messages(
+            self.character, list(self.history), band_name=grade["name"], score=self.score)
+        ending = actor.ask_ending(self.llm, messages)
+        if ending is not None and safety.contains_banned(
+                [ending.title, ending.epilogue, ending.nickname], self.banned):
+            ending = None
+        if ending is None:
+            title, epilogue, nickname = f"{grade['name']} 엔딩", "", ""
+        else:
+            title, epilogue, nickname = ending.title, ending.epilogue, ending.nickname
+
+        self._finished_at = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+        self._ending = {
+            "kind": "ending",
+            "character_id": self.character["id"],
+            "character_name": self.character["name"],
+            "band_id": grade["id"],
+            "band_name": grade["name"],
+            "title": title,
+            "epilogue": epilogue,
+            "nickname": nickname,
+            "score": self.score,
+            "best_line": self._best[1] if self._best else "",
+            "inners": list(self._inners),
+            "early": self.turn < self.total_turns,
+        }
+        self.done = True
+        return self._ending
+
+    def result(self) -> dict:
+        """3단계로 넘길 값. 대화 원문은 넣지 않는다."""
+        if self._ending is None:
+            raise RuntimeError("finish()를 먼저 불러야 한다")
+        return {
+            "character_id": self._ending["character_id"],
+            "character_name": self._ending["character_name"],
+            "affinity": self._ending["score"],
+            "band": self._ending["band_name"],
+            "ending_title": self._ending["title"],
+            "nickname": self._ending["nickname"],
+            "finished_at": self._finished_at,
+        }
+
+    # ---- 안에서만 쓰는 것 ----
+
+    def _play(self, slot, *, opening, heard):
+        """등장 또는 답 하나를 만든다. history는 user로 끝나 있어야 한다."""
+        intensity = slot["intensity"]
+        finale = (not opening) and self.turn == self.total_turns
+        seed_kind = slot.get("seed")
+        seed = self._pick_seed(seed_kind)
+        fx_allowed = list(self.fx["light"])
+        if intensity > 2:
+            fx_allowed += self.fx["heavy"]
+
+        messages = actor.build_turn_messages(
+            self.character, list(self.history),
+            band=band_of(self.score),  # 이번 답을 반영하기 전 점수의 구간
+            intensity=intensity,
+            intensity_meaning=self.schedule["intensities"].get(str(intensity), ""),
+            fx_allowed=fx_allowed,
+            seed=seed,
+            seed_kind=seed_kind if seed else None,
+            opening=opening,
+            finale=finale,
+            extra="" if opening else self.gimmick.extra_instruction(list(self.past_inputs)),
+        )
+        fx_names = set(self.fx["light"]) | set(self.fx["heavy"])
+        reply = actor.ask_turn(self.llm, messages, fx_names)
+
+        # 모델이 답을 못 줬거나 금지어가 걸리면 대체 대사로 바꾼다
+        fallback = reply is None or safety.contains_banned(
+            [reply.narration, reply.say, reply.inner, reply.reason, *reply.choices], self.banned)
+        if fallback:
+            reply = actor.Reply(say=self._next_fallback_line())
+
+        fx = self._filter_fx(reply.fx, intensity)
+
+        # 점수. 등장과 대체 대사에서는 움직이지 않는다
+        notes = []
+        delta, reason = 0, ""
+        if not opening and not fallback:
+            delta, note = self.gimmick.adjust_delta(reply.delta)
+            reason = reply.reason
+            if note:
+                notes.append(note)
+        old_score = self.score
+        self.score = max(0, min(100, old_score + delta * STEP))
+        change = self.score - old_score
+
+        eight = {
+            "narration": reply.narration,
+            "say": reply.say,
+            "inner": reply.inner,
+            "face": reply.face,
+            "fx": list(fx),
+            "delta": delta,
+            "reason": reason,
+            "choices": [] if finale else list(reply.choices),
+        }
+        ctx = {
+            "turn": self.turn,
+            "total_turns": self.total_turns,
+            "score": self.score,
+            "change": change,
+            "past_inputs": list(self.past_inputs),
+        }
+        extras = dict(self.gimmick.decorate(dict(eight), ctx) or {})
+        if opening or fallback:
+            popup = None
+        else:
+            popup = extras["popup"] if "popup" in extras else _signed(change)
+
+        self.history.append({"role": "assistant", "content": json.dumps(eight, ensure_ascii=False)})
+        self._inners.append(eight["inner"])
+        # 명대사 후보: delta 절댓값이 가장 큰 답. 같으면 뒤쪽. 대체 대사는 속마음이 없어서 뺀다
+        if not opening and not fallback and (self._best is None or abs(delta) >= self._best[0]):
+            self._best = (abs(delta), eight["inner"])
+
+        return {
+            "kind": "turn",
+            "turn": self.turn,
+            "total_turns": self.total_turns,
+            **eight,
+            "change": change,
+            "score": self.score,
+            "band": band_of(self.score),
+            "popup": popup,
+            "notes": notes,
+            "heard": heard,
+            "extras": extras,
+            "fallback": fallback,
+            "finale": finale,
+        }
+
+    def _pick_seed(self, kind):
+        """아직 안 쓴 씨앗 가운데 하나를 뽑는다. 종류가 없거나 다 썼으면 None."""
+        if not kind:
+            return None
+        pool = [s for s in self.seeds.get(kind, []) if s not in self._used_seeds]
+        if not pool:
+            return None
+        seed = self.rng.choice(pool)
+        self._used_seeds.add(seed)
+        return seed
+
+    def _next_fallback_line(self):
+        lines = self.character.get("fallback_lines") or ["(대답이 없다)"]
+        line = lines[self._fallback_count % len(lines)]
+        self._fallback_count += 1
+        return line
+
+    def _filter_fx(self, names, intensity):
+        """센 연출은 강도 3부터, 바로 앞 답과 같은 연출은 버리고, 2개까지만."""
+        heavy = set(self.fx["heavy"])
+        kept = []
+        for name in names:
+            if intensity <= 2 and name in heavy:
+                continue
+            if name in self._last_fx or name in kept:
+                continue
+            kept.append(name)
+        kept = kept[:2]
+        self._last_fx = kept
+        return kept
+
+    def _grade(self):
+        """최종 점수로 엔딩 등급을 정한다. endings는 min 내림차순이다."""
+        for grade in self.endings:
+            if self.score >= grade["min"]:
+                return grade
+        return self.endings[-1]
+
+
+def save_result(result: dict, directory="results") -> pathlib.Path:
+    """결과를 `시각_캐릭터.json`으로 저장하고 경로를 돌려준다."""
+    folder = pathlib.Path(directory)
+    folder.mkdir(parents=True, exist_ok=True)
+    try:
+        when = datetime.datetime.fromisoformat(result["finished_at"])
+    except (KeyError, TypeError, ValueError):
+        when = datetime.datetime.now()
+    stem = f"{when:%Y%m%d-%H%M%S}_{result.get('character_id', 'unknown')}"
+    path = folder / f"{stem}.json"
+    n = 2
+    while path.exists():  # 같은 초에 같은 캐릭터로 끝난 판이 있으면 번호를 붙인다
+        path = folder / f"{stem}_{n}.json"
+        n += 1
+    path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return path

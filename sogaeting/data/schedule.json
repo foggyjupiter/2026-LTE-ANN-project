@@ -1,0 +1,19 @@
+{
+  "opening": {"intensity": 2, "seed": "entrance"},
+  "replies": [
+    {"intensity": 2, "seed": null},
+    {"intensity": 3, "seed": null},
+    {"intensity": 3, "seed": "event"},
+    {"intensity": 4, "seed": null},
+    {"intensity": 4, "seed": "event"},
+    {"intensity": 5, "seed": null},
+    {"intensity": 5, "seed": null, "finale": true}
+  ],
+  "intensities": {
+    "1": "잔잔: 아직 정상인 척한다",
+    "2": "조짐: 버릇이 하나 새어 나온다",
+    "3": "본색: 버릇이 대놓고 나온다",
+    "4": "폭주: 상황이 현실을 벗어난다",
+    "5": "뇌절: 끝까지 간다"
+  }
+}
