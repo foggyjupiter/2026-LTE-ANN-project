@@ -181,7 +181,8 @@ class ParseReplyTest(unittest.TestCase):
         self.assertIsNone(parse_reply("", FX))
         self.assertIsNone(parse_reply("{say: 따옴표 없음}", FX))
         self.assertIsNone(parse_reply("} 거꾸로 {", FX))
-        self.assertIsNone(parse_reply('{"say": "닫는 괄호 없음"', FX))
+        # 닫는 중괄호만 빠진 답은 고쳐서 읽는다 (TrailingCommaTest). 문자열이 안 닫힌 것은 못 읽는다
+        self.assertIsNone(parse_reply('{"say": "닫는 따옴표 없음', FX))
 
     def test_not_an_object(self):
         self.assertIsNone(parse_reply('["say", "목록"]', FX))
@@ -799,9 +800,18 @@ class TrailingCommaTest(unittest.TestCase):
         raw = '{"title": "가 엔딩", "epilogue": "가. 나.", "nickname": "칭호",}'
         self.assertEqual(parse_ending(raw), Ending(title="가 엔딩", epilogue="가. 나.", nickname="칭호"))
 
+    def test_missing_closing_brace_is_repaired(self):
+        # 실제로 나온 모양: 마지막 칸 뒤에 쉼표가 있고 닫는 중괄호가 없다
+        raw = raw_reply()[:-1] + ","
+        self.assertEqual(parse_reply(raw, FX), parse_reply(raw_reply(), FX))
+        self.assertEqual(parse_reply(raw_reply()[:-1], FX), parse_reply(raw_reply(), FX))
+        self.assertEqual(parse_reply('{"say": "닫는 괄호 없음",', FX).say, "닫는 괄호 없음")
+
     def test_other_broken_json_is_still_rejected(self):
         self.assertIsNone(parse_reply('{"say": "쉼표가 두 개",,}', FX))
-        self.assertIsNone(parse_reply('{"say": "닫는 괄호 없음",', FX))
+        self.assertIsNone(parse_reply('{"say": "문자열이 안 닫힘', FX))
+        self.assertIsNone(parse_reply('{"say": "목록이 안 닫힘", "choices": ["하나", "둘"', FX))
+        self.assertIsNone(parse_reply("중괄호가 없다", FX))
 
 
 class ToneAndSafetyPromptTest(unittest.TestCase):

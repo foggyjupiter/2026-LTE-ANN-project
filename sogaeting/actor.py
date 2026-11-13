@@ -400,16 +400,24 @@ def build_ending_messages(character: dict, history: list[dict], *, band_name: st
 # ---------------------------------------------------------------------------
 
 def _read_json_object(raw) -> dict | None:
-    """첫 `{`부터 마지막 `}`까지를 JSON 객체로 읽는다. 못 읽으면 None."""
+    """첫 `{`부터 마지막 `}`까지를 JSON 객체로 읽는다. 못 읽으면 None.
+
+    실제 모델이 낸 적이 있는 두 가지 흠은 고쳐서 읽는다: 마지막 칸 뒤에 남은 쉼표,
+    그리고 맨 끝의 닫는 중괄호가 빠진 것.
+    """
     if not isinstance(raw, str):
         return None
     start = raw.find("{")
-    end = raw.rfind("}")
-    if start == -1 or end < start:
+    if start == -1:
         return None
-    text = raw[start:end + 1]
-    # 모델이 마지막 칸 뒤에 쉼표를 남기는 일이 있다. 그대로 안 읽히면 그 쉼표만 떼고 한 번 더 읽는다
-    for candidate in (text, _TRAILING_COMMA.sub(r"\1", text)):
+    end = raw.rfind("}")
+    candidates = []
+    if end > start:
+        text = raw[start:end + 1]
+        candidates += [text, _TRAILING_COMMA.sub(r"\1", text)]
+    # 닫는 중괄호 없이 끝난 답: 끝의 쉼표를 떼고 중괄호를 붙여 본다
+    candidates.append(_TRAILING_COMMA.sub(r"\1", raw[start:].rstrip().rstrip(",") + "}"))
+    for candidate in candidates:
         try:
             data = json.loads(candidate)
         except (ValueError, RecursionError):

@@ -15,21 +15,22 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 # 위에서부터 차례로 시도한다. 키가 없는 제공자는 건너뛴다.
 #
-# 순서의 근거 (2026-11-13 오전, 무료 등급 키로 실제 지시문을 보내 잰 값):
-#   gemini-3.5-flash-lite  성공한 호출은 0.9-4.2초, 평균 1.5초. 100번 넘게 불러 503이 한 번 났다
-#   gemini-3.1-flash-lite  2번 중 1번 성공(2.4초), 1번은 503
-#   gemini-3.8-flash       13번 중 0번 성공. 8초에서 30초 넘게 무응답 8번, 503 4번, 429 1번
+# 순서의 근거 (2026-11-13 11:30-12:25, 무료 등급 키로 실제 지시문을 보내 잰 값):
+#   gemini-3.5-flash-lite  196번 중 180번 성공. 성공한 호출은 0.8-5.2초, 평균 1.7초.
+#                          실패는 503 14번, 시간 초과 2번이고 12:02-12:18에 몰려 있었다
+#   gemini-3.1-flash-lite  20번 중 9번 성공(1.4-5.2초, 평균 2.5초). 실패는 시간 초과 7번, 503 4번
+#   gemini-3.8-flash       15번 중 0번 성공. 8초에서 30초 넘게 무응답 8번, 503 6번, 429 1번
 #                          (20분 뒤에 다시 재도 같았다)
 #   gemini-3.6-flash       1번 중 1번 성공, 16.7초
 #   gemini-3.5-flash, gemini-3.7-flash, gemini-flash-latest, gemini-4-hydrogen  각 1번 중 0번 성공
 # 503의 본문은 "This model is currently experiencing high demand"였다. reasoning_effort를
-# 빼도 같았다. flash 급 모델은 무료 등급에서 과부하로 못 쓰는 상태였고 flash-lite만 빠르고
-# 안 죽었다. 그래서 flash-lite 둘만 쓴다. gemini-3.8-flash를 예비로 두었더니 flash-lite 둘이
+# 빼도 같았다. flash 급 모델은 무료 등급에서 과부하로 못 쓰는 상태였고 flash-lite만 빠르게
+# 답했다. 그래서 flash-lite 둘만 쓴다. gemini-3.8-flash를 예비로 두었더니 flash-lite 둘이
 # 같이 503을 낸 턴에 8초를 더 버리고도 답을 못 받았다. 그 503은 20초 뒤에 풀려 있었다.
 #
-# 유료 등급 키로 바꾸거나 과부하가 풀려서 gemini-3.8-flash를 쓰려면 아래 항목을 목록에 넣는다.
-# 먼저 `python3 -m sogaeting.playtest --only haru`로 응답 시간을 재 보고, flash-lite만큼 빠르면
-# 맨 위에, 아니면 넣지 않는다. reasoning_effort는 low, medium, high만 되고 minimal은 오류다.
+# 유료 등급 키로 바꾸거나 과부하가 풀려서 gemini-3.8-flash를 쓰려면 아래 항목을 목록 맨 위에 넣고
+# `python3 -m sogaeting.playtest --only haru`로 응답 시간을 잰다. flash-lite만큼 빠르지 않으면
+# 다시 뺀다. reasoning_effort는 low, medium, high만 되고 minimal은 오류다.
 #   {"name": "gemini-flash", "url": GEMINI_URL, "key_env": "GEMINI_API_KEY",
 #    "model": "gemini-3.8-flash", "extra": {"reasoning_effort": "low"}, "timeout": 6,
 #    "temperature": False},
@@ -56,7 +57,7 @@ PROVIDERS = [
         "key_env": "GEMINI_API_KEY",
         "model": "gemini-3.1-flash-lite",
         "extra": {},
-        "timeout": 6,
+        "timeout": 4,  # 성공한 호출은 거의 4초 안에 왔고, 6초를 기다리면 1순위를 다시 부를 시간이 안 남는다
         "temperature": False,
     },
     {
@@ -74,7 +75,7 @@ MIN_ATTEMPT_SEC = 2      # 남은 시간이 이보다 적으면 새로 시도하
 COOLDOWN_SEC = 60        # 한도 초과(429)가 난 제공자는 이만큼 쉬게 둔다
 # 과부하와 시간 초과가 난 제공자를 쉬게 두는 시간. 연달아 나면 두 배씩 늘고 상한에서 멈춘다.
 BUSY_COOLDOWN_SEC = 3    # 5xx: 서버가 곧바로 거절한 것이라 금방 풀리곤 한다. 같은 턴 안에 다시 해 본다
-SLOW_COOLDOWN_SEC = 20   # 시간 초과와 연결 실패: 기다린 시간을 통째로 버린 것이라 길게 쉰다
+SLOW_COOLDOWN_SEC = 12   # 시간 초과와 연결 실패: 같은 턴에 또 기다리지 않게 한 턴의 시간보다 길게 쉰다
 BUSY_COOLDOWN_MAX_SEC = 120
 RETRY_AFTER_MAX_SEC = 600  # 서버가 알려 준 대기 시간을 믿는 상한
 
