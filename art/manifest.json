@@ -1,0 +1,66 @@
+{
+  "bg:rooftop": {
+    "backend": "cloudflare",
+    "model": "@cf/black-forest-labs/flux-2-klein-4b",
+    "seed": 242412178,
+    "prompt": "Anime visual novel background art, detailed painted scenery of a Korean high school. Wide shot at eye level, bright daytime, soft natural light. The school rooftop: a chain-link fence around the edge, blue sky with white clouds, the city far in the distance. Empty scene: no people, no characters, no animals. No text, no letters, no signs with writing, no watermark.",
+    "at": "2026-11-13T02:50:46",
+    "warning": null
+  },
+  "bg:store_line": {
+    "backend": "cloudflare",
+    "model": "@cf/black-forest-labs/flux-2-klein-4b",
+    "seed": 247663989,
+    "prompt": "Anime visual novel background art, detailed painted scenery of a Korean high school. Wide shot at eye level, bright daytime, soft natural light. The school snack shop at lunch break: a service counter, shelves of bread and drinks, a queue lane marked on the floor. Empty scene: no people, no characters, no animals. No text, no letters, no signs with writing, no watermark.",
+    "at": "2026-11-13T02:53:41",
+    "warning": null
+  },
+  "bg:library": {
+    "backend": "cloudflare",
+    "model": "@cf/black-forest-labs/flux-2-klein-4b",
+    "seed": 709049596,
+    "prompt": "Anime visual novel background art, detailed painted scenery of a Korean high school. Wide shot at eye level, bright daytime, soft natural light. A quiet school library: tall wooden bookshelves, reading tables and chairs, afternoon sunlight through large windows. Empty scene: no people, no characters, no animals. No text, no letters, no signs with writing, no watermark.",
+    "at": "2026-11-13T02:53:49",
+    "warning": null
+  },
+  "bg:corridor": {
+    "backend": "cloudflare",
+    "model": "@cf/black-forest-labs/flux-2-klein-4b",
+    "seed": 949759434,
+    "prompt": "Anime visual novel background art, detailed painted scenery of a Korean high school. Wide shot at eye level, bright daytime, soft natural light. A corner of a school hallway: windows along one side, sliding classroom doors, a polished floor reflecting the light. Empty scene: no people, no characters, no animals. No text, no letters, no signs with writing, no watermark.",
+    "at": "2026-11-13T02:53:57",
+    "warning": null
+  },
+  "bg:cafeteria": {
+    "backend": "cloudflare",
+    "model": "@cf/black-forest-labs/flux-2-klein-4b",
+    "seed": 552192212,
+    "prompt": "Anime visual novel background art, detailed painted scenery of a Korean high school. Wide shot at eye level, bright daytime, soft natural light. The school cafeteria: long tables with round stools, a stainless steel serving counter, stacked trays. Empty scene: no people, no characters, no animals. No text, no letters, no signs with writing, no watermark.",
+    "at": "2026-11-13T02:54:05",
+    "warning": null
+  },
+  "bg:science_lab": {
+    "backend": "cloudflare",
+    "model": "@cf/black-forest-labs/flux-2-klein-4b",
+    "seed": 827707093,
+    "prompt": "Anime visual novel background art, detailed painted scenery of a Korean high school. Wide shot at eye level, bright daytime, soft natural light. A school science lab: black lab benches with sinks, beakers and flasks, wooden stools, a blank chalkboard. Empty scene: no people, no characters, no animals. No text, no letters, no signs with writing, no watermark.",
+    "at": "2026-11-13T02:54:14",
+    "warning": null
+  },
+  "bg:field_bench": {
+    "backend": "cloudflare",
+    "model": "@cf/black-forest-labs/flux-2-klein-4b",
+    "seed": 618572786,
+    "prompt": "Anime visual novel background art, detailed painted scenery of a Korean high school. Wide shot at eye level, bright daytime, soft natural light. A wooden bench beside the school sports field: a dirt soccer field with goalposts, trees along the fence, late afternoon light. Empty scene: no people, no characters, no animals. No text, no letters, no signs with writing, no watermark.",
+    "at": "2026-11-13T02:54:21",
+    "warning": null
+  },
+  "bg:front_gate": {
+    "backend": "cloudflare",
+    "model": "@cf/black-forest-labs/flux-2-klein-4b",
+    "seed": 23441718,
+    "prompt": "Anime visual novel background art, detailed painted scenery of a Korean high school. Wide shot at eye level, bright daytime, soft natural light. The front gate of the school: brick gate pillars, a tree-lined path leading to the school building, clear morning light. Empty scene: no people, no characters, no animals. No text, no letters, no signs with writing, no watermark.",
+    "at": "2026-11-13T02:54:30",
+    "warning": null
+  }
+}
