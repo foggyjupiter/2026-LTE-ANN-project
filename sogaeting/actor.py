@@ -447,7 +447,7 @@ def _last_opening(history: list[dict]) -> str:
 
 
 # 실전 기록 6판에서 "심장"이 16번, "내일"이 27번 나왔다. 그 판에서 이미 쓴 상투어를 지시문에 알려 준다
-STOCK_PHRASES = (("심장", "심장"), ("터질 것 같", "터질 것 같다"), ("가슴이 뛰", "가슴이 뛴다"),
+STOCK_PHRASES = (("심장", "심장"), ("터질 것 같", "터질 것 같다"), ("가슴이 뛰", "가슴이 뛴다"), ("가슴이 뛴", "가슴이 뛴다"),
                  ("가슴이 왜", "가슴이 왜 이러지"), ("두근", "두근거린다"), ("콩닥", "콩닥거린다"),
                  ("쿵쾅", "쿵쾅거린다"), ("숨이 막", "숨이 막힌다"), ("숨도 못 쉬", "숨도 못 쉬겠다"),
                  ("기절할 것 같", "기절할 것 같다"), ("화끈", "화끈거린다"))
@@ -776,6 +776,32 @@ def event_happened(reply: Reply, seed: str) -> bool:
     return not keys or any(key in text for key in keys)
 
 
+def _previous_lines(history: list[dict]) -> list[str]:
+    """이 판의 앞 답들의 지문과 겉말."""
+    lines = []
+    for message in history:
+        if message.get("role") != "assistant":
+            continue
+        data = _read_json_object(message.get("content"))
+        if data:
+            lines += [_text(data.get("narration")), _text(data.get("say"))]
+    return [line for line in lines if line]
+
+
+def repeats_previous(reply: Reply, previous: list[str], run: int = 15) -> bool:
+    """이번 지문이나 겉말이 앞 답의 지문이나 겉말과 run 글자(띄어쓰기와 문장 부호 빼고) 넘게 이어서 같으면 참.
+
+    실전 기록: 아스트라의 답 1과 답 2 지문이 글자 하나 다르지 않았다.
+    """
+    old = [_letters(line) for line in previous]
+    for mine in (_letters(reply.narration), _letters(reply.say)):
+        for i in range(0, max(0, len(mine) - run) + 1):
+            piece = mine[i:i + run]
+            if len(piece) == run and any(piece in line for line in old):
+                return True
+    return False
+
+
 def repeated_phrases(reply: Reply, used: dict) -> list[str]:
     """이 판의 앞 답에서 이미 쓴 상투어 가운데 이번 답의 겉말과 속마음에 또 나온 것."""
     text = reply.say + " " + reply.inner
@@ -783,7 +809,7 @@ def repeated_phrases(reply: Reply, used: dict) -> list[str]:
 
 
 def review_reply(reply: Reply, character: dict, *, banned=None, event_seed=None,
-                 used_phrases=None, tomorrow=0, finale=False) -> str | None:
+                 used_phrases=None, tomorrow=0, finale=False, previous=None) -> str | None:
     """다시 쓰게 할 점들을 이어 붙인 글. 고칠 것이 없으면 None. 여러 개면 한 번에 다 고치게 한다."""
     problems = []
     texts = reply_texts(reply)
@@ -808,6 +834,8 @@ def review_reply(reply: Reply, character: dict, *, banned=None, event_seed=None,
     if event_seed and not event_happened(reply, event_seed):
         problems.append('이번 답의 사건 "' + str(event_seed) + '"이 지문이나 겉말에서 실제로 벌어지지 않았다. '
                         "그 일이 지금 이 자리에서 일어나게 쓴다.")
+    if previous and repeats_previous(reply, previous):
+        problems.append("지문이나 겉말이 앞 답의 문장을 거의 그대로 되풀이했다. 이번 답만의 새 문장으로 쓴다.")
     repeated = repeated_phrases(reply, dict(used_phrases or ()))
     if repeated:
         # 실전 기록: 소라가 한 판에 "심장"을 세 번, "가슴이 뛴다"를 여러 번 썼다

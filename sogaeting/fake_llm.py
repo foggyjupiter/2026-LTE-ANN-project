@@ -18,7 +18,11 @@ _TAILS = [
     "그 말을 2026년 올해의 한마디로 적어 둘게.",
     "논문으로 써도 될 만큼 수상한 답이야.",
     "이제 끝이 보이니까 한마디만 더 할게.",
-]
+    "창밖 구름이 오늘따라 느리게 흘러가.",
+    "그 대답은 수첩 맨 뒷장에 적어 둘래.",
+    "벌써 여덟 번째라니 시간이 빠르네.",
+    "마지막 인사는 짧게 하는 게 좋대.",
+]  # 한 판(답 10번) 안에서 꼬리말이 되풀이되지 않게 답 수보다 많이 둔다
 _FX = [
     ["꽃잎"],
     ["반짝이"],
@@ -83,7 +87,7 @@ def fake_llm(messages: list[dict]) -> str:
     else:
         delta = len(last_user) % 5 - 2  # 참가자 글의 길이로 정한다
         tail = _TAILS[(turn - 1) % len(_TAILS)]
-        say = f"{TAG} 방금 들은 말: \"{_hide_offstage(last_user)}\". {tail}"
+        say = f"{TAG} {turn}번째로 들은 말: \"{_hide_offstage(last_user)}\". {tail}"
         if _SHORT_SAY_RE.search(system):  # 겉말 길이가 정해진 캐릭터(하이쿠)에게는 짧게 답한다
             say = f"{TAG} …{turn}번째 답."
         moved = "±0" if delta == 0 else f"{delta:+d}"

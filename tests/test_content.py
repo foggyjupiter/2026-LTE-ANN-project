@@ -171,7 +171,17 @@ class CharacterTest(unittest.TestCase):
 class OtherDataTest(unittest.TestCase):
     def test_seeds(self):
         seeds = content.load_seeds()
-        self.assertEqual(sorted(seeds), ["entrance", "event"])
+        self.assertEqual(sorted(seeds), ["entrance", "event", "event_places"])
+        # 사건이 일어날 수 있는 장소는 등장 장소 목록에 있는 이름이다
+        for event, places in seeds["event_places"].items():
+            self.assertIn(event, seeds["event"])
+            self.assertTrue(places)
+            for place in places:
+                self.assertIn(place, seeds["entrance"])
+        # 어느 장소에서나 고를 사건이 세 개 넘게 남는다 (한 판에 사건이 세 번)
+        for place in seeds["entrance"]:
+            fits = [e for e in seeds["event"] if e not in seeds["event_places"] or place in seeds["event_places"][e]]
+            self.assertGreaterEqual(len(fits), 4, place)
         self.assertEqual(len(seeds["entrance"]), 8)
         self.assertEqual(len(seeds["event"]), 16)
         for kind in ("entrance", "event"):

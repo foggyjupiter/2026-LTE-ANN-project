@@ -888,6 +888,14 @@ class VarietyTest(unittest.TestCase):
         self.assertNotIn("[지금 장면]", build(place="도서관", opening=True)[0]["content"])
         self.assertNotIn("[지금 장면]", build()[0]["content"])
 
+    def test_repeating_a_previous_line_is_rewritten(self):
+        line = "아스트라는 책장을 짚었던 손가락을 슬그머니 내리며 시선을 책 표지로 돌렸다."
+        same = parse_reply(raw_reply(narration=line, say="응.", inner="딴생각"), FX)
+        new = parse_reply(raw_reply(narration="아스트라가 창밖을 본다.", say="응.", inner="딴생각"), FX)
+        self.assertTrue(actor.repeats_previous(same, [line]))
+        self.assertFalse(actor.repeats_previous(new, [line]))
+        self.assertIn("되풀이", actor.review_reply(same, sample_character(), previous=[line]))
+
     def test_problems_are_joined_into_one_rewrite(self):
         reply = parse_reply(raw_reply(narration="줌인.", say="AI가 뭔데?"), FX)
         problem = actor.review_reply(reply, sample_character())

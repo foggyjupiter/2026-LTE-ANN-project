@@ -367,11 +367,13 @@ def _checks(game):
     found = []
     character = content.load_character(game["id"])
     banned = content.load_banned()
+    previous = []
     for turn in game["turns"]:
         out = turn["out"]
         where = "등장" if out["turn"] == 0 else f"답 {out['turn']}"
         event_seed = turn["seed"][1] if turn["seed"] and turn["seed"][0] == "사건" else None
-        rewrite = _rewrite_reason(turn["calls"], character, event_seed, banned)
+        rewrite = _rewrite_reason(turn["calls"], character, event_seed, banned, list(previous))
+        previous += [line for line in (turn["out"]["narration"], turn["out"]["say"]) if line]
         if rewrite:
             found.append(f"{where}: 첫 답을 고쳐 쓰게 함 ({rewrite})")
         if out["fallback"]:
@@ -422,7 +424,7 @@ def _checks(game):
     return found
 
 
-def _rewrite_reason(calls, character, event_seed=None, banned=None):
+def _rewrite_reason(calls, character, event_seed=None, banned=None, previous=None):
     """첫 답이 읽혔는데 진행자가 고쳐 쓰게 했다면 그 까닭(진행자와 같은 검사). 아니면 None."""
     if len(calls) < 2 or not calls[0]["readable"]:
         return None
@@ -445,6 +447,8 @@ def _rewrite_reason(calls, character, event_seed=None, banned=None):
         reasons.append("사건이 안 일어남")
     if actor.grabs_protagonist(first):
         reasons.append("전학생을 잡음")
+    if previous and actor.repeats_previous(first, previous):
+        reasons.append("앞 답을 되풀이함")
     if actor.meta_words(first):
         reasons.append("연출 이름: " + ", ".join(actor.meta_words(first)))
     return ", ".join(reasons) if reasons else "까닭 모름"

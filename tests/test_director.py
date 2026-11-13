@@ -283,6 +283,16 @@ class SeedTest(unittest.TestCase):
         self.assertEqual([k["finale"] for k in kwargs], [False] * TOTAL + [True])
         self.assertEqual([k["opening"] for k in kwargs], [True] + [False] * TOTAL)
 
+    def test_events_fit_the_place(self):
+        # 도서관에서 "체육 시간 짝 정하기"나 "하굣길 갈림길"처럼 그곳에서 일어날 수 없는 사건은 고르지 않는다
+        fits = content.load_seeds()["event_places"]
+        for seed in range(40):
+            llm, kwargs = self.run_session(seed)
+            place = kwargs[0]["seed"]
+            for turn in (3, 6, 8):
+                event = kwargs[turn]["seed"]
+                self.assertTrue(event not in fits or place in fits[event], (place, event))
+
     def test_event_seeds_never_repeat(self):
         for seed in range(40):
             _, kwargs = self.run_session(seed)

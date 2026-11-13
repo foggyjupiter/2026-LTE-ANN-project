@@ -174,10 +174,12 @@ class Session:
         fx_names = set(self.fx["light"]) | set(self.fx["heavy"])
         event_seed = seed if seed_kind == "event" else None
         used, tomorrow = actor._used_phrases(self.history)
+        previous = actor._previous_lines(self.history)
         reply = actor.ask_turn(self.llm, messages, fx_names,
                                review=lambda r: actor.review_reply(r, self.character, banned=self.banned,
                                                                    event_seed=event_seed, used_phrases=used,
-                                                                   tomorrow=tomorrow, finale=finale))
+                                                                   tomorrow=tomorrow, finale=finale,
+                                                                   previous=previous))
 
         # 모델이 답을 못 줬거나, 금지어가 걸리거나, 고쳐 쓰게 했는데도 캐릭터가 모르는 말이
         # 남았으면 대체 대사로 바꾼다
@@ -280,6 +282,12 @@ class Session:
         pool = [s for s in self.seeds.get(kind, []) if s not in self._used_seeds]
         if not pool:
             return None
+        # 사건은 그 장소에서 일어날 수 있는 것만 고른다. 실전 기록: 도서관에서 "자리 바꾸기"가 나오자
+        # "칠판이 잘 안 보여서", "수업 시간 내내"라며 교실처럼 말했다
+        fits = self.seeds.get("event_places") or {}
+        if kind == "event" and self._place:
+            suitable = [s for s in pool if s not in fits or self._place in fits[s]]
+            pool = suitable or pool
         seed = self.rng.choice(pool)
         self._used_seeds.add(seed)
         return seed
