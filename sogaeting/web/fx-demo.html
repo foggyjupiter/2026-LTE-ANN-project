@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>연출 시험장 (fx-demo)</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="fx.css">
+<style>
+  /* 개발자용 시험장. 본 화면(index.html)과 같은 변수와 글꼴을 직접 선언한다. */
+  @font-face {
+    font-family: "Galmuri11";
+    src: url("fonts/Galmuri11.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: "Galmuri11";
+    src: url("fonts/Galmuri11-Bold.woff2") format("woff2");
+    font-weight: 700;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: "Galmuri14";
+    src: url("fonts/Galmuri14.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+  }
+
+  :root {
+    --paper: #F4F7FB;
+    --grid: #C7D3E8;
+    --ink: #1B2559;
+    --red: #E23B4E;
+    --marker: #FFE65A;
+    --cell: 22px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    background: var(--ink);
+    color: var(--ink);
+    font-family: "Galmuri11", monospace;
+    font-size: 22px;
+    line-height: 33px;
+    -webkit-font-smoothing: none;
+    font-synthesis: none;
+  }
+
+  /* ----- 조작판 ----- */
+  .demo-bar {
+    flex: none;
+    padding: 8px 11px;
+    background: var(--paper);
+    border-bottom: 4px solid var(--ink);
+    font-size: 11px;
+    line-height: 22px;
+  }
+
+  .demo-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .demo-row + .demo-row { margin-top: 6px; }
+
+  .demo-title {
+    margin: 0 8px 0 0;
+    font-family: "Galmuri14", monospace;
+    font-size: 14px;
+    font-weight: 400;
+  }
+
+  .demo-group {
+    margin-right: 2px;
+    padding: 0 5px;
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  .demo-btn {
+    height: 26px;
+    margin: 0;
+    padding: 0 8px;
+    border: 2px solid var(--ink);
+    border-radius: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .demo-btn:active { background: var(--marker); }
+  .demo-btn.demo-on { background: var(--marker); }
+  .demo-btn-clear { background: var(--ink); color: var(--paper); }
+
+  .demo-field {
+    flex: 1 1 260px;
+    min-width: 180px;
+    height: 26px;
+    padding: 0 6px;
+    border: 2px solid var(--ink);
+    border-radius: 0;
+    background: #FFFFFF;
+    color: var(--ink);
+    font: inherit;
+  }
+
+  .demo-check { display: inline-flex; align-items: center; gap: 4px; }
+  .demo-status { margin-left: auto; white-space: nowrap; }
+  .demo-status b { color: var(--red); }
+
+  /* ----- 무대 ----- */
+  .demo-fit {
+    flex: 1 1 auto;
+    min-height: 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .demo-frame {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    overflow: hidden;
+  }
+
+  #stage {
+    position: relative;
+    overflow: hidden;
+    width: 1366px;
+    height: 768px;
+    transform-origin: 0 0;
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: var(--cell) var(--cell);
+  }
+
+  .demo-col {
+    position: relative;
+    width: 960px;
+    height: 100%;
+    margin: 0 auto;
+    padding-top: 11px;
+  }
+
+  .demo-hud {
+    display: flex;
+    justify-content: space-between;
+    height: 33px;
+    font-weight: 700;
+  }
+
+  .demo-hud b { color: var(--red); }
+
+  #portrait {
+    position: relative;
+    width: 220px;
+    height: 220px;
+    margin: 11px auto 0;
+    border: 4px solid var(--ink);
+    background: var(--accent);
+    box-shadow: 4px 4px 0 0 var(--ink);
+  }
+
+  .demo-eye, .demo-mouth, .demo-cheek { position: absolute; background: var(--ink); }
+  .demo-eye { top: 66px; width: 22px; height: 44px; }
+  .demo-eye-l { left: 55px; }
+  .demo-eye-r { right: 55px; }
+  .demo-cheek { top: 121px; width: 33px; height: 11px; background: var(--red); }
+  .demo-cheek-l { left: 22px; }
+  .demo-cheek-r { right: 22px; }
+  .demo-mouth { left: 77px; top: 143px; width: 66px; height: 11px; }
+
+  .demo-popup {
+    position: absolute;
+    right: 66px;
+    top: 88px;
+    padding: 0 11px;
+    border: 2px solid var(--red);
+    background: var(--paper);
+    color: var(--red);
+  }
+
+  .demo-popup strong {
+    display: block;
+    font-family: "Galmuri14", monospace;
+    font-size: 42px;
+    line-height: 55px;
+    font-weight: 400;
+  }
+
+  .demo-narration { margin: 22px 0 0; height: 33px; }
+
+  .demo-inner {
+    margin-top: 5px;
+    height: 44px;
+    padding: 3px 11px;
+    border: 2px dashed var(--ink);
+    background: var(--paper);
+  }
+
+  .demo-say {
+    position: relative;
+    margin-top: 27px;
+    height: 110px;
+    padding: 18px 18px 0;
+    border: 4px solid var(--ink);
+    background: var(--paper);
+    box-shadow: 4px 4px 0 0 var(--ink);
+  }
+
+  .demo-name {
+    position: absolute;
+    left: 18px;
+    top: -26px;
+    padding: 0 11px;
+    border: 4px solid var(--ink);
+    background: var(--accent);
+    color: var(--paper);
+    font-family: "Galmuri14", monospace;
+    font-size: 28px;
+    line-height: 36px;
+  }
+
+  .demo-say mark { background: var(--marker); color: inherit; }
+
+  .demo-choices { display: flex; gap: 11px; margin-top: 15px; }
+
+  .demo-chip {
+    flex: 1;
+    height: 44px;
+    padding: 3px 11px;
+    border: 2px solid var(--ink);
+    background: var(--paper);
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .demo-input { display: flex; gap: 11px; margin-top: 11px; }
+  .demo-input .demo-chip:first-child { flex: 5; background: #FFFFFF; font-weight: 400; color: #8793B8; }
+  .demo-input .demo-chip:last-child { background: var(--ink); color: var(--paper); text-align: center; }
+  .demo-end { margin-top: 5px; text-align: right; text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header class="demo-bar">
+  <div class="demo-row">
+    <h1 class="demo-title">연출 시험장</h1>
+    <span class="demo-group">가벼운 연출</span>
+    <span id="demo-light" class="demo-row"></span>
+    <span class="demo-group">센 연출</span>
+    <span id="demo-heavy" class="demo-row"></span>
+  </div>
+  <div class="demo-row">
+    <button type="button" class="demo-btn demo-btn-clear" id="demo-clear">전부 걷기</button>
+    <label for="demo-narration">지문(narration)</label>
+    <input class="demo-field" id="demo-narration" type="text" maxlength="100" value="그때, 급식실의 불이 꺼졌다.">
+    <label class="demo-check"><input type="checkbox" id="demo-pair"> 앞에 누른 것과 같이 틀기</label>
+    <span class="demo-status" id="demo-status">준비</span>
+  </div>
+</header>
+
+<main class="demo-fit" id="demo-fit">
+  <div class="demo-frame" id="demo-frame">
+    <div id="stage" style="--accent: #E8552D">
+      <div class="demo-col">
+        <div class="demo-hud"><span>답 3/7</span><span>호감도 <b>64</b></span></div>
+        <div id="portrait">
+          <i class="demo-eye demo-eye-l"></i><i class="demo-eye demo-eye-r"></i>
+          <i class="demo-cheek demo-cheek-l"></i><i class="demo-cheek demo-cheek-r"></i>
+          <i class="demo-mouth"></i>
+        </div>
+        <div class="demo-popup"><strong>+140</strong>사유: 숨소리</div>
+        <p class="demo-narration">그때, 급식실의 불이 꺼졌다.</p>
+        <div class="demo-inner">(옆자리 → 운명 → 상견례 → 노후 계획)</div>
+        <div class="demo-say">
+          <span class="demo-name">기울희</span>
+          착각하지 마! 옆에 앉은 건 <mark>지구 자전</mark> 때문이야!
+        </div>
+        <div class="demo-choices">
+          <span class="demo-chip">1. 자전이면 어쩔 수 없지</span>
+          <span class="demo-chip">2. 자리 바꿔 줄까?</span>
+          <span class="demo-chip">3. 지구가 잘했네</span>
+        </div>
+        <div class="demo-input">
+          <span class="demo-chip">직접 입력 (100자까지)</span>
+          <span class="demo-chip">보내기</span>
+        </div>
+        <div class="demo-end">엔딩 보러 가기</div>
+      </div>
+      <div id="fx-layer"></div>
+    </div>
+  </div>
+</main>
+
+<script src="fx.js"></script>
+<script>
+(function () {
+  "use strict";
+  var LIGHT = 6;   // Fx.NAMES 의 앞 여섯 개가 가벼운 연출
+  var stage = document.getElementById("stage");
+  var frame = document.getElementById("demo-frame");
+  var fit = document.getElementById("demo-fit");
+  var field = document.getElementById("demo-narration");
+  var pair = document.getElementById("demo-pair");
+  var status = document.getElementById("demo-status");
+  var last = null;
+  var buttons = [];
+
+  // 무대(1366x768)를 남은 자리에 맞춰 줄인다. 자리가 넉넉하면 제 크기 그대로.
+  function resize() {
+    var k = Math.min(1, fit.clientWidth / 1366, fit.clientHeight / 768);
+    if (!(k > 0)) k = 1;
+    stage.style.transform = k === 1 ? "none" : "scale(" + k + ")";
+    frame.style.width = Math.floor(1366 * k) + "px";
+    frame.style.height = Math.floor(768 * k) + "px";
+    frame.style.marginLeft = -Math.floor(1366 * k / 2) + "px";
+  }
+
+  function play(name) {
+    var names = (pair.checked && last && last !== name) ? [last, name] : [name];
+    last = name;
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].classList.toggle("demo-on", names.indexOf(buttons[i].textContent) >= 0);
+    }
+    window.Fx.play(names, { narration: field.value });
+  }
+
+  function addButton(name, index) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "demo-btn";
+    b.textContent = name;
+    b.addEventListener("click", function () { play(name); });
+    document.getElementById(index < LIGHT ? "demo-light" : "demo-heavy").appendChild(b);
+    buttons.push(b);
+  }
+
+  // 뒤를 잘 치우는지 눈으로 확인하는 줄.
+  // 개발자 도구에서 #stage, #portrait, #fx-layer 를 지우고 시험해도 멈추지 않는다.
+  function report() {
+    var layer = document.getElementById("fx-layer");
+    var kids = layer ? layer.children.length : 0;
+    var left = [];
+    [document.getElementById("stage"), document.getElementById("portrait")].forEach(function (node) {
+      if (!node) return;
+      Array.prototype.forEach.call(node.classList, function (c) {
+        if (c.indexOf("fx-") === 0) left.push(c);
+      });
+    });
+    var busy = kids > 0 || left.length > 0;
+    status.textContent = "";
+    status.appendChild(document.createTextNode(
+      (layer ? "#fx-layer 자식 " + kids + "개" : "#fx-layer 없음") + ", fx- class "));
+    var mark = document.createElement(busy ? "b" : "span");
+    mark.textContent = left.length ? left.join(" ") : "없음";
+    status.appendChild(mark);
+    if (!busy) {
+      for (var i = 0; i < buttons.length; i++) buttons[i].classList.remove("demo-on");
+    }
+  }
+
+  if (!window.Fx) {
+    status.textContent = "fx.js 를 불러오지 못했습니다";
+    return;
+  }
+  window.Fx.NAMES.forEach(addButton);
+  document.getElementById("demo-clear").addEventListener("click", function () { window.Fx.clear(); });
+  window.addEventListener("resize", resize);
+  resize();
+  setInterval(report, 200);
+})();
+</script>
+</body>
+</html>

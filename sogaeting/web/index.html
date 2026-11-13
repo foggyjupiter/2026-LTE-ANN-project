@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>전학생 환영 소개팅</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="fx.css">
+</head>
+<body>
+
+<!-- 1. 고르기 -->
+<main id="screen-select" class="screen">
+  <div class="column">
+    <h1 class="select-title">전학생 환영 소개팅</h1>
+    <p class="select-lead">오늘 ANN고에 전학 온 당신, 누구와 마주 앉을까요?</p>
+    <ul id="cast" class="cast"></ul>
+    <p id="select-error" class="error" hidden></p>
+    <button id="select-retry" class="button" type="button" hidden>다시 불러오기</button>
+    <p class="notice">실명과 학번은 적지 마세요.</p>
+  </div>
+</main>
+
+<!-- 2. 대화 -->
+<main id="screen-play" class="screen" hidden>
+  <div id="stage">
+    <div class="column play">
+      <header class="hud">
+        <p id="progress" class="progress">등장</p>
+        <div class="affinity">
+          <span>호감도</span>
+          <strong id="score" class="affinity-score">50</strong>
+          <svg id="curve" class="curve" viewBox="0 0 160 72" role="img" aria-label="호감도 곡선"></svg>
+        </div>
+      </header>
+
+      <div class="scene">
+        <div id="portrait" class="portrait"></div>
+        <aside id="popup" class="popup" hidden>
+          <strong id="popup-num" class="popup-num"></strong>
+          <p id="popup-reason" class="popup-reason"></p>
+          <ul id="popup-notes" class="popup-notes"></ul>
+        </aside>
+      </div>
+
+      <section class="talk">
+        <p id="narration" class="narration" hidden></p>
+        <p id="heard" class="heard" hidden></p>
+        <p id="inner" class="inner" hidden></p>
+        <div id="say-box" class="say-box">
+          <span id="name-plate" class="name-plate"></span>
+          <p id="say" class="say"></p>
+        </div>
+
+        <div id="choices" class="choices" hidden></div>
+
+        <form id="input-form" class="input-row">
+          <input id="input" class="input" type="text" maxlength="100" autocomplete="off"
+                 placeholder="직접 입력 (100자까지)" aria-label="하고 싶은 말">
+          <button id="send" class="button button-ink" type="submit">보내기</button>
+        </form>
+
+        <div id="finale-row" class="finale-row" hidden>
+          <button id="finale-button" class="button button-ink" type="button">엔딩 보기</button>
+        </div>
+
+        <div id="play-error-row" class="error-row" hidden>
+          <p id="play-error" class="error"></p>
+          <button id="retry" class="button" type="button">다시 보내기</button>
+        </div>
+
+        <button id="skip" class="link-button" type="button">엔딩 보러 가기</button>
+      </section>
+    </div>
+    <div id="fx-layer"></div>
+  </div>
+</main>
+
+<!-- 3. 엔딩 -->
+<main id="screen-ending" class="screen" hidden>
+  <div class="column">
+    <article class="report">
+      <header class="report-head">
+        <p class="report-kind">소개팅 성적표</p>
+        <p id="end-name" class="report-name"></p>
+        <p id="end-band" class="stamp"></p>
+      </header>
+      <h1 id="end-title" class="report-title"></h1>
+      <p id="end-epilogue" class="report-epilogue"></p>
+
+      <div class="report-body">
+        <dl class="report-list">
+          <div id="end-nickname-row">
+            <dt>칭호</dt>
+            <dd id="end-nickname"></dd>
+          </div>
+          <div>
+            <dt>최종 호감도</dt>
+            <dd><strong id="end-score" class="report-score"></strong></dd>
+          </div>
+          <div id="end-best-row">
+            <dt>이번 판의 명대사</dt>
+            <dd id="end-best"></dd>
+          </div>
+        </dl>
+        <svg id="end-curve" class="curve curve-big" viewBox="0 0 160 72" role="img" aria-label="호감도 곡선"></svg>
+      </div>
+
+      <section id="end-inners-box" class="report-inners" hidden>
+        <h2>가려졌던 속마음</h2>
+        <ol id="end-inners"></ol>
+      </section>
+    </article>
+
+    <div class="ending-actions">
+      <button id="again" class="button button-ink" type="button">다시 하기</button>
+      <button id="other" class="button" type="button">다른 캐릭터 고르기</button>
+    </div>
+  </div>
+</main>
+
+<script src="fx.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

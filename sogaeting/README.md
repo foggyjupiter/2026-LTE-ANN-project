@@ -1,12 +1,29 @@
-# 소개팅 엔진 (AI 연애 시뮬레이터 2단계)
+# 소개팅 (AI 연애 시뮬레이터 2단계)
 
-화면 없이 터미널에서 한 판(등장, 답 7번, 엔딩)이 돌아가는 엔진이다. 설치할 패키지가 없다. Python 3.10 이상이면 된다.
+캐릭터를 고르고 한 판(등장, 답 7번, 엔딩)을 하는 프로그램이다. 브라우저 화면과 터미널, 두 가지로 돌릴 수 있다. 설치할 패키지가 없다. Python 3.10 이상과 크롬이면 된다.
 
 설계는 `docs/superpowers/specs/2026-11-13-sogaeting-design.md`, 캐릭터는 `docs/characters.md`에 있다.
 
-## 돌려 보기
+## 브라우저로 하기
 
 레포 맨 위 폴더에서 실행한다. 윈도우에서는 `python3` 대신 `python`을 쓴다.
+
+```
+python3 -m sogaeting.server --fake   # 키 없이 가짜 모델로 시연
+python3 -m sogaeting.server          # 실제 모델
+```
+
+터미널에 찍힌 주소(기본 `http://127.0.0.1:8000/`)를 크롬으로 열고 전체 화면(F11)으로 둔다. 끌 때는 터미널에서 Ctrl-C를 누른다.
+
+- 캐릭터를 바로 지정해서 열기: `http://127.0.0.1:8000/?character=haru`
+- 다른 포트: `--port 8080`
+- 판이 끝난 뒤 결과 읽기(3단계용): `GET /api/session/<판 id>/result`, 또는 `results/` 폴더의 파일
+- 3분 동안 입력이 없으면 판을 버리고 첫 화면으로 돌아간다.
+- 연출만 따로 보기: `http://127.0.0.1:8000/fx-demo.html`
+
+캐릭터 그림을 `sogaeting/web/assets/characters/<캐릭터 id>/<표정>.png`로 넣으면 픽셀 얼굴 대신 그 그림이 나온다. 표정은 `neutral`, `smile`, `blush`, `pout`, `shock`, `dark`다.
+
+## 터미널로 하기
 
 ```
 python3 -m sogaeting --fake          # 키 없이 가짜 모델로 시연
@@ -51,6 +68,9 @@ python3 -m unittest discover -s tests -t .
 | `llm.py` | 모델 호출. 제공자를 차례로 시도한다 |
 | `fake_llm.py` | 키 없이 돌려 볼 때 쓰는 가짜 모델 |
 | `cli.py` | 터미널 실행기 |
+| `server.py` | 로컬 서버. 엔진을 JSON API로 감싸고 `web/`의 파일을 내준다 |
+| `web/app.js`, `style.css`, `index.html` | 화면 세 개(고르기, 대화, 엔딩) |
+| `web/fx.js`, `fx.css` | 화면 연출 15가지 |
 
 ## 내용 고치기
 
@@ -67,4 +87,6 @@ python3 -m unittest discover -s tests -t .
 
 ## 아직 없는 것
 
-브라우저 화면과 서버. `Session.start()`, `reply()`, `finish()`가 돌려주는 dict를 그대로 화면에 넘기면 되게 만들어 두었다.
+- 캐릭터 그림. 지금은 픽셀 얼굴이 대신 나온다.
+- 효과음과 BGM.
+- 실제 모델로 돌려 본 기록. 키를 넣고 한 판 해 보면서 말맛과 응답 속도를 확인해야 한다.
