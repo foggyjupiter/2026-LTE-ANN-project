@@ -444,7 +444,8 @@ def caption_band():
     w, h = 16, 200
     px = []
     for y in range(h):
-        a = 0.76 * smooth(0, 58, y) * smooth(0, 58, h - 1 - y)
+        # 일반적인 미연시의 대사창처럼 뒤의 그림이 비치게 반투명으로 둔다
+        a = 0.42 * smooth(0, 58, y) * smooth(0, 58, h - 1 - y)
         px.extend([int(a * 255)] * w)
     m = Image.new("L", (w, h))
     m.putdata(px)

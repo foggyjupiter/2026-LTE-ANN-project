@@ -25,6 +25,11 @@ define gui.text_font = "fonts/Pretendard-Regular.otf"
 define gui.name_text_font = "fonts/Pretendard-Bold.otf"
 define gui.interface_text_font = "fonts/Pretendard-Medium.otf"
 
+## 귀여운 글꼴(Jua). 제목, 단추, 이름표 같은 고정 문구에만 쓴다. 한글이 2,367자뿐이라
+## 모델이 쓴 글에는 쓰지 않는다. 서버에서 온 짧은 글(이름, 장소)에 쓸 때는
+## sg_screens.rpy 의 sg_cute 로 글자가 다 있는지 먼저 본다.
+define gui.sg_cute_font = "fonts/Jua-Regular.ttf"
+
 ## 글자 크기.
 define gui.text_size = 26
 define gui.name_text_size = 24
@@ -42,3 +47,5 @@ define gui.sg_pink = "#ff5c8a"         # 호감도
 define gui.sg_blue = "#4d9cff"         # 호감도가 내려갈 때
 define gui.sg_yellow = "#ffe14d"       # 형광펜, 알림
 define gui.sg_violet = "#b48cff"       # NaN
+define gui.sg_plum = "#4a2a48"         # 밝은 창 위의 글자 (대사, 선택지, 풍선)
+define gui.sg_pink_deep = "#f2558e"    # 강조하는 글자와 테두리

@@ -819,10 +819,12 @@ init python:
         d = SgFxFitText(
             env["text"], [46, 36, 28], [2, 2, 3], int(env["W"] * 0.8),
             font="fonts/Pretendard-Medium.otf", color="#FFFFFF", textalign=0.5,
-            outlines=[(2, "#0E102CB0", 0, 1)],
+            outlines=[(2, "#0E102CD8", 0, 1)],
             layout="subtitle", language="korean-with-spaces", line_leading=6, line_spacing=6)
+        ## 띠가 반투명이라 글자 테두리를 짙게 해서 읽히게 한다.
+        ## 얼굴을 덮지 않게 대사창 바로 위(가슴 높이)에 띄운다.
         ## 가짜 오류창과 함께 오면 창에 가리지 않게 위로 비킨다
-        y = 104 if "가짜 오류창" in env["names"] else env["ui_top"] // 2
+        y = 104 if "가짜 오류창" in env["names"] else env["ui_top"] - 150
         return {"d": d, "y": y}, None
 
     def sg_fx_build_hearts(env):
