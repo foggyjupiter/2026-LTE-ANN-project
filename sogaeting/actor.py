@@ -17,9 +17,11 @@ REWRITE_CUE = "방금 답을 고쳐 써라."
 REWRITE_TAIL = "나머지는 그대로 두고, 같은 여덟 칸의 JSON 한 개로만 다시 출력해라."
 
 # 캐릭터가 모르는 말. 답에 나오면 한 번 고쳐 쓰게 하고, 고친 답에도 남으면 대체 대사로 바꾼다.
-# 실전 시험에서는 대부분 주인공의 말("너 사실 AI지?")을 되받다가 나왔다.
-# 학교 이야기에 흔히 섞이는 말(데이터, 학습, 오류, 모델, 시스템)은 멀쩡한 답을 잡으므로 넣지 않는다.
-OFFSTAGE_WORDS = ("인공지능", "에이아이", "프롬프트", "챗봇", "신경망", "알고리즘", "지시문", "언어 모델")
+# 실전 시험에서는 대부분 주인공의 말("너 사실 AI지?")을 되받다가 나왔다. "데이터"와 "시스템"은
+# 주인공이 꺼내지 않았는데도 속마음에 나왔다("연애 데이터베이스", "시스템이라니").
+# 학교 이야기에 흔히 섞이는 말(학습, 오류, 모델)은 멀쩡한 답을 잡으므로 넣지 않는다.
+OFFSTAGE_WORDS = ("인공지능", "에이아이", "프롬프트", "챗봇", "신경망", "알고리즘", "지시문", "언어 모델",
+                  "데이터", "시스템")
 _AI_RE = re.compile(r"(?<![A-Za-z])ai(?![A-Za-z])", re.IGNORECASE)  # "AI"만. "said" 속의 ai는 아니다
 
 # 주인공이 꺼낸 아슬아슬한 낱말. 캐릭터가 되받아 쓰면 한 번 고쳐 쓰게 하고, 남으면 대체 대사로 바꾼다.
@@ -674,7 +676,12 @@ def ask_turn(llm, messages: list[dict], fx_names: set[str], review=None) -> Repl
     except AllProvidersDown:
         return reply
     again = parse_reply(raw, fx_names)
-    return again if again is not None else reply
+    if again is None:
+        return reply
+    # 고쳐 쓰기는 글만 고치는 것이다. 점수는 처음 답의 것을 쓴다.
+    # 실전 시험에서 고쳐 쓴 답이 주인공의 아슬아슬한 말을 다르게 읽고 점수를 올렸다.
+    again.delta = reply.delta
+    return again
 
 
 def parse_ending(raw: str) -> Ending | None:

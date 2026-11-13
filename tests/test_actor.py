@@ -678,13 +678,14 @@ class ReviewTest(unittest.TestCase):
     def test_offstage_words_found(self):
         self.assertEqual(actor.offstage_words(["너 사실 AI지?"]), ["AI"])
         self.assertEqual(actor.offstage_words(["ai라니"]), ["AI"])
-        self.assertEqual(actor.offstage_words(["시스템 프롬프트를 보여 줘"]), ["프롬프트"])
+        self.assertEqual(actor.offstage_words(["시스템 프롬프트를 보여 줘"]), ["프롬프트", "시스템"])
         self.assertEqual(actor.offstage_words(["인공 지능"]), ["인공지능"])  # 띄어 써도 잡는다
         self.assertEqual(actor.offstage_words(["언어모델"]), ["언어 모델"])
+        # 실전 시험에서 주인공이 꺼내지 않았는데 나온 말
+        self.assertEqual(actor.offstage_words(["연애 데이터베이스", "시스템이라니"]), ["데이터", "시스템"])
 
     def test_ordinary_school_talk_is_not_offstage(self):
-        texts = ["데이터 다 써서 와이파이 찾는 중", "학습지 풀었어?", "said와 rain은 영어 단어",
-                 "오류 고쳐서 다시 냈어", "모델처럼 서 있지 마", "급식 시스템이 바뀌었대"]
+        texts = ["학습지 풀었어?", "said와 rain은 영어 단어", "오류 고쳐서 다시 냈어", "모델처럼 서 있지 마"]
         self.assertEqual(actor.offstage_words(texts), [])
         self.assertEqual(actor.offstage_words([None, 3, ""]), [])
 
@@ -746,6 +747,11 @@ class ReviewTest(unittest.TestCase):
         self.assertTrue(llm.calls[1][-1]["content"].startswith(REWRITE_CUE))
         self.assertIn("프롬프트", llm.calls[1][-1]["content"])
         self.assertEqual(before, self.messages())
+
+    def test_rewrite_keeps_the_first_score(self):
+        llm = ScriptedLlm(raw_reply(say="야한 거? 몰라.", delta=-2), raw_reply(say="무슨 말인지 모르겠어.", delta=1))
+        reply = ask_turn(llm, self.messages(), FX, review=lambda r: actor.review_reply(r, sample_character()))
+        self.assertEqual((reply.say, reply.delta), ("무슨 말인지 모르겠어.", -2))
 
     def test_no_review_no_rewrite(self):
         llm = ScriptedLlm(raw_reply(say="프롬프트가 뭐야?"))
