@@ -125,19 +125,22 @@ def with_glow(im, color, radius):
 # ------------------------------------------------------------------ 대사창
 
 def textbox():
-    """대사창. 9칸 늘이기, 테두리 56. 모서리에 꽃, 금색 속테두리."""
+    """대사창. 9칸 늘이기, 테두리 56. 모서리에 작은 꽃, 가는 금색 속테두리.
+
+    미연시의 대사창답게 반투명하다. 뒤의 배경과 스탠딩이 비쳐 보이고,
+    글은 Ren'Py 쪽에서 흰 테두리를 둘러 읽히게 한다.
+    """
     w = h = 176
     im = new(w, h)
-    grad_rr(im, (4, 4, w - 4, h - 4), 24, rgba(CREAM, 238), rgba("#ffd3e3", 240))
-    line_rr(im, (4, 4, w - 4, h - 4), 24, rgba(PINK), 3)
-    line_rr(im, (11, 11, w - 11, h - 11), 17, rgba(GOLD, 230), 1.4)
-    line_rr(im, (7.2, 7.2, w - 7.2, h - 7.2), 21, rgba(WHITE, 235), 1.6)
-    for cx, cy in ((17, 17), (w - 17, 17), (17, h - 17), (w - 17, h - 17)):
-        flower(im, cx, cy, 11, rgba(PINK), rgba(GOLD_PALE))
-        flower(im, cx, cy, 8.4, rgba("#ffb3cf"), rgba(GOLD))
-    for cx, cy in ((36, 11), (w - 36, 11), (36, h - 11), (w - 36, h - 11),
-                   (11, 36), (w - 11, 36), (11, h - 36), (w - 11, h - 36)):
-        sparkle(im, cx, cy, 4.2, rgba(GOLD))
+    grad_rr(im, (4, 4, w - 4, h - 4), 22, rgba(CREAM, 138), rgba("#ffcfe0", 176))
+    line_rr(im, (4, 4, w - 4, h - 4), 22, rgba(PINK, 235), 2)
+    line_rr(im, (9.5, 9.5, w - 9.5, h - 9.5), 17, rgba(GOLD, 215), 1)
+    line_rr(im, (6.4, 6.4, w - 6.4, h - 6.4), 20, rgba(WHITE, 200), 1.2)
+    for cx, cy in ((14, 14), (w - 14, 14), (14, h - 14), (w - 14, h - 14)):
+        flower(im, cx, cy, 8.4, rgba(PINK), rgba(GOLD_PALE))
+        flower(im, cx, cy, 6.2, rgba("#ffb3cf"), rgba(GOLD))
+    for cx, cy in ((30, 9.5), (w - 30, 9.5), (30, h - 9.5), (w - 30, h - 9.5)):
+        sparkle(im, cx, cy, 3.2, rgba(GOLD))
     save(im, w, h, "gal_textbox")
 
 
@@ -225,7 +228,7 @@ def plate():
     """위쪽 표시의 바탕 판. 테두리 22."""
     w, h = 72, 48
     im = new(w, h)
-    grad_rr(im, (2, 2, w - 2, h - 2), 16, rgba(CREAM, 236), rgba("#ffdcea", 236))
+    grad_rr(im, (2, 2, w - 2, h - 2), 16, rgba(CREAM, 200), rgba("#ffdcea", 206))
     line_rr(im, (2, 2, w - 2, h - 2), 16, rgba(PINK), 2.4)
     line_rr(im, (5, 5, w - 5, h - 5), 13, rgba(WHITE, 230), 1.3)
     save(im, w, h, "gal_plate")
@@ -238,7 +241,7 @@ def sign():
     for x in (22, w - 22):
         layer(im, lambda d, x=x: d.line(box(x, 12, w / 2, 2), fill=rgba("#b98a5a"), width=round(1.6 * S)))
     layer(im, lambda d: d.ellipse(box(w / 2 - 3, 0, w / 2 + 3, 6), fill=rgba(GOLD)))
-    grad_rr(im, (2, 12, w - 2, h - 2), 9, rgba("#e9f6ff", 240), rgba(SKY, 240))
+    grad_rr(im, (2, 12, w - 2, h - 2), 9, rgba("#e9f6ff", 212), rgba(SKY, 216))
     line_rr(im, (2, 12, w - 2, h - 2), 9, rgba(SKY_DEEP), 2.4)
     line_rr(im, (5, 15, w - 5, h - 5), 6, rgba(WHITE, 230), 1.3)
     for x in (12, w - 12):
@@ -303,17 +306,17 @@ def cloud():
     w, h, pad, step = 290, 32 * 2 + 72, 13, 36
     im = new(w, h)
     def bumps(d):
-        d.rounded_rectangle(box(pad, pad, w - pad, h - pad), radius=18 * S, fill=rgba(WHITE, 248))
+        d.rounded_rectangle(box(pad, pad, w - pad, h - pad), radius=18 * S, fill=rgba(WHITE, 232))
         n = round((w - 2 * pad - 24) / step)
         for i in range(n + 1):
             x = pad + 12 + (w - 2 * pad - 24) * i / n
             for y in (pad + 3, h - pad - 3):
-                d.ellipse(box(x - 21, y - 13, x + 21, y + 13), fill=rgba(WHITE, 248))
+                d.ellipse(box(x - 21, y - 13, x + 21, y + 13), fill=rgba(WHITE, 232))
         for y in (32 + 18, 32 + 54):
             for x in (pad + 2, w - pad - 2):
-                d.ellipse(box(x - 12, y - 19, x + 12, y + 19), fill=rgba(WHITE, 248))
+                d.ellipse(box(x - 12, y - 19, x + 12, y + 19), fill=rgba(WHITE, 232))
         for x, y in ((pad + 7, pad + 8), (w - pad - 7, pad + 8), (pad + 7, h - pad - 8), (w - pad - 7, h - pad - 8)):
-            d.ellipse(box(x - 15, y - 14, x + 15, y + 14), fill=rgba(WHITE, 248))
+            d.ellipse(box(x - 15, y - 14, x + 15, y + 14), fill=rgba(WHITE, 232))
     layer(im, bumps)
     edge = im.getchannel("A").filter(ImageFilter.MaxFilter(2 * S + 1))
     outline = Image.new("RGBA", im.size, rgba(PINK_SOFT))
@@ -467,7 +470,7 @@ def main():
     textbox()
     nametag()
     ctc()
-    bar("gal_choice", rgba(WHITE, 242), rgba("#ffd6e6", 242), rgba(PINK))
+    bar("gal_choice", rgba(WHITE, 196), rgba("#ffd6e6", 204), rgba(PINK))   # 스탠딩이 비치게 반투명
     bar("gal_choice_hover", rgba("#fffbe6", 255), rgba("#ffc2da", 255), rgba(PINK_DEEP), rgba("#ff8fbd", 210))
     button("gal_btn", rgba("#ff9cc2"), rgba("#f25a93"), rgba(WHITE))
     button("gal_btn_hover", rgba("#ffb6d2"), rgba("#ff6fa5"), rgba(WHITE), rgba("#ff8fbd", 220))
