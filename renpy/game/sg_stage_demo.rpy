@@ -285,7 +285,7 @@ testsuite sg_stage_demo:
 testcase sg_stage_flow:
     pause until screen "sg_select"
     pause 0.8
-    click "기울희"
+    click "아스트라"
     pause until screen "sg_talk"
     ## 등장: 스탠딩이 올라오고 장소 제목 카드가 뜬다
     pause 0.3

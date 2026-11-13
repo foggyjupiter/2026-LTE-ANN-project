@@ -338,7 +338,7 @@ def front_hair(c, who, hair, hair2):
 
 def draw_face(c, who, face, eye_color):
     """표정. 눈, 눈썹, 입, 홍조, 그늘."""
-    sides = (1,) if who == "boxhyun" else (-1, 1)   # 스현은 한쪽 눈이 머리에 가려 있다
+    sides = (1,) if who == "boxhyun" else (-1, 1)   # 하이쿠는 한쪽 눈이 머리에 가려 있다
     dull = face == "dark"
     look = 10 if face in ("blush", "pout") else 0   # 눈길을 옆으로 돌린다
 

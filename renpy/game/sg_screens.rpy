@@ -657,7 +657,7 @@ screen sg_card(c):
                 background sg_ribbon(c["color"])
                 text sg_esc(c["attribute"]) style "sg_card_attr" font sg_cute(c["attribute"]) color sg_ink_on(c["color"]) yalign 0.5
 
-            text ("모티프 · " + sg_esc(c["motif"])) style "sg_card_motif"
+            text sg_esc(c["motif"]) style "sg_card_motif"   # 매력 한 줄
 
             text sg_esc(c["intro"]) style "sg_card_intro"
 

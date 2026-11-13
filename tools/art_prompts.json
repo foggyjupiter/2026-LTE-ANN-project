@@ -41,31 +41,31 @@
 
   "characters": {
     "giulhee": {
-      "name": "기울희",
+      "name": "아스트라",
       "key": "green",
-      "look": "Fiery orange hair fading to red at the tips, tied in a high ponytail that puffs out wider toward the end. Amber eyes, sharply raised eyebrows. A red track jacket with rolled-up sleeves worn over the white school shirt instead of a blazer. A small hairpin shaped like a steeply rising line graph. Arms crossed, head turned slightly away while her eyes glance at the viewer.",
+      "look": "Fiery orange hair fading to red at the tips, tied in a high ponytail that puffs out wider toward the end. Amber eyes, sharply raised eyebrows. A red track jacket with rolled-up sleeves worn over the white school shirt instead of a blazer. A small star-shaped hairpin. Arms crossed, head turned slightly away while her eyes glance at the viewer.",
       "faces": {
         "neutral": "annoyed, aloof look with raised eyebrows, mouth closed"
       }
     },
     "oeun": {
-      "name": "전외운",
+      "name": "젬마",
       "key": "green",
       "look": "Dark navy-blue hair in two tight, perfectly neat braids. Round glasses. A navy school blazer worn exactly by the rules, buttoned all the way up. She holds a small notebook bristling with yellow and orange sticky notes, and a three-color ballpoint pen.",
       "faces": {
-        "neutral": "attentive, unblinking stare with a polite small smile"
+        "neutral": "shy, gentle look with eyes slightly lowered and a small soft smile"
       }
     },
     "anna": {
-      "name": "안나",
+      "name": "소라",
       "key": "magenta",
-      "look": "Light yellow-green short bob with messy flyaway strands. Sleepy half-closed eyes. A single hair clip on one side only. A cream-colored knit cardigan with one button missing, worn over the white school shirt instead of a blazer. Relaxed posture, head tilted slightly.",
+      "look": "Light yellow-green short bob with messy flyaway strands. Sleepy half-closed eyes. A small cloud-shaped hair clip on one side only. A cream-colored knit cardigan with one button missing, worn over the white school shirt instead of a blazer. Relaxed posture, head tilted slightly.",
       "faces": {
         "neutral": "sleepy, absent-minded look with a faint vacant smile"
       }
     },
     "relu": {
-      "name": "한렐루",
+      "name": "노바",
       "key": "magenta",
       "look": "Bright yellow hair in a side ponytail. A sunflower-yellow zip-up hoodie worn over the white school shirt instead of a blazer. A small adhesive bandage on one cheek. Energetic posture, leaning slightly toward the viewer.",
       "faces": {
@@ -75,7 +75,7 @@
       }
     },
     "haru": {
-      "name": "신하루",
+      "name": "미스트랄",
       "key": "green",
       "look": "Long wavy purple hair. Eyes with exaggerated star-shaped sparkles. A navy school blazer draped over her shoulders like a cape. A plain white armband on one arm with a single hand-drawn star, no letters. She holds a thick hardcover book. Chin slightly raised, looking down at the viewer.",
       "faces": {
@@ -84,7 +84,7 @@
       }
     },
     "boxhyun": {
-      "name": "박스현",
+      "name": "하이쿠",
       "key": "magenta",
       "look": "Black bob cut with long bangs covering one eye. Gray eyes. A black hoodie with teal drawstrings worn over the school uniform. Headphones resting around her neck. Still, upright posture.",
       "faces": {

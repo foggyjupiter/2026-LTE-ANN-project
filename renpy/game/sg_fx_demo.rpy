@@ -304,7 +304,7 @@ testsuite sg_fx_demo:
         assert eval sg_fx_demo_clean()
 
     testcase caption_long:
-        $ sg_fx_demo_go(["자막"], "그때, 급식실의 불이 꺼졌다. 누군가 식판을 떨어뜨렸고, 그 소리가 복도 끝까지 울렸다. 기울희는 아무 말도 하지 않았다. 지구는 계속 돌고 있었다.", "연출: 자막 (긴 지문)")
+        $ sg_fx_demo_go(["자막"], "그때, 급식실의 불이 꺼졌다. 누군가 식판을 떨어뜨렸고, 그 소리가 복도 끝까지 울렸다. 아스트라는 아무 말도 하지 않았다. 지구는 계속 돌고 있었다.", "연출: 자막 (긴 지문)")
         pause 1.0
         screenshot "fx_05_caption_long.png"
         pause 2.3

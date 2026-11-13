@@ -127,6 +127,8 @@ RENPY_SDK=/path/to/renpy-8.5.3-sdk renpy/dev/rtest.sh sg_flow 8101
   - `sg_flow`: 고르기부터 엔딩까지 한 판 (`game/sg_tests.rpy`)
   - `sg_gimmicks`: 캐릭터 여섯 명의 고유 장치 표시 (`game/sg_tests.rpy`)
   - `sg_fx_demo`: 연출 15가지. 서버가 필요 없다 (`game/sg_fx_demo.rpy`)
+  - `sg_stage_demo`: 표정별 동작과 만화 기호. 서버가 필요 없다 (`game/sg_stage_demo.rpy`)
+  - `sg_stage_flow`: 실제 흐름에서 동작과 기호가 나오는지 (`game/sg_stage_demo.rpy`)
   - `sg_tests.rpy` 의 나머지 시험(기다림, 오류, 긴 글 등)은 일부러 느리거나 고장 난 임시 서버가 있어야 해서 이 한 줄로는 돌릴 수 없다.
 - 시험이 300초 안에 끝나지 않으면 끈다. `RTEST_TIMEOUT=600` 처럼 바꿀 수 있다.
 - 둘째 값은 서버 포트다. 안 적으면 8000이다. 서버는 따로 켜 두어야 한다.
@@ -140,10 +142,17 @@ RENPY_SDK=/path/to/renpy-8.5.3-sdk renpy/dev/rtest.sh sg_flow 8101
 xvfb-run -a python3 run_booth.py --fake --windowed
 ```
 
-## 연출 그림 다시 만들기
+## 꾸밈 그림 다시 만들기
 
-연출이 쓰는 그림(`game/images/fx/*.png`)은 `dev/make_fx_art.py` 가 만든다. Pillow가 있어야 한다.
+화면에 쓰는 장식 그림은 전부 코드로 만든다. Pillow가 있어야 한다. 그림을 고치려면 스크립트를 고친 뒤 다시 돌린다.
 
-```
-python3 renpy/dev/make_fx_art.py renpy/game/images/fx
-```
+| 그림 | 만드는 스크립트 |
+|---|---|
+| 연출 (`game/images/fx/`) | `python3 renpy/dev/make_fx_art.py renpy/game/images/fx` |
+| 대사창, 선택지, 하트 게이지 등 (`game/images/ui/gal_*.png`) | `renpy/dev/make_ui_art.py` |
+| 만화 기호 (`game/images/emote/`) | `renpy/dev/make_emote_art.py` |
+| 자리표시 캐릭터와 배경 (`game/images/placeholder/`) | `renpy/game/images/sg_make_images.py` |
+
+## 캐릭터 연기 맞추기
+
+진짜 캐릭터 그림을 넣은 뒤 만화 기호가 머리에서 벗어나 뜨면 `game/sg_stage.rpy` 맨 위의 `sg_stage_head`(얼굴 한가운데 자리)와 `sg_stage_spots` 를 고친다. 배경이 천천히 움직이는 것이 거슬리면 `sg_stage_bg_move = False` 로 끈다.

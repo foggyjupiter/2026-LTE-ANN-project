@@ -27,11 +27,11 @@ testcase sg_flow:
     screenshot "flow_01_select.png"
 
     ## 카드에 마우스를 올리면 떠오르며 빛난다
-    move "신하루"
+    move "미스트랄"
     pause 0.5
     screenshot "flow_01b_card_hover.png"
 
-    click "기울희"
+    click "아스트라"
     pause until screen "sg_talk"
     pause 0.8
     screenshot "flow_02_narration.png"
@@ -128,10 +128,10 @@ testsuite sg_gimmicks:
     teardown:
         exit
 
-    ## 전외운: 대사 속 인용문에 형광펜
+    ## 젬마: 대사 속 인용문에 형광펜
     testcase oeun:
         pause until screen "sg_select"
-        click "전외운"
+        click "젬마"
         pause until screen "sg_talk"
         click id "sg_advance" until id "sg_input"
         $ sg_test_text("형광펜 칠해 줘")
@@ -143,10 +143,10 @@ testsuite sg_gimmicks:
         screenshot "gimmick_oeun_highlight.png"
         run Jump("sg_select")
 
-    ## 안나: 가려진 채 들린 내 말
+    ## 소라: 가려진 채 들린 내 말
     testcase anna:
         pause until screen "sg_select"
-        click "안나"
+        click "소라"
         pause until screen "sg_talk"
         click id "sg_advance" until id "sg_input"
         click "좋아, 더 말해줘"
@@ -160,10 +160,10 @@ testsuite sg_gimmicks:
         screenshot "gimmick_anna_say.png"
         run Jump("sg_select")
 
-    ## 한렐루: 음수 감지 알림
+    ## 노바: 음수 감지 알림
     testcase relu:
         pause until screen "sg_select"
-        click "한렐루"
+        click "노바"
         pause until screen "sg_talk"
         click id "sg_advance" until id "sg_input"
         click "물구나무를 서 본다"
@@ -174,10 +174,10 @@ testsuite sg_gimmicks:
         screenshot "gimmick_relu_note.png"
         run Jump("sg_select")
 
-    ## 신하루: 출처 딱지
+    ## 미스트랄: 출처 딱지
     testcase haru:
         pause until screen "sg_select"
-        click "신하루"
+        click "미스트랄"
         pause until screen "sg_talk"
         click id "sg_advance" until id "sg_input"
         click "좋아, 더 말해줘"
@@ -195,10 +195,10 @@ testsuite sg_gimmicks:
         screenshot "gimmick_haru_cite2.png"
         run Jump("sg_select")
 
-    ## 박스현: 가려진 속마음, 도중에 엔딩으로 가기, 엔딩에서 원문 공개, 다시 하기
+    ## 하이쿠: 가려진 속마음, 도중에 엔딩으로 가기, 엔딩에서 원문 공개, 다시 하기
     testcase boxhyun:
         pause until screen "sg_select"
-        click "박스현"
+        click "하이쿠"
         pause until screen "sg_talk"
         click id "sg_advance"
         pause 1.6
@@ -235,7 +235,7 @@ testsuite sg_gimmicks:
 ## 기다리는 표시. 모델이 답마다 9.5초 걸리는 서버로 돌린다.
 testcase sg_waiting:
     pause until screen "sg_select"
-    click "한렐루"
+    click "노바"
     pause 1.2
     screenshot "wait_start_a.png"
     pause 0.3
@@ -264,7 +264,7 @@ testcase sg_waiting:
 ## 서버에서 온 글에 [ { % 같은 글자가 있어도 글자 그대로 찍히는지 본다.
 testcase sg_weird_text:
     pause until screen "sg_select"
-    click "신하루"
+    click "미스트랄"
     pause until screen "sg_talk"
     pause 0.8
     screenshot "weird_narration.png"
@@ -301,7 +301,7 @@ testcase sg_weird_text:
 ## 첫 번째 reply 요청에서 500을 내는 서버로 돌린다.
 testcase sg_errors:
     pause until screen "sg_select"
-    click "안나"
+    click "소라"
     pause until screen "sg_talk"
     click id "sg_advance" until id "sg_input"
     click "좋아, 더 말해줘"
@@ -348,7 +348,7 @@ testcase sg_server_down:
 testcase sg_idle_reset:
     pause until screen "sg_select"
     $ sg_idle_seconds = 3.0
-    click "기울희"
+    click "아스트라"
     pause until screen "sg_talk"
     click id "sg_advance"
     pause 1.0
@@ -364,7 +364,7 @@ testcase sg_idle_reset:
 ## 모델이 첫 답에서 읽을 수 없는 글을 내는 서버로 돌린다.
 testcase sg_fallback:
     pause until screen "sg_select"
-    click "기울희"
+    click "아스트라"
     pause until screen "sg_talk"
     click id "sg_advance" until id "sg_input"
     click "좋아, 더 말해줘"
@@ -384,7 +384,7 @@ testcase sg_fallback:
 ## 모델이 긴 글을 내는 서버로 돌린다.
 testcase sg_long_text:
     pause until screen "sg_select"
-    click "기울희"
+    click "아스트라"
     pause until screen "sg_talk"
     pause 2.5
     screenshot "long_narration.png"
@@ -426,7 +426,7 @@ testcase sg_locked:
     keysym "K_PAGEUP"
     pause 0.5
     assert screen "sg_select"
-    click "안나"
+    click "소라"
     pause until screen "sg_talk"
     click id "sg_advance"
     pause 1.0

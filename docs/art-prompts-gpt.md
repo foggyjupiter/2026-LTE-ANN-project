@@ -22,7 +22,7 @@ ChatGPT 같은 대화형 그림 도구에 붙여 넣을 요청문이다. 캐릭�
 
 ## 캐릭터별 요청문
 
-### 기울희 (giulhee)
+### 아스트라 (giulhee)
 
 기준 그림. 저장할 곳: `art/raw/giulhee/neutral.png`
 
@@ -30,7 +30,7 @@ ChatGPT 같은 대화형 그림 도구에 붙여 넣을 요청문이다. 캐릭�
 Draw one character sprite for a visual novel game.
 Art style: Japanese bishoujo game (galge) character art, like a heroine sprite from a moe visual novel. Large sparkling detailed eyes, small nose and mouth, glossy hair with sharp highlights, thin clean line art, soft cel shading with light gradients, bright pastel colors.
 Framing: One character only, waist-up portrait, centered, facing the viewer. The whole head and all of the hair are inside the frame, with empty space above the head.
-Character: Fiery orange hair fading to red at the tips, tied in a high ponytail that puffs out wider toward the end. Amber eyes, sharply raised eyebrows. A red track jacket with rolled-up sleeves worn over the white school shirt instead of a blazer. A small hairpin shaped like a steeply rising line graph. Arms crossed, head turned slightly away while her eyes glance at the viewer. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
+Character: Fiery orange hair fading to red at the tips, tied in a high ponytail that puffs out wider toward the end. Amber eyes, sharply raised eyebrows. A red track jacket with rolled-up sleeves worn over the white school shirt instead of a blazer. A small star-shaped hairpin. Arms crossed, head turned slightly away while her eyes glance at the viewer. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
 Expression: annoyed, aloof look with raised eyebrows, mouth closed.
 Content: A high school student in a modest, fully covering school outfit. Wholesome, all-ages.
 Background: fully transparent (PNG with alpha). If a transparent background is not possible, fill the whole background with one flat pure bright green (#00FF00) chroma key color, with no gradient, shadow, floor or objects.
@@ -67,7 +67,7 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: comically ominous: the upper half of the face is in shadow, dull eyes without highlights, a thin fixed smile. Keep the same background and the same image size.
 ```
 
-### 전외운 (oeun)
+### 젬마 (oeun)
 
 기준 그림. 저장할 곳: `art/raw/oeun/neutral.png`
 
@@ -76,7 +76,7 @@ Draw one character sprite for a visual novel game.
 Art style: Japanese bishoujo game (galge) character art, like a heroine sprite from a moe visual novel. Large sparkling detailed eyes, small nose and mouth, glossy hair with sharp highlights, thin clean line art, soft cel shading with light gradients, bright pastel colors.
 Framing: One character only, waist-up portrait, centered, facing the viewer. The whole head and all of the hair are inside the frame, with empty space above the head.
 Character: Dark navy-blue hair in two tight, perfectly neat braids. Round glasses. A navy school blazer worn exactly by the rules, buttoned all the way up. She holds a small notebook bristling with yellow and orange sticky notes, and a three-color ballpoint pen. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
-Expression: attentive, unblinking stare with a polite small smile.
+Expression: shy, gentle look with eyes slightly lowered and a small soft smile.
 Content: A high school student in a modest, fully covering school outfit. Wholesome, all-ages.
 Background: fully transparent (PNG with alpha). If a transparent background is not possible, fill the whole background with one flat pure bright green (#00FF00) chroma key color, with no gradient, shadow, floor or objects.
 No text, no watermark, no border. Portrait image, aspect ratio 2:3.
@@ -112,7 +112,7 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: comically ominous: the upper half of the face is in shadow, dull eyes without highlights, a thin fixed smile. Keep the same background and the same image size.
 ```
 
-### 안나 (anna)
+### 소라 (anna)
 
 기준 그림. 저장할 곳: `art/raw/anna/neutral.png`
 
@@ -120,7 +120,7 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 Draw one character sprite for a visual novel game.
 Art style: Japanese bishoujo game (galge) character art, like a heroine sprite from a moe visual novel. Large sparkling detailed eyes, small nose and mouth, glossy hair with sharp highlights, thin clean line art, soft cel shading with light gradients, bright pastel colors.
 Framing: One character only, waist-up portrait, centered, facing the viewer. The whole head and all of the hair are inside the frame, with empty space above the head.
-Character: Light yellow-green short bob with messy flyaway strands. Sleepy half-closed eyes. A single hair clip on one side only. A cream-colored knit cardigan with one button missing, worn over the white school shirt instead of a blazer. Relaxed posture, head tilted slightly. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
+Character: Light yellow-green short bob with messy flyaway strands. Sleepy half-closed eyes. A small cloud-shaped hair clip on one side only. A cream-colored knit cardigan with one button missing, worn over the white school shirt instead of a blazer. Relaxed posture, head tilted slightly. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
 Expression: sleepy, absent-minded look with a faint vacant smile.
 Content: A high school student in a modest, fully covering school outfit. Wholesome, all-ages.
 Background: fully transparent (PNG with alpha). If a transparent background is not possible, fill the whole background with one flat pure bright magenta (#FF00FF) chroma key color, with no gradient, shadow, floor or objects.
@@ -157,7 +157,7 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: comically ominous: the upper half of the face is in shadow, dull eyes without highlights, a thin fixed smile. Keep the same background and the same image size.
 ```
 
-### 한렐루 (relu)
+### 노바 (relu)
 
 기준 그림. 저장할 곳: `art/raw/relu/neutral.png`
 
@@ -202,7 +202,7 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: still smiling brightly, but the eyes are blank and without highlights, a small sweat drop on the temple. Keep the same background and the same image size.
 ```
 
-### 신하루 (haru)
+### 미스트랄 (haru)
 
 기준 그림. 저장할 곳: `art/raw/haru/neutral.png`
 
@@ -247,7 +247,7 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: comically ominous: the upper half of the face is in shadow, dull eyes without highlights, a thin fixed smile. Keep the same background and the same image size.
 ```
 
-### 박스현 (boxhyun)
+### 하이쿠 (boxhyun)
 
 기준 그림. 저장할 곳: `art/raw/boxhyun/neutral.png`
 
