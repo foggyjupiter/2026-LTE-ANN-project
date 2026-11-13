@@ -465,7 +465,7 @@ class GimmickTest(unittest.TestCase):
         out = session.reply("별로야")
         self.assertEqual((out["delta"], out["change"], out["score"]), (0, 0, 50))
         self.assertEqual(len(out["notes"]), 1)
-        self.assertIn("음수 감지", out["notes"][0])
+        self.assertIn("기죽지 않는다", out["notes"][0])
         self.assertEqual(out["popup"], "±0")
         self.assertEqual(json.loads(session.history[-1]["content"])["delta"], 0)
         out = session.reply("좋아")

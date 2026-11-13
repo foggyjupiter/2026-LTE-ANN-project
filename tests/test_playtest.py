@@ -243,7 +243,7 @@ class PlayTest(unittest.TestCase):
             "giulhee": "팝업 NaN",
             "haru": "[출처 필요]",
             "oeun": "**형광펜(글자 그대로 인용한 말):**",
-            "relu": "알림 \"음수 감지 → 0\"",
+            "relu": "알림 \"싫은 소리에도 기죽지 않는다\"",
         }
         for char_id, mark in expect.items():
             with self.subTest(char_id):

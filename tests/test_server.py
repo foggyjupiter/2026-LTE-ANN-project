@@ -176,9 +176,8 @@ class CharactersTest(ServerCase):
 
     def test_intro_is_first_sentence_of_attitude(self):
         cards = {card["id"]: card for card in self.get("/api/characters").json()}
-        self.assertEqual(cards["haru"]["intro"],
-                         '주인공을 "아무것도 모르는 신입"으로 보고 깔보며 놀린다.')
-        self.assertEqual(cards["relu"]["intro"], "만나자마자 좋아한다고 말한다.")
+        self.assertEqual(cards["haru"]["intro"], "연애도 소개팅도 다 해 본 척 여유를 부린다.")
+        self.assertEqual(cards["relu"]["intro"], "밝고 적극적으로 다가온다.")
         for char_id, card in cards.items():
             attitude = content.load_character(char_id)["attitude"]
             self.assertTrue(attitude.startswith(card["intro"]), char_id)
@@ -206,7 +205,7 @@ class FullGameTest(ServerCase):
         self.assertEqual(set(created["character"]), CARD_KEYS)
         self.assertEqual(created["character"]["id"], "haru")
         self.assertEqual(created["character"]["name"], "미스트랄")
-        self.assertEqual(created["character"]["motif"], "할루시네이션")
+        self.assertEqual(created["character"]["motif"], "들키면 귀여운 허세")
         opening = created["turn"]
         self.assertEqual((opening["kind"], opening["turn"], opening["finale"]), ("turn", 0, False))
         self.assertEqual(opening["total_turns"], 7)
@@ -596,7 +595,7 @@ class KoreanTest(ServerCase):
         res = self.get("/api/characters")
         self.assertEqual(res.headers["Content-Type"], JSON_TYPE)
         self.assertIn("미스트랄".encode("utf-8"), res.raw)
-        self.assertIn("할루시네이션".encode("utf-8"), res.raw)
+        self.assertIn("들키면 귀여운 허세".encode("utf-8"), res.raw)
         self.assertNotIn(b"\\u", res.raw)  # \uXXXX 꼴로 바뀌지 않았다
 
         res = self.post("/api/session", {"character": "haru"})

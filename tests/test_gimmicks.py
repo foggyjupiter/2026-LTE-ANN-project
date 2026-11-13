@@ -164,8 +164,8 @@ class ReluTest(unittest.TestCase):
         self.gimmick = get_gimmick("relu")
 
     def test_negative_becomes_zero_with_note(self):
-        self.assertEqual(self.gimmick.adjust_delta(-2), (0, "음수 감지 → 0"))
-        self.assertEqual(self.gimmick.adjust_delta(-1), (0, "음수 감지 → 0"))
+        self.assertEqual(self.gimmick.adjust_delta(-2), (0, "싫은 소리에도 기죽지 않는다"))
+        self.assertEqual(self.gimmick.adjust_delta(-1), (0, "싫은 소리에도 기죽지 않는다"))
 
     def test_zero_passes_without_note(self):
         self.assertEqual(self.gimmick.adjust_delta(0), (0, None))

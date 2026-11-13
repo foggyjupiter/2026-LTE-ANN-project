@@ -42,7 +42,7 @@ python3 -m sogaeting                 # 실제 모델. 캐릭터를 번호로 고
 python3 -m sogaeting haru            # 캐릭터를 바로 지정
 ```
 
-캐릭터 id: `giulhee`(기울희), `oeun`(전외운), `anna`(안나), `relu`(한렐루), `haru`(신하루), `boxhyun`(박스현)
+캐릭터 id: `giulhee`(아스트라), `oeun`(젬마), `anna`(소라), `relu`(노바), `haru`(미스트랄), `boxhyun`(하이쿠)
 
 진행 중에 1, 2, 3을 치면 선택지를 고르고, 다른 글을 치면 그대로 입력된다. `q`를 치면 곧장 엔딩으로 간다.
 

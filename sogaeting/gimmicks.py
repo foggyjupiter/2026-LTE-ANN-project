@@ -15,7 +15,7 @@ import re
 
 WORD_MASK = "■■"                 # dropout이 낱말 하나를 가릴 때 쓰는 글자
 CHAR_MASK = "■"                  # blackbox가 글자 하나를 가릴 때 쓰는 글자
-RELU_NOTE = "음수 감지 → 0"
+RELU_NOTE = "싫은 소리에도 기죽지 않는다"
 CITATION_TAG = " [출처 필요]"    # 앞에 공백 하나가 붙는다
 CITATION_LIMIT = 3               # 한 답에 붙이는 딱지의 최대 개수
 DROPOUT_RATE = 0.3
@@ -102,12 +102,13 @@ class QuoteMemory(Gimmick):
         for number, text in enumerate(past_inputs, start=1):
             lines.append(f"{number}. {text}")
         lines.append(
-            "이번 답의 say에서 위 기록 가운데 하나 이상을 골라 작은따옴표(' ') 안에 넣어 인용해라. "
-            "고른 줄은 통째로 옮기고, 따옴표 안에서는 글자 하나와 띄어쓰기 하나도 바꾸지 마라. "
-            "줄이거나 고쳐 쓰면 안 된다."
+            "캐릭터는 이 말들을 기억하고 있다. 가끔, 세 답에 한 번쯤, 그 가운데 사소한 말 하나를 수줍게 떠올려 "
+            "say에서 꺼낸다. 매번 하지 않는다. 꺼낼 때는 짧은 말이면 통째로, 긴 말이면 한 토막만 "
+            "작은따옴표(' ') 안에 넣고, 따옴표 안의 글자와 띄어쓰기는 원문 그대로 둔다. "
+            "길게 되읽거나 따지지 않는다."
         )
         if len(past_inputs) >= 2:
-            lines.append("예전에 한 말을 꺼내 올수록 좋다.")
+            lines.append("방금 한 말보다 예전에 한 말을 꺼낼 때 더 설렌다.")
         return "\n".join(lines)
 
     def decorate(self, reply: dict, ctx: dict) -> dict:

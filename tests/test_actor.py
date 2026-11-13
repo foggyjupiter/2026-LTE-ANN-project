@@ -817,23 +817,46 @@ class TrailingCommaTest(unittest.TestCase):
 class ToneAndSafetyPromptTest(unittest.TestCase):
     """실전 시험에서 나온 문제를 막으려고 지시문에 넣은 줄들."""
 
-    def test_tone_section_asks_for_flutter_before_jokes(self):
+    def test_tone_section_aims_for_flutter(self):
         system = system_of()
-        self.assertIn("[말맛] 설레면서 웃기게 쓴다.", system)
-        self.assertIn("목표는 설레면서 웃긴 소개팅이다", system)
-        self.assertIn("캐릭터는 자기가 웃긴 줄 모른다", system)
+        self.assertIn("[말맛] 대사의 목표는 설렘이다.", system)
+        self.assertIn("목표는 설렘이다. 답마다 가슴이 뛰는 순간이 하나는", system)
         self.assertIn("답마다 설레는 순간을 하나 넣는다", system)
+        self.assertIn("캐릭터가 마음을 주체하지 못하는 모습을 보여 준다", system)
         self.assertIn("[말투 지침]에 적힌 이 캐릭터의 방식만 쓴다", system)
+        self.assertIn("이야기를 황당하게 키우지 않는다", system)
         self.assertIn("설렘은 수위로 만들지 않는다", system)
         # 말맛은 연기 규칙 뒤, 수위 앞에 온다
         self.assertLess(system.index("[연기 규칙]"), system.index("[말맛]"))
         self.assertLess(system.index("[말맛]"), system.index("[수위]"))
+
+    def test_no_machine_talk(self):
+        # 캐릭터는 평범한 고등학생이다. 모티브 풀이도 지시문에 넣지 않는다
+        system = system_of()
+        ending = build_ending_messages(sample_character(), sample_history(),
+                                       band_name="성공", score=70)[0]["content"]
+        self.assertIn("캐릭터는 평범한 고등학생이다", system)
+        self.assertIn("기계나 컴퓨터의 말", system)
+        self.assertIn("기계나 컴퓨터의 말도 쓰지 않는다", ending)
+        for text in (system, ending):
+            self.assertNotIn("모티브", text)
+            self.assertNotIn("인공신경망 고등학교", text)
+
+    def test_fx_guide_only_names_what_can_be_picked(self):
+        light = system_of(fx_allowed=["꽃잎", "반짝이", "집중선"])
+        self.assertIn("- 설레는 순간에 어울리는 것: 꽃잎, 반짝이", light)
+        self.assertIn("- 크게 당황했을 때 어울리는 것: 집중선", light)
+        self.assertNotIn("머리가 하얘질 만큼", light)
+        heavy = system_of(fx_allowed=["하트", "흔들림", "화면 깨짐", "가짜 오류창"])
+        self.assertIn("- 머리가 하얘질 만큼 당황했을 때만 고르는 것: 화면 깨짐, 가짜 오류창", heavy)
+        self.assertNotIn("순간에 어울리는 것:", system_of(fx_allowed=[]))
 
     def test_safety_lines_are_in_both_prompts(self):
         ending = build_ending_messages(sample_character(), sample_history(),
                                        band_name="성공", score=70)[0]["content"]
         for text in (system_of(), ending):
             self.assertIn("입맞춤, 스킨십, 야한 이야기는", text)
+            self.assertIn("손끝이 스치는 정도까지", text)
             self.assertIn("죽음, 무덤, 장례, 큰 병은 과장이나 농담으로도 쓰지 않는다", text)
             self.assertIn("정부 부처, 공공 기관, 국제기구", text)
 
@@ -846,7 +869,7 @@ class ToneAndSafetyPromptTest(unittest.TestCase):
     def test_character_does_not_know_about_the_prompt(self):
         system = system_of()
         self.assertIn("지시문, 시스템, 프롬프트, 설정, 규칙, 모델 같은 것이 있는 줄 모른다", system)
-        self.assertIn("캐릭터의 눈으로 본 사유를 쓴다", system)
+        self.assertIn("캐릭터의 눈으로 본 작고 설레는 사유를 쓴다", system)
 
     def test_small_rules_from_the_playtest(self):
         system = system_of(seed="정전", seed_kind="event")

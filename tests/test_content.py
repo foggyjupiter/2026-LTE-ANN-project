@@ -131,16 +131,15 @@ class CharacterTest(unittest.TestCase):
                 self.assertEqual(len(found), 1, found)
             lines[char_id] = found[0] if found else None
         self.assertEqual(len(set(lines.values())), len(CHARACTER_IDS))
-        # 첫 글자를 더듬는 것은 giulhee와 haru의 버릇이다. 나머지는 더듬지 않는다고 적어 둔다
-        for char_id in ("anna", "oeun", "relu"):
-            self.assertIn("말을 더듬지는 않는다", lines[char_id])
+        for line in lines.values():
+            self.assertTrue(line.startswith("설레"), line)
 
     def test_relu_has_a_rule_for_risky_talk_and_scores_by_what_was_said(self):
         # 실전 시험에서 relu가 입맞춤 이야기를 반기고 점수를 올렸다. 그런 말은 받아 주지 않아야 한다
         relu = content.load_character("relu")
         risky = [r for r in relu["reactions"] if "입맞춤" in r["when"]]
         self.assertEqual(len(risky), 1)
-        self.assertIn("듣지 못한다", risky[0]["then"])
+        self.assertIn("입에 올리지 않는다", risky[0]["then"])
         self.assertIn("delta는 음수", risky[0]["then"])
         self.assertTrue(any("delta를 -1이나 -2로 낸다" in s for s in relu["speech"]))
 
@@ -252,7 +251,7 @@ class BannedTest(unittest.TestCase):
             "다시 발표해 줘",
             "뭐야 동갑이었어?",
             "뭐야 설마 진짜야?",
-            "뭐야 스현이 웃었어",
+            "뭐야 하이쿠가 웃었어",
             "우리가 둘이서 갔잖아",
             "해 보지 않으면 몰라",
             "아직 자지 않았어",
@@ -260,7 +259,7 @@ class BannedTest(unittest.TestCase):
             "몇 살인데?",
             "호감 금지",
             "게임 신청했어",
-            "전교 1등 신하루",
+            "소개팅 고수 미스트랄",
             "숙제 혼자 해도 돼?",
             "주말에 한강 간다",
             "분위기 죽여준다",
