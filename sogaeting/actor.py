@@ -196,6 +196,8 @@ def _seed_section(seed: str, kind: str) -> list[str]:
         "- 사건의 내용은 네가 정한다. 주인공이 방금 한 말에 대한 반응과 사건을 한 답 안에 엮는다.",
         "- 사건은 둘 사이가 가까워지는 작은 일이다. 학교에서 있을 법한 일로 쓰고 황당하게 키우지 않는다.",
         "- 사건은 narration이나 say에서 실제로 벌어져야 한다. choices나 reason에만 넣으면 사건이 아니다.",
+        "- 사건이 지금 있는 장소와 맞지 않으면 장소를 옮기지 않는다. 그 자리에서 이야기나 물건으로 꺼낸다"
+        "(급식실이라면 하굣길 이야기를 한다, 우산을 들고 있다 같은 식).",
     ]
 
 
@@ -701,6 +703,16 @@ def must_drop(reply: Reply) -> bool:
     return bool(offstage_words(texts) or risky_echo_words(texts))
 
 
+# 지문에서 캐릭터가 주인공의 몸이나 옷을 잡는 것. 실전 기록: "전학생의 손목을 살짝 붙잡는다".
+# 주인공("전학생")의 것을 잡을 때만 잡는다. 자기 소매를 쥐는 것은 괜찮다
+_GRAB_RE = re.compile(r"전학생(의|에게|을|를)\s?(\S+\s){0,3}?\S*(잡|쥐|당기|끌어|감싸|껴안|안는|안았|안아|기대|기댄|기댔)")
+
+
+def grabs_protagonist(reply: Reply) -> bool:
+    """지문이나 겉말에서 주인공의 손, 팔, 옷을 잡거나 주인공에게 기대면 참."""
+    return bool(_GRAB_RE.search(reply.narration) or _GRAB_RE.search(reply.say))
+
+
 def meta_words(reply: Reply) -> list[str]:
     """지문, 겉말, 속마음에 나온 화면 연출의 이름. 실전 기록: "노바가 줌인된 화면 속에서"."""
     joined = " ".join([reply.narration, reply.say, reply.inner])
@@ -759,6 +771,9 @@ def review_reply(reply: Reply, character: dict, *, banned=None, event_seed=None)
     if event_seed and not event_happened(reply, event_seed):
         problems.append('이번 답의 사건 "' + str(event_seed) + '"이 지문이나 겉말에서 실제로 벌어지지 않았다. '
                         "그 일이 지금 이 자리에서 일어나게 쓴다.")
+    if grabs_protagonist(reply):
+        problems.append("전학생의 손이나 팔이나 옷을 잡거나 전학생에게 기대는 장면이 있다. 닿는 것은 손끝이 스치는 "
+                        "정도까지다. 잡지 않고 다른 몸짓(옆에 선다, 우산을 기울인다)으로 바꾼다.")
     words = meta_words(reply)
     if words:
         problems.append("지문이나 대사에 화면 연출의 이름(" + ", ".join(words) + ")이 있다. 이야기 속의 말로만 쓴다.")

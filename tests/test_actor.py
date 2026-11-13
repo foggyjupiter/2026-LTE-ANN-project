@@ -843,6 +843,17 @@ class VarietyTest(unittest.TestCase):
         self.assertIn("화면 연출의 이름", actor.review_reply(reply, sample_character()))
         self.assertFalse(actor.must_drop(reply))
 
+    def test_grabbing_the_protagonist_is_rewritten(self):
+        grab = parse_reply(raw_reply(narration="소라가 전학생의 손목을 살짝 붙잡는다.", say="응.", inner="딴생각"), FX)
+        lean = parse_reply(raw_reply(narration="노바가 전학생에게 살짝 기댄다.", say="응.", inner="딴생각"), FX)
+        own = parse_reply(raw_reply(narration="소라가 자기 옷자락을 꾹 쥔다.", say="응.", inner="딴생각"), FX)
+        brush = parse_reply(raw_reply(narration="소라가 전학생의 옷소매 끝을 조심스럽게 건드린다.", say="응.", inner="딴생각"), FX)
+        self.assertTrue(actor.grabs_protagonist(grab))
+        self.assertTrue(actor.grabs_protagonist(lean))
+        self.assertFalse(actor.grabs_protagonist(own))     # 자기 옷은 괜찮다
+        self.assertFalse(actor.grabs_protagonist(brush))   # 손끝이 스치는 정도는 괜찮다
+        self.assertIn("잡지 않고", actor.review_reply(grab, sample_character()))
+
     def test_problems_are_joined_into_one_rewrite(self):
         reply = parse_reply(raw_reply(narration="줌인.", say="AI가 뭔데?"), FX)
         problem = actor.review_reply(reply, sample_character())
