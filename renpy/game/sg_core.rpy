@@ -421,16 +421,33 @@ init -5 python:
     ##
     ## 배경과 스탠딩은 master 레이어에 올린다. 연출 담당이 master 레이어 전체에
     ## 흔들림, 줌, 흑백을 걸기 때문이다. 대사창 같은 UI는 screens 레이어에 둔다.
+    ##
+    ## 스탠딩의 움직임, 만화 기호, 배경의 느린 움직임, 장소 제목 카드는 다른 파일(sg_stage.rpy)이
+    ## 맡는다. 그 파일이 없어도 게임은 돌아간다(가만히 선 그림만 나온다).
+
+    def sg_stage_call(name, *args, **kwargs):
+        """sg_stage.rpy 의 함수를 부른다. 그 파일이 없으면 아무 일도 하지 않고 None 을 돌려준다."""
+        f = getattr(store, name, None)
+        if f is None:
+            return None
+        return f(*args, **kwargs)
+
+    def sg_stage_trans(name, fallback):
+        """sg_stage.rpy 가 정한 장면 전환. 없으면 fallback."""
+        return getattr(store, "sg_stage_trans_" + name, None) or fallback
 
     def sg_show_bg(key):
         """배경을 바꾼다. 무대에 있던 것은 모두 치운다."""
         renpy.scene("master")
-        renpy.show("sg_bg", what=sg_bg_image(key), layer="master")
+        sg_stage_call("sg_stage_reset")
+        renpy.show("sg_bg", what=sg_bg_image(key),
+                   at_list=sg_stage_call("sg_stage_bg_at") or [ ], layer="master")
 
     def sg_show_char(char_id, face, at=None):
-        """스탠딩을 세우거나 표정을 바꾼다."""
+        """스탠딩을 세우거나 표정을 바꾼다. 움직임(숨쉬기, 등장, 표정 동작)은 sg_stage.rpy 가 고른다."""
+        place = at or store.sg_char_center
         renpy.show("sg_char", what=sg_sprite_image(char_id, face),
-                   at_list=[ at or store.sg_char_center ], layer="master")
+                   at_list=sg_stage_call("sg_stage_char_at", face, place) or [ place ], layer="master")
 
     def sg_hide_play_screens():
         for name in ("sg_hud", "sg_wait", "sg_wait_start", "sg_wait_reply", "sg_confirm"):
@@ -445,7 +462,7 @@ init -5 python:
         store.sg_turn = None
         store.sg_view = None
         sg_show_bg(sg_default_bg)
-        renpy.transition(Dissolve(0.25))
+        renpy.transition(sg_stage_trans("home", Dissolve(0.25)))
 
     def sg_enter_game():
         """새 판을 시작하기 직전. 판의 상태를 처음으로 돌린다."""
@@ -486,16 +503,20 @@ init -5 python:
             store.sg_score_shown = view["score"]
 
         place = sg_str(turn.get("place"))
-        if view["turn"] == 0:      # 등장: 장소에 맞는 배경으로 바꾼다
+        first = view["turn"] == 0
+        if first:                  # 등장: 장소에 맞는 배경으로 바꾼다
             store.sg_place = place
             sg_show_bg(sg_bg_key(place))
-            sg_show_char(store.sg_char["id"], view["face"])
-            renpy.transition(Dissolve(0.4))
+        sg_show_char(store.sg_char["id"], view["face"])
+        # 표정과 호감도 변화에 맞는 만화 기호. 등장 턴이면 장소 제목 카드도 뜬다
+        sg_stage_call("sg_stage_turn", view["face"], sg_int(turn.get("change")),
+                      first=first, fallback=view["fallback"], place=place, score=view["score"])
+        # 레이어를 지정한 전환(layer="master")은 쓰지 않는다. 시험 도구가 그 전환이
+        # 끝난 것을 알아채지 못해서 다음 클릭에서 멈춘다.
+        if first:
+            renpy.transition(sg_stage_trans("scene", Dissolve(0.4)))
         else:
-            sg_show_char(store.sg_char["id"], view["face"])
-            # 레이어를 지정한 전환(layer="master")은 쓰지 않는다. 시험 도구가 그 전환이
-            # 끝난 것을 알아채지 못해서 다음 클릭에서 멈춘다.
-            renpy.transition(Dissolve(0.2))
+            renpy.transition(sg_stage_trans("turn", Dissolve(0.2)))
 
         fx = turn.get("fx")
         fx = [ name for name in fx if isinstance(name, str) ] if isinstance(fx, python_list) else [ ]
@@ -508,7 +529,8 @@ init -5 python:
         store.sg_end_view = sg_build_ending(ending)
         face = sg_band_face.get(store.sg_end_view["band_id"], "neutral")
         sg_show_char(store.sg_char["id"], face, at=store.sg_char_left)
-        renpy.transition(Dissolve(0.3))
+        sg_stage_call("sg_stage_ending", store.sg_end_view["band_id"])
+        renpy.transition(sg_stage_trans("ending", Dissolve(0.3)))
 
     ############################################################################
     ## 6. 연출
