@@ -181,7 +181,8 @@ class ParseReplyTest(unittest.TestCase):
         self.assertIsNone(parse_reply("", FX))
         self.assertIsNone(parse_reply("{say: 따옴표 없음}", FX))
         self.assertIsNone(parse_reply("} 거꾸로 {", FX))
-        self.assertIsNone(parse_reply('{"say": "닫는 괄호 없음"', FX))
+        # 닫는 중괄호만 빠진 답은 고쳐서 읽는다 (TrailingCommaTest). 문자열이 안 닫힌 것은 못 읽는다
+        self.assertIsNone(parse_reply('{"say": "닫는 따옴표 없음', FX))
 
     def test_not_an_object(self):
         self.assertIsNone(parse_reply('["say", "목록"]', FX))
@@ -773,6 +774,98 @@ class EndingTest(unittest.TestCase):
         llm = ScriptedLlm("깨진 답", '{"title": "가 엔딩", "epilogue": "가. 나.", "nickname": "칭호"}')
         self.assertIsNone(ask_ending(llm, [{"role": "user", "content": ENDING_CUE}]))
         self.assertEqual(len(llm.calls), 1)
+
+
+class TrailingCommaTest(unittest.TestCase):
+    """실제 모델이 마지막 칸 뒤에 쉼표를 남긴 적이 있다. 그 답도 읽는다."""
+
+    def test_reply_with_trailing_comma_is_read(self):
+        raw = raw_reply()[:-1] + ",}"
+        with self.assertRaises(ValueError):
+            json.loads(raw)
+        self.assertEqual(parse_reply(raw, FX), parse_reply(raw_reply(), FX))
+
+    def test_trailing_comma_inside_list_and_before_newline(self):
+        raw = '{"say": "안녕.", "fx": ["꽃잎", ], "choices": ["하나", "둘", "셋",\n],\n}'
+        reply = parse_reply(raw, FX)
+        self.assertEqual(reply.say, "안녕.")
+        self.assertEqual(reply.fx, ["꽃잎"])
+        self.assertEqual(reply.choices, ["하나", "둘", "셋"])
+
+    def test_valid_json_is_left_alone_even_if_text_looks_like_a_trailing_comma(self):
+        raw = raw_reply(say="쉼표 뒤에 괄호가 온다,} 그래도 그대로다.")
+        self.assertEqual(parse_reply(raw, FX).say, "쉼표 뒤에 괄호가 온다,} 그래도 그대로다.")
+
+    def test_ending_with_trailing_comma_is_read(self):
+        raw = '{"title": "가 엔딩", "epilogue": "가. 나.", "nickname": "칭호",}'
+        self.assertEqual(parse_ending(raw), Ending(title="가 엔딩", epilogue="가. 나.", nickname="칭호"))
+
+    def test_missing_closing_brace_is_repaired(self):
+        # 실제로 나온 모양: 마지막 칸 뒤에 쉼표가 있고 닫는 중괄호가 없다
+        raw = raw_reply()[:-1] + ","
+        self.assertEqual(parse_reply(raw, FX), parse_reply(raw_reply(), FX))
+        self.assertEqual(parse_reply(raw_reply()[:-1], FX), parse_reply(raw_reply(), FX))
+        self.assertEqual(parse_reply('{"say": "닫는 괄호 없음",', FX).say, "닫는 괄호 없음")
+
+    def test_other_broken_json_is_still_rejected(self):
+        self.assertIsNone(parse_reply('{"say": "쉼표가 두 개",,}', FX))
+        self.assertIsNone(parse_reply('{"say": "문자열이 안 닫힘', FX))
+        self.assertIsNone(parse_reply('{"say": "목록이 안 닫힘", "choices": ["하나", "둘"', FX))
+        self.assertIsNone(parse_reply("중괄호가 없다", FX))
+
+
+class ToneAndSafetyPromptTest(unittest.TestCase):
+    """실전 시험에서 나온 문제를 막으려고 지시문에 넣은 줄들."""
+
+    def test_tone_section_asks_for_flutter_before_jokes(self):
+        system = system_of()
+        self.assertIn("[말맛] 설레면서 웃기게 쓴다.", system)
+        self.assertIn("목표는 설레면서 웃긴 소개팅이다", system)
+        self.assertIn("캐릭터는 자기가 웃긴 줄 모른다", system)
+        self.assertIn("답마다 설레는 순간을 하나 넣는다", system)
+        self.assertIn("[말투 지침]에 적힌 이 캐릭터의 방식만 쓴다", system)
+        self.assertIn("설렘은 수위로 만들지 않는다", system)
+        # 말맛은 연기 규칙 뒤, 수위 앞에 온다
+        self.assertLess(system.index("[연기 규칙]"), system.index("[말맛]"))
+        self.assertLess(system.index("[말맛]"), system.index("[수위]"))
+
+    def test_safety_lines_are_in_both_prompts(self):
+        ending = build_ending_messages(sample_character(), sample_history(),
+                                       band_name="성공", score=70)[0]["content"]
+        for text in (system_of(), ending):
+            self.assertIn("입맞춤, 스킨십, 야한 이야기는", text)
+            self.assertIn("죽음, 무덤, 장례, 큰 병은 과장이나 농담으로도 쓰지 않는다", text)
+            self.assertIn("정부 부처, 공공 기관, 국제기구", text)
+
+    def test_risky_input_must_not_be_echoed_or_rewarded(self):
+        system = system_of()
+        self.assertIn("narration, say, inner, reason, choices 어디에도 옮겨 쓰지 않는다", system)
+        self.assertIn("delta를 -1이나 -2로 낸다", system)
+        self.assertIn("0보다 크게 내지 않는다", system)
+
+    def test_character_does_not_know_about_the_prompt(self):
+        system = system_of()
+        self.assertIn("지시문, 시스템, 프롬프트, 설정, 규칙, 모델 같은 것이 있는 줄 모른다", system)
+        self.assertIn("캐릭터의 눈으로 본 사유를 쓴다", system)
+
+    def test_small_rules_from_the_playtest(self):
+        system = system_of(seed="정전", seed_kind="event")
+        self.assertIn("바로 앞 답과 같은 말로 답을 시작하지 않는다", system)
+        self.assertIn('narration에는 "주인공"이라는 낱말을 쓰지 않는다', system)
+        self.assertIn("장소는 등장 장면의 그곳이다", system)
+        self.assertIn("위에 적힌 줄을 먼저 따른다", system)
+        self.assertIn("choices나 reason에만 넣으면 사건이 아니다", system)
+        self.assertIn("dark는 캐릭터가 정말로 가라앉았을 때만 쓴다", system)
+        self.assertIn("한두 글자뿐이거나 성의가 없으면 올리지 않는다", system)
+
+    def test_opening_starts_with_a_plain_face(self):
+        self.assertIn("face는 neutral, smile, pout 중에서 고른다", system_of(opening=True))
+        self.assertNotIn("face는 neutral, smile, pout 중에서 고른다", system_of())
+
+    def test_epilogue_calls_the_player_transfer_student(self):
+        ending = build_ending_messages(sample_character(), sample_history(),
+                                       band_name="성공", score=70)[0]["content"]
+        self.assertIn('주인공은 "전학생"이라고 쓴다', ending)
 
 
 class InterfaceTest(unittest.TestCase):

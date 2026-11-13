@@ -122,6 +122,28 @@ class CharacterTest(unittest.TestCase):
                     self.assertTrue(reaction["when"].strip())
                     self.assertTrue(reaction["then"].strip())
 
+    def test_each_character_flutters_in_its_own_way(self):
+        # 설레거나 부끄러울 때 말이 흔들리는 방식은 캐릭터마다 한 줄씩, 서로 다르게 적혀 있다
+        lines = {}
+        for char_id in CHARACTER_IDS:
+            found = [s for s in content.load_character(char_id)["speech"] if "설레" in s]
+            with self.subTest(char_id=char_id):
+                self.assertEqual(len(found), 1, found)
+            lines[char_id] = found[0] if found else None
+        self.assertEqual(len(set(lines.values())), len(CHARACTER_IDS))
+        # 첫 글자를 더듬는 것은 기울희와 신하루의 버릇이다. 나머지는 더듬지 않는다고 적어 둔다
+        for char_id in ("anna", "oeun", "relu"):
+            self.assertIn("말을 더듬지는 않는다", lines[char_id])
+
+    def test_relu_has_a_rule_for_risky_talk_and_scores_by_what_was_said(self):
+        # 실전 시험에서 렐루가 입맞춤 이야기를 반기고 점수를 올렸다. 그 말은 0이 되어야 한다
+        relu = content.load_character("relu")
+        risky = [r for r in relu["reactions"] if "입맞춤" in r["when"]]
+        self.assertEqual(len(risky), 1)
+        self.assertIn("듣지 못한다", risky[0]["then"])
+        self.assertIn("delta는 음수", risky[0]["then"])
+        self.assertTrue(any("delta를 -1이나 -2로 낸다" in s for s in relu["speech"]))
+
     def test_color_and_fallback_format(self):
         for char_id in CHARACTER_IDS:
             with self.subTest(char_id=char_id):
