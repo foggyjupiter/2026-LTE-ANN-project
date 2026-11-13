@@ -201,6 +201,10 @@ class Session:
             actor.reply_texts(reply), self.banned) or actor.must_drop(reply)
         if fallback:
             reply = actor.Reply(say=self._next_fallback_line())
+        elif actor.wish_hidden(reply, actor.name_words(self.character)):
+            # 고쳐 쓰게 했는데도 바람의 낱말이 지문, 겉말, 속마음 어디에도 없으면 그 바람은 버린다.
+            # 참가자가 볼 수 없는 바람으로 +2를 가르지 않는다
+            reply.wish = ""
 
         if not fallback:
             # 모델이 지시문을 "주인공"이라는 말 그대로 옮겨 쓸 때가 있다. 이야기 속 이름으로 바꾼다

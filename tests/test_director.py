@@ -260,7 +260,8 @@ class ScoreTest(unittest.TestCase):
         self.assertEqual(out["delta"], 2)  # 직접 쓴 말이고 바람을 짚었다
 
     def test_wish_is_kept_in_history_but_not_sent_to_the_screen(self):
-        session = Session("mistral", llm=ScriptedLlm(default={"wish": "읽던 책 이야기를 물어봐 주기"}))
+        session = Session("mistral", llm=ScriptedLlm(default={"wish": "읽던 책 이야기를 물어봐 주기",
+                                                              "inner": "이 책 아는 사람 있으려나"}))
         out = session.start()
         self.assertNotIn("wish", out)
         self.assertEqual(json.loads(session.history[-1]["content"])["wish"], "읽던 책 이야기를 물어봐 주기")
@@ -269,12 +270,23 @@ class ScoreTest(unittest.TestCase):
 
     def test_plus_two_needs_the_wish(self):
         # 바람: "읽던 책 이야기를 물어봐 주기". 다정하기만 한 말은 +1, 책을 짚은 말은 +2
-        session = Session("mistral", llm=ScriptedLlm(default={"delta": 2, "wish": "읽던 책 이야기를 물어봐 주기"}))
+        session = Session("mistral", llm=ScriptedLlm(default={"delta": 2, "wish": "읽던 책 이야기를 물어봐 주기",
+                                                              "inner": "이 책 아는 사람 있으려나"}))
         session.start()
         out = session.reply("오늘 너 만나서 진짜 반가웠어. 고마워.")
         self.assertEqual((out["delta"], out["score"]), (1, 50 + POINTS[1]))
         out = session.reply("아까 읽던 그 책, 무슨 내용이야?")
         self.assertEqual(out["delta"], 2)
+
+    def test_wish_still_hidden_after_rewrite_is_dropped(self):
+        # 첫 답도 고쳐 쓴 답도 리본을 화면 글에 안 꺼냈다. 그 바람은 기록에 남기지 않는다
+        llm = ScriptedLlm(default={"wish": "교복 리본을 알아봐 주기"})
+        session = Session("mistral", llm=llm)
+        session.start()
+        self.assertEqual(len(llm.calls), 2)  # 한 번 고쳐 쓰게 했다
+        self.assertEqual(json.loads(session.history[-1]["content"])["wish"], "")
+        out = session.reply("그 리본 예쁘다")  # 볼 수 없던 바람이라 짚어도 +2가 아니다
+        self.assertLessEqual(out["delta"], 1)
 
     def test_points_go_up_slowly_and_down_fast(self):
         self.assertEqual(clamped_scores(1)[-1], 50 + TOTAL * POINTS[1])
