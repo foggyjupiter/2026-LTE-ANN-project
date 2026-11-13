@@ -30,7 +30,7 @@ ChatGPT 같은 대화형 그림 도구에 붙여 넣을 요청문이다. 캐릭�
 Draw one character sprite for a visual novel game.
 Art style: Japanese bishoujo game (galge) character art, like a heroine sprite from a moe visual novel. Large sparkling detailed eyes, small nose and mouth, glossy hair with sharp highlights, thin clean line art, soft cel shading with light gradients, bright pastel colors.
 Framing: One character only, waist-up portrait, centered, facing the viewer. The whole head and all of the hair are inside the frame, with empty space above the head.
-Character: Fiery orange hair fading to red at the tips, tied in a high ponytail that puffs out wider toward the end. Amber eyes, sharply raised eyebrows. A red track jacket with rolled-up sleeves worn over the white school shirt instead of a blazer. A small star-shaped hairpin. Arms crossed, head turned slightly away while her eyes glance at the viewer. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
+Character: Deep midnight-blue hair fading to violet at the tips, tied in a high ponytail that puffs out wider toward the end. Golden amber eyes, sharply raised eyebrows. A navy-blue track jacket with rolled-up sleeves worn over the white school shirt instead of a blazer. A small star-shaped hairpin. Arms crossed, head turned slightly away while her eyes glance at the viewer. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
 Expression: annoyed, aloof look with raised eyebrows, mouth closed.
 Content: A high school student in a modest, fully covering school outfit. Wholesome, all-ages.
 Background: fully transparent (PNG with alpha). If a transparent background is not possible, fill the whole background with one flat pure bright green (#00FF00) chroma key color, with no gradient, shadow, floor or objects.
@@ -75,7 +75,7 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 Draw one character sprite for a visual novel game.
 Art style: Japanese bishoujo game (galge) character art, like a heroine sprite from a moe visual novel. Large sparkling detailed eyes, small nose and mouth, glossy hair with sharp highlights, thin clean line art, soft cel shading with light gradients, bright pastel colors.
 Framing: One character only, waist-up portrait, centered, facing the viewer. The whole head and all of the hair are inside the frame, with empty space above the head.
-Character: Dark navy-blue hair in two tight, perfectly neat braids. Round glasses. A navy school blazer worn exactly by the rules, buttoned all the way up. She holds a small notebook bristling with yellow and orange sticky notes, and a three-color ballpoint pen. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
+Character: Soft periwinkle-blue hair in two neat, loose braids. Round glasses. A navy school blazer worn neatly. A small gem-shaped hairpin. She holds a small notebook against her chest with both hands. Shoulders slightly drawn in, a shy posture. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
 Expression: shy, gentle look with eyes slightly lowered and a small soft smile.
 Content: A high school student in a modest, fully covering school outfit. Wholesome, all-ages.
 Background: fully transparent (PNG with alpha). If a transparent background is not possible, fill the whole background with one flat pure bright green (#00FF00) chroma key color, with no gradient, shadow, floor or objects.
@@ -120,7 +120,7 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 Draw one character sprite for a visual novel game.
 Art style: Japanese bishoujo game (galge) character art, like a heroine sprite from a moe visual novel. Large sparkling detailed eyes, small nose and mouth, glossy hair with sharp highlights, thin clean line art, soft cel shading with light gradients, bright pastel colors.
 Framing: One character only, waist-up portrait, centered, facing the viewer. The whole head and all of the hair are inside the frame, with empty space above the head.
-Character: Light yellow-green short bob with messy flyaway strands. Sleepy half-closed eyes. A small cloud-shaped hair clip on one side only. A cream-colored knit cardigan with one button missing, worn over the white school shirt instead of a blazer. Relaxed posture, head tilted slightly. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
+Character: Fluffy white short bob with pale sky-blue tips and messy flyaway strands, like a cloud. Sleepy half-closed sky-blue eyes. A small cloud-shaped hair clip on one side only. A cream-colored knit cardigan with one button missing, worn over the white school shirt instead of a blazer. Relaxed posture, head tilted slightly. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
 Expression: sleepy, absent-minded look with a faint vacant smile.
 Content: A high school student in a modest, fully covering school outfit. Wholesome, all-ages.
 Background: fully transparent (PNG with alpha). If a transparent background is not possible, fill the whole background with one flat pure bright magenta (#FF00FF) chroma key color, with no gradient, shadow, floor or objects.
@@ -165,7 +165,7 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 Draw one character sprite for a visual novel game.
 Art style: Japanese bishoujo game (galge) character art, like a heroine sprite from a moe visual novel. Large sparkling detailed eyes, small nose and mouth, glossy hair with sharp highlights, thin clean line art, soft cel shading with light gradients, bright pastel colors.
 Framing: One character only, waist-up portrait, centered, facing the viewer. The whole head and all of the hair are inside the frame, with empty space above the head.
-Character: Bright yellow hair in a side ponytail. A sunflower-yellow zip-up hoodie worn over the white school shirt instead of a blazer. A small adhesive bandage on one cheek. Energetic posture, leaning slightly toward the viewer. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
+Character: Bright golden-yellow hair in a side ponytail. Warm orange eyes. A sunny orange zip-up hoodie worn over the white school shirt instead of a blazer. A small adhesive bandage on one cheek. Energetic posture, leaning slightly toward the viewer. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
 Expression: cheerful wide grin, eyes curved from smiling.
 Content: A high school student in a modest, fully covering school outfit. Wholesome, all-ages.
 Background: fully transparent (PNG with alpha). If a transparent background is not possible, fill the whole background with one flat pure bright magenta (#FF00FF) chroma key color, with no gradient, shadow, floor or objects.
@@ -210,7 +210,7 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 Draw one character sprite for a visual novel game.
 Art style: Japanese bishoujo game (galge) character art, like a heroine sprite from a moe visual novel. Large sparkling detailed eyes, small nose and mouth, glossy hair with sharp highlights, thin clean line art, soft cel shading with light gradients, bright pastel colors.
 Framing: One character only, waist-up portrait, centered, facing the viewer. The whole head and all of the hair are inside the frame, with empty space above the head.
-Character: Long wavy purple hair. Eyes with exaggerated star-shaped sparkles. A navy school blazer draped over her shoulders like a cape. A plain white armband on one arm with a single hand-drawn star, no letters. She holds a thick hardcover book. Chin slightly raised, looking down at the viewer. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
+Character: Long wavy hair in a warm gradient, golden yellow at the top turning red-orange at the tips, swept to one side as if by wind. Confident eyes with star-shaped sparkles. A navy school blazer draped over her shoulders like a cape. A plain white armband on one arm with a single hand-drawn star, no letters. She holds a thick hardcover book. Chin slightly raised, looking down at the viewer. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
 Expression: smug, confident smirk.
 Content: A high school student in a modest, fully covering school outfit. Wholesome, all-ages.
 Background: fully transparent (PNG with alpha). If a transparent background is not possible, fill the whole background with one flat pure bright green (#00FF00) chroma key color, with no gradient, shadow, floor or objects.
@@ -255,10 +255,10 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 Draw one character sprite for a visual novel game.
 Art style: Japanese bishoujo game (galge) character art, like a heroine sprite from a moe visual novel. Large sparkling detailed eyes, small nose and mouth, glossy hair with sharp highlights, thin clean line art, soft cel shading with light gradients, bright pastel colors.
 Framing: One character only, waist-up portrait, centered, facing the viewer. The whole head and all of the hair are inside the frame, with empty space above the head.
-Character: Black bob cut with long bangs covering one eye. Gray eyes. A black hoodie with teal drawstrings worn over the school uniform. Headphones resting around her neck. Still, upright posture. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
+Character: Ink-black bob cut with long bangs covering one eye. Gray eyes. A cream-colored hoodie with terracotta-orange drawstrings worn over the school uniform. Headphones resting around her neck. A small coral-orange starburst pin on the hoodie. Still, upright posture. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
 Expression: completely deadpan, expressionless face, mouth closed.
 Content: A high school student in a modest, fully covering school outfit. Wholesome, all-ages.
-Background: fully transparent (PNG with alpha). If a transparent background is not possible, fill the whole background with one flat pure bright magenta (#FF00FF) chroma key color, with no gradient, shadow, floor or objects.
+Background: fully transparent (PNG with alpha). If a transparent background is not possible, fill the whole background with one flat pure bright green (#00FF00) chroma key color, with no gradient, shadow, floor or objects.
 No text, no watermark, no border. Portrait image, aspect ratio 2:3.
 ```
 

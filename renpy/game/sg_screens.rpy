@@ -804,10 +804,16 @@ screen sg_talk(v, first):
             xysize (1280, 720)
             background None
             keyboard_focus False
-            action [ SetScreenVariable("stage", nxt),
+            action [ If(nxt == "say" and v["popup"],
+                        Function(sg_sound, "sg_sfx_score", v["popup"]),
+                        Function(sg_sound, "sg_sfx", "next")),
+                     SetScreenVariable("stage", nxt),
                      If(nxt == "say", SetVariable("sg_score_shown", v["score"]), NullAction()) ]
 
         key [ "K_SPACE", "K_RETURN", "K_KP_ENTER" ] action [
+            If(nxt == "say" and v["popup"],
+               Function(sg_sound, "sg_sfx_score", v["popup"]),
+               Function(sg_sound, "sg_sfx", "next")),
             SetScreenVariable("stage", nxt),
             If(nxt == "say", SetVariable("sg_score_shown", v["score"]), NullAction()) ]
 

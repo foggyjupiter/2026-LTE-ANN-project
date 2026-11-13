@@ -142,6 +142,14 @@ RENPY_SDK=/path/to/renpy-8.5.3-sdk renpy/dev/rtest.sh sg_flow 8101
 xvfb-run -a python3 run_booth.py --fake --windowed
 ```
 
+## 소리
+
+- 효과음 20개는 코드로 합성해서 만든 것이다(`game/audio/*.ogg`). 다시 만들려면 `python3 renpy/dev/make_sfx.py` (numpy와 ffmpeg가 있어야 한다).
+- 배경음은 들어 있지 않다. 음악 파일을 `renpy/game/audio/bgm.ogg`(또는 `bgm.mp3`)로 넣으면 고르기 화면부터 낮은 음량으로 되풀이해서 나온다. 저작권 문제가 없는 음악만 넣는다.
+- 음량은 `game/sg_audio.rpy` 맨 위의 `sg_sfx_volume`, `sg_bgm_volume` 으로 맞춘다.
+- 소리를 전부 끄려면 환경변수 `SOGAETING_MUTE=1` 을 주고 켠다.
+- 이 소리들은 만든 환경에서 귀로 들어 보지 못했다. 부스 PC에서 처음 켤 때 작은 음량으로 들어 보고 맞춘다.
+
 ## 꾸밈 그림 다시 만들기
 
 화면에 쓰는 장식 그림은 전부 코드로 만든다. Pillow가 있어야 한다. 그림을 고치려면 스크립트를 고친 뒤 다시 돌린다.

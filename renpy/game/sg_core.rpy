@@ -501,6 +501,7 @@ init -5 python:
         # 점수는 대사가 나올 때 움직인다. 대사부터 시작하는 턴이면 지금 움직인다
         if store.sg_first_stage == "say":
             store.sg_score_shown = view["score"]
+            sg_sound("sg_sfx_score", view["popup"])
 
         place = sg_str(turn.get("place"))
         first = view["turn"] == 0
@@ -531,12 +532,23 @@ init -5 python:
         sg_show_char(store.sg_char["id"], face, at=store.sg_char_left)
         sg_stage_call("sg_stage_ending", store.sg_end_view["band_id"])
         renpy.transition(sg_stage_trans("ending", Dissolve(0.3)))
+        sg_sound("sg_sfx_ending", store.sg_end_view["band_id"])
 
     ############################################################################
     ## 6. 연출
     ############################################################################
     ##
     ## 연출은 다른 파일(sg_fx.rpy)이 맡는다. 그 파일이 없어도 게임은 돌아간다.
+
+    def sg_sound(name, *args):
+        """소리를 낸다. 소리는 다른 파일(sg_audio.rpy)이 맡는다. 그 파일이 없어도 게임은 돌아간다."""
+        f = getattr(store, name, None)
+        if f is None:
+            return
+        try:
+            f(*args)
+        except Exception:
+            pass
 
     def sg_call_fx(names, narration=""):
         f = getattr(store, "sg_fx_play", None)
@@ -597,5 +609,6 @@ init -5 python:
         def enter(self):
             text = store.sg_typed.strip()
             if text:
+                sg_sound("sg_sfx", "send")
                 return ("reply", text)
             raise renpy.IgnoreEvent()

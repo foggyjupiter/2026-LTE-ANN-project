@@ -43,7 +43,7 @@
     "giulhee": {
       "name": "아스트라",
       "key": "green",
-      "look": "Fiery orange hair fading to red at the tips, tied in a high ponytail that puffs out wider toward the end. Amber eyes, sharply raised eyebrows. A red track jacket with rolled-up sleeves worn over the white school shirt instead of a blazer. A small star-shaped hairpin. Arms crossed, head turned slightly away while her eyes glance at the viewer.",
+      "look": "Deep midnight-blue hair fading to violet at the tips, tied in a high ponytail that puffs out wider toward the end. Golden amber eyes, sharply raised eyebrows. A navy-blue track jacket with rolled-up sleeves worn over the white school shirt instead of a blazer. A small star-shaped hairpin. Arms crossed, head turned slightly away while her eyes glance at the viewer.",
       "faces": {
         "neutral": "annoyed, aloof look with raised eyebrows, mouth closed"
       }
@@ -51,7 +51,7 @@
     "oeun": {
       "name": "젬마",
       "key": "green",
-      "look": "Dark navy-blue hair in two tight, perfectly neat braids. Round glasses. A navy school blazer worn exactly by the rules, buttoned all the way up. She holds a small notebook bristling with yellow and orange sticky notes, and a three-color ballpoint pen.",
+      "look": "Soft periwinkle-blue hair in two neat, loose braids. Round glasses. A navy school blazer worn neatly. A small gem-shaped hairpin. She holds a small notebook against her chest with both hands. Shoulders slightly drawn in, a shy posture.",
       "faces": {
         "neutral": "shy, gentle look with eyes slightly lowered and a small soft smile"
       }
@@ -59,7 +59,7 @@
     "anna": {
       "name": "소라",
       "key": "magenta",
-      "look": "Light yellow-green short bob with messy flyaway strands. Sleepy half-closed eyes. A small cloud-shaped hair clip on one side only. A cream-colored knit cardigan with one button missing, worn over the white school shirt instead of a blazer. Relaxed posture, head tilted slightly.",
+      "look": "Fluffy white short bob with pale sky-blue tips and messy flyaway strands, like a cloud. Sleepy half-closed sky-blue eyes. A small cloud-shaped hair clip on one side only. A cream-colored knit cardigan with one button missing, worn over the white school shirt instead of a blazer. Relaxed posture, head tilted slightly.",
       "faces": {
         "neutral": "sleepy, absent-minded look with a faint vacant smile"
       }
@@ -67,7 +67,7 @@
     "relu": {
       "name": "노바",
       "key": "magenta",
-      "look": "Bright yellow hair in a side ponytail. A sunflower-yellow zip-up hoodie worn over the white school shirt instead of a blazer. A small adhesive bandage on one cheek. Energetic posture, leaning slightly toward the viewer.",
+      "look": "Bright golden-yellow hair in a side ponytail. Warm orange eyes. A sunny orange zip-up hoodie worn over the white school shirt instead of a blazer. A small adhesive bandage on one cheek. Energetic posture, leaning slightly toward the viewer.",
       "faces": {
         "neutral": "cheerful wide grin, eyes curved from smiling",
         "smile": "an even bigger beaming smile, eyes closed in happy arcs",
@@ -77,7 +77,7 @@
     "haru": {
       "name": "미스트랄",
       "key": "green",
-      "look": "Long wavy purple hair. Eyes with exaggerated star-shaped sparkles. A navy school blazer draped over her shoulders like a cape. A plain white armband on one arm with a single hand-drawn star, no letters. She holds a thick hardcover book. Chin slightly raised, looking down at the viewer.",
+      "look": "Long wavy hair in a warm gradient, golden yellow at the top turning red-orange at the tips, swept to one side as if by wind. Confident eyes with star-shaped sparkles. A navy school blazer draped over her shoulders like a cape. A plain white armband on one arm with a single hand-drawn star, no letters. She holds a thick hardcover book. Chin slightly raised, looking down at the viewer.",
       "faces": {
         "neutral": "smug, confident smirk",
         "smile": "a triumphant, self-satisfied grin"
@@ -85,8 +85,8 @@
     },
     "boxhyun": {
       "name": "하이쿠",
-      "key": "magenta",
-      "look": "Black bob cut with long bangs covering one eye. Gray eyes. A black hoodie with teal drawstrings worn over the school uniform. Headphones resting around her neck. Still, upright posture.",
+      "key": "green",
+      "look": "Ink-black bob cut with long bangs covering one eye. Gray eyes. A cream-colored hoodie with terracotta-orange drawstrings worn over the school uniform. Headphones resting around her neck. A small coral-orange starburst pin on the hoodie. Still, upright posture.",
       "faces": {
         "neutral": "completely deadpan, expressionless face, mouth closed",
         "smile": "almost the same deadpan face, only the corners of the mouth raised very slightly",
