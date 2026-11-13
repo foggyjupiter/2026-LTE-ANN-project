@@ -57,7 +57,7 @@ def _hide_offstage(text: str) -> str:
 
 
 def fake_llm(messages: list[dict]) -> str:
-    """차례에 맞는 JSON 문자열을 돌려준다. 엔딩 요청에는 세 칸, 그 밖에는 여덟 칸."""
+    """차례에 맞는 JSON 문자열을 돌려준다. 엔딩 요청에는 세 칸, 그 밖에는 아홉 칸."""
     system = ""
     last_user = ""
     turn = 0  # 지금까지 나온 답의 수. 0이면 등장 차례다
@@ -102,13 +102,14 @@ def fake_llm(messages: list[dict]) -> str:
         "delta": delta,
         "reason": reason,
         "choices": list(_CHOICES),
+        "wish": f"가짜 바람 {turn}번",
     }, ensure_ascii=False)
 
 
 def _is_ending_request(system, last_user):
     """엔딩 요청은 마지막 user 메시지에 "엔딩"이 들어 있다.
 
-    참가자가 대화 중에 "엔딩"이라고 쳤을 때 헷갈리지 않게, 지시문이 여덟 칸을
+    참가자가 대화 중에 "엔딩"이라고 쳤을 때 헷갈리지 않게, 지시문이 아홉 칸을
     요구하는 차례 요청이면 엔딩 요청으로 보지 않는다.
     """
     if "엔딩" not in last_user:

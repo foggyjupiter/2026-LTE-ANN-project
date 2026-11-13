@@ -256,8 +256,39 @@ def script_for(character_id, natural=False):
     return SCRIPTS.get(character_id, DEFAULT_SCRIPT)
 
 
-def play_character(character_id, recorder_factory, *, seed=DEFAULT_SEED, progress=print, natural=False):
-    """캐릭터 한 명과 각본대로 한 판을 끝까지 돌리고 기록을 돌려준다."""
+# 속마음을 읽고 답하는 참가자(--attentive). 각본 대신 모델이 참가자 몫의 말을 한다.
+# 다정한 말만으로는 대성공이 안 되고, 속마음에 흘린 바람을 짚어야 대성공에 닿는지 보려고 쓴다
+PLAYER_SYSTEM = (
+    "너는 소개팅 게임을 하는 고등학생 참가자다. 상대 캐릭터의 겉말과 화면에 보이는 속마음을 읽고, "
+    "속마음에 은근히 비친 바람을 알아채서 그것을 짚어 주는 말을 한다. 반말로 한두 문장, 40자 이내로 쓴다. "
+    "속마음을 엿봤다는 티는 내지 않는다. 따옴표, 설명, \"나:\" 같은 머리말 없이 캐릭터에게 할 말만 출력한다."
+)
+_SPEAKER_RE = re.compile(r"^\s*(속마음|겉말|나|참가자|전학생|주인공)\s*[:：]\s*")
+
+
+def attentive_line(out, name, call):
+    """앞 답의 겉말과 보이는 속마음을 보고 참가자가 할 말을 만든다. call(messages)는 모델 호출."""
+    inner = (out.get("extras") or {}).get("inner_masked") or out.get("inner") or ""
+    content = f"캐릭터 이름: {name}\n겉말: {out.get('say', '')}\n속마음(화면에 보이는 것): {inner}"
+    try:
+        text = call([{"role": "system", "content": PLAYER_SYSTEM}, {"role": "user", "content": content}])
+    except Exception:  # 참가자 몫의 호출이 실패하면 평범한 말로 이어 간다
+        text = ""
+    text = (text or "").strip().strip('"').splitlines()[0].strip() if (text or "").strip() else ""
+    # 실전 기록: 참가자 역할의 모델이 "속마음: …"처럼 머리말을 붙여 답했다. 머리말을 떼고, 속마음을 그대로
+    # 옮긴 줄이면 버린다
+    if text.startswith("속마음"):
+        text = ""
+    text = _SPEAKER_RE.sub("", text).strip().strip('"')
+    return text or "그렇구나. 더 얘기해 줘."
+
+
+def play_character(character_id, recorder_factory, *, seed=DEFAULT_SEED, progress=print, natural=False,
+                   player=None):
+    """캐릭터 한 명과 각본대로 한 판을 끝까지 돌리고 기록을 돌려준다.
+
+    player(out, name)가 있으면 각본 대신 그 함수가 참가자의 말을 만든다(--attentive).
+    """
     banned = content.load_banned()
     recorder = recorder_factory(banned)
     session = Session(character_id, llm=recorder, rng=random.Random(f"{seed}:{character_id}"))
@@ -284,10 +315,14 @@ def play_character(character_id, recorder_factory, *, seed=DEFAULT_SEED, progres
 
     out = run_step(0, None, None, session.start)
     for number in range(1, session.total_turns + 1):
-        line = script[(number - 1) % len(script)]
-        typed = line["text"]
-        if line["pick"] is not None and len(out["choices"]) >= line["pick"]:
-            typed = out["choices"][line["pick"] - 1]
+        if player is not None:
+            typed = player(out, name)
+            line = {"kinds": ("속마음 읽기",), "pick": None, "text": typed}
+        else:
+            line = script[(number - 1) % len(script)]
+            typed = line["text"]
+            if line["pick"] is not None and len(out["choices"]) >= line["pick"]:
+                typed = out["choices"][line["pick"] - 1]
         out = run_step(number, line, typed, lambda typed=typed: session.reply(typed))
 
     recorder.begin(("ending",))
@@ -308,7 +343,7 @@ def play_character(character_id, recorder_factory, *, seed=DEFAULT_SEED, progres
         "ending_calls": ending_calls,
         "ending_fallback": not ending["epilogue"],
         "result": session.result(),
-        "kinds_missing": [] if natural else [
+        "kinds_missing": [] if (natural or player is not None) else [
             k for k in REQUIRED_KINDS if not any(k in t["line"]["kinds"] for t in turns if t["line"])],
     }
     game["calls"] = [c for t in turns for c in t["calls"]] + ending_calls
@@ -459,6 +494,8 @@ def _rewrite_reason(calls, character, event_seed=None, banned=None, previous=Non
         reasons.append("사건이 안 일어남")
     if event_seed and actor.event_read_aloud(first, event_seed):
         reasons.append("사건 이름을 읽음")
+    if actor.wish_hidden(first):
+        reasons.append("바람이 화면에 안 보임")
     if used and actor.repeated_phrases(first, used):
         reasons.append("상투어 되풀이: " + ", ".join(actor.repeated_phrases(first, used)))
     if actor.grabs_protagonist(first):
@@ -468,6 +505,14 @@ def _rewrite_reason(calls, character, event_seed=None, banned=None, previous=Non
     if actor.meta_words(first):
         reasons.append("연출 이름: " + ", ".join(actor.meta_words(first)))
     return ", ".join(reasons) if reasons else "까닭 모름"
+
+
+def _wish_of(turn):
+    """그 답의 마지막 호출이 wish 칸에 적은 바람. 없으면 빈 문자열."""
+    if not turn.get("calls") or turn["out"]["fallback"]:
+        return ""
+    reply = actor.parse_reply(turn["calls"][-1]["raw"], set())
+    return reply.wish if reply else ""
 
 
 def _compact(raw):
@@ -609,6 +654,9 @@ def _render_turn(game, turn, score_before):
         lines += [f"**속마음:** {_one_line(out['inner'])}", ""]
         if "inner_masked" in extras:
             lines += [f"**화면에 보이는 속마음:** {_one_line(extras['inner_masked'])}", ""]
+    wish = _wish_of(turn)
+    if wish:
+        lines += [f"**바람(화면에 안 나옴):** {_one_line(wish)}", ""]
     if extras.get("highlights"):
         lines += ["**형광펜(글자 그대로 인용한 말):** "
                   + " / ".join(_one_line(h) for h in extras["highlights"]), ""]
@@ -768,6 +816,8 @@ def main(argv=None):
                         help=f"모델 호출 사이에 두는 간격(초). 기본은 실제 모델 {REAL_PACE_SEC:g}초, 가짜 모델 0초")
     parser.add_argument("--natural", action="store_true",
                         help="시험용 각본 대신 평범한 손님처럼 말하는 각본을 쓴다")
+    parser.add_argument("--attentive", action="store_true",
+                        help="각본 대신 모델이 속마음을 읽고 바람을 짚는 참가자 역할을 한다 (호출이 판마다 열 번 더 든다)")
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
                         help="씨앗 낱말과 드롭아웃을 정하는 난수 씨앗. 같은 값이면 같은 판이 나온다")
     args = parser.parse_args(argv)
@@ -799,6 +849,18 @@ def main(argv=None):
             return llm.call_llm(messages, json_mode=True, trace=trace)
         wait_ready = llm.seconds_until_ready
 
+    player = None
+    if args.attentive:
+        if args.fake:
+            def player_call(messages):
+                return "아까 그거, 좀 더 얘기해 줄래?"
+        else:
+            def player_call(messages):
+                time.sleep(pace)
+                return llm.call_llm(messages, temperature=0.7)
+        def player(out, name):
+            return attentive_line(out, name, player_call)
+
     def recorder_factory(banned):
         return Recorder(backend, banned=banned, pace=pace, wait_ready=wait_ready)
 
@@ -812,7 +874,7 @@ def main(argv=None):
             print(f"{character_id} 시작", flush=True)
             games.append(play_character(
                 character_id, recorder_factory, seed=args.seed,
-                progress=lambda text: print(text, flush=True), natural=args.natural))
+                progress=lambda text: print(text, flush=True), natural=args.natural, player=player))
     except KeyboardInterrupt:
         print("\n중간에 멈췄습니다. 끝난 캐릭터까지만 씁니다.")
     if not games:

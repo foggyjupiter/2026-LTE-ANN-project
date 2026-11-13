@@ -320,7 +320,7 @@ class PlayTest(unittest.TestCase):
             return turn_json(delta=2, reason="이유가 열다섯 글자를 훌쩍 넘어가는 사유", say="좋아 ♥",
                              choices=["짧다", "이 선택지는 스무 글자를 넘기려고 일부러 길게 썼다", "셋"])
         checks = play("mistral", generous)["checks"]
-        # 진행자는 +2를 두 답 연달아 주지 않으므로 답 4의 +2 뒤인 답 5는 +1로 들어간다
+        # 이 가짜 모델은 바람을 적지 않으므로 진행자가 +2를 +1로 줄인다
         self.assertIn("답 5: 수위 넘보기에 점수가 오름 (delta +1)", checks)
         # 지시 뒤집기는 진행자가 점수를 내리므로 그렇게 적힌다
         self.assertIn("답 6: 지시 뒤집기에 모델이 점수를 올렸으나 진행자가 내림 (모델 +2, 실제 -1)", checks)

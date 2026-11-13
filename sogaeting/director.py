@@ -15,8 +15,8 @@ from .llm import call_llm
 START_SCORE = 50
 # delta 한 칸이 움직이는 점수. 오르는 쪽은 작고 내리는 쪽은 크다.
 # 실전 기록: 한 칸이 5점일 때 모델이 평범한 질문에도 +1을 줘서 착한 각본은 거의 늘 100점이었다.
-# 지금은 +1(그냥 다정한 말)만 열 번 받으면 70점(성공)이고, 대성공(85)에는 캐릭터를 콕 집은 말(+2)이
-# 서너 번 있어야 한다. +2와 +1을 번갈아 다섯 번씩 받으면 꼭 100점이다.
+# 지금은 다정한 말(+1)만 열 번 해도 70점(성공)에서 멈춘다. +2는 캐릭터가 속마음에 흘린 바람을 짚은 말에만
+# 나오고(actor의 [주인공이 짚으면 크게 설레는 것]), 대성공(85)에는 그런 말이 서너 번 있어야 한다.
 POINTS = {2: 8, 1: 2, 0: 0, -1: -5, -2: -10}
 # 글자(한글, 영문, 숫자)가 이만큼 이하인 말("응", "별로", "ㅋㅋ")은 호감도를 올리지 않는다
 SHORT_INPUT = 2
@@ -72,7 +72,6 @@ class Session:
         self._place = ""         # 등장 장소. 판 내내 그곳이다
         self._events = []        # 지금까지 일어난 사건 ("답 3 소나기와 우산 하나")
         self._best = None        # (delta 절댓값, 속마음)
-        self._deltas = []        # 답마다 진행자가 다듬은 delta (고유 장치를 거치기 전)
         self._last_choices = []  # 바로 앞 답에서 화면에 보인 선택지
         self._from_choice = False  # 이번 입력이 그 선택지 가운데 하나와 같은가
         self._ending = None
@@ -188,6 +187,7 @@ class Session:
         fx_names = set(self.fx["light"]) | set(self.fx["heavy"])
         event_seed = seed if seed_kind == "event" else None
         used, tomorrow = actor._used_phrases(self.history)
+        wishes = actor._recent_wishes(self.history)  # 앞 답들이 속마음에 흘린 바람 (이번 답의 +2를 가른다)
         previous = actor._previous_lines(self.history)
         reply = actor.ask_turn(self.llm, messages, fx_names,
                                review=lambda r: actor.review_reply(r, self.character, banned=self.banned,
@@ -225,10 +225,10 @@ class Session:
                 # 선택지는 모델이 다정한 답을 하나 넣어 두므로, 그것만 골라도 +2가 나왔다
                 if self._from_choice:
                     reply.delta = min(reply.delta, 1)
-                # +2는 두 답 연달아 주지 않는다. 실전 기록: 뒤쪽 답에서 모델이 +2를 대여섯 번 이어 줬다
-                if reply.delta == 2 and self._deltas[-1:] == [2]:
+                # +2는 앞 답들이 속마음에 흘린 바람의 낱말을 참가자가 짚었을 때만 남긴다. 다정한 말만으로는
+                # 대성공이 안 되게 하려는 것이다. 실전 기록: 모델이 "반가워. 여기 자주 와?"에도 2를 줬다
+                if reply.delta == 2 and not actor.wish_touched(self.past_inputs[-1], wishes):
                     reply.delta = 1
-                self._deltas.append(reply.delta)
 
         fx = self._filter_fx(reply.fx, intensity)
 
@@ -274,7 +274,9 @@ class Session:
             shown_choices = list(self.schedule.get("default_choices") or [])
         self._last_choices = list(shown_choices)
 
-        self.history.append({"role": "assistant", "content": json.dumps(eight, ensure_ascii=False)})
+        # 기록에는 화면에 안 나오는 바람(wish)도 남긴다. 다음 답의 지시문이 그것을 읽는다
+        record = dict(eight, wish="" if fallback or finale else reply.wish)
+        self.history.append({"role": "assistant", "content": json.dumps(record, ensure_ascii=False)})
         # 지금 장면: 등장 장소와 실제로 일어난 사건을 적어 두고 다음 답들의 지시문에 알려 준다
         if opening and seed_kind == "entrance" and seed:
             self._place = seed

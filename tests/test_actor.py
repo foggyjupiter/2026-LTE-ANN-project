@@ -514,10 +514,10 @@ class BuildTurnMessagesTest(unittest.TestCase):
         system = system_of(finale=True, intensity=5, band="high")
         self.assertIn("[이번 답은 결말 장면이다]", system)
         self.assertIn("지금 호감도 구간이 높음이므로", system)
-        self.assertIn("choices는 빈 배열로 둔다", system)
+        self.assertIn("choices는 빈 배열로, wish는 빈 문자열로 둔다", system)
         normal = system_of(intensity=5, band="high")
         self.assertNotIn("[이번 답은 결말 장면이다]", normal)
-        self.assertNotIn("choices는 빈 배열로 둔다", normal)
+        self.assertNotIn("choices는 빈 배열로, wish는 빈 문자열로 둔다", normal)
 
     def test_finale_wording_follows_band(self):
         texts = {band: system_of(finale=True, band=band) for band in ("low", "mid", "high")}
@@ -864,6 +864,64 @@ class VarietyTest(unittest.TestCase):
         self.assertIn("사건 이름", actor.review_reply(loud, character, event_seed="고양이 난입"))
         self.assertIsNone(actor.review_reply(calm, character, event_seed="고양이 난입"))
         self.assertFalse(actor.event_read_aloud(calm, "정전"))  # 한 낱말 씨앗은 읽어도 괜찮다
+
+    def test_wish_is_read_and_offered_to_the_next_answer(self):
+        self.assertEqual(parse_reply(raw_reply(wish="읽던 책 이야기를 물어봐 주기"), FX).wish, "읽던 책 이야기를 물어봐 주기")
+        self.assertEqual(parse_reply(raw_reply(), FX).wish, "")  # 없어도 답은 읽힌다
+        history = [
+            {"role": "user", "content": "첫 말"},
+            {"role": "assistant", "content": raw_reply(wish="머리핀을 알아봐 주기")},
+            {"role": "user", "content": "둘째 말"},
+            {"role": "assistant", "content": raw_reply(wish="")},
+            {"role": "user", "content": "셋째 말"},
+            {"role": "assistant", "content": raw_reply(wish="읽던 책 이야기를 물어봐 주기")},
+        ]
+        self.assertEqual(actor._recent_wishes(history), ("읽던 책 이야기를 물어봐 주기", "머리핀을 알아봐 주기"))
+        system = build_turn_messages(sample_character(), history + [{"role": "user", "content": "넷째 말"}],
+                                     band="mid", intensity=2, intensity_meaning="뜻", fx_allowed=[])[0]["content"]
+        self.assertIn("[주인공이 짚으면 크게 설레는 것]", system)
+        self.assertIn("바로 앞 답에서 속마음에 흘린 바람: 읽던 책 이야기를 물어봐 주기", system)
+        self.assertIn("그 앞 답에서 속마음에 흘린 바람: 머리핀을 알아봐 주기", system)
+        self.assertIn("아무리 진심이어도 바람을 짚지 않았으면 1까지다", system)
+        self.assertNotIn("속마음에 흘린 바람:", system_of())  # 바람이 없으면 칸도 없다
+        self.assertEqual(actor._wish_streak(history), 1)
+        self.assertNotIn("이번 답의 wish는 다른 바람으로 바꾼다", system)
+
+    def test_wish_touched(self):
+        wish = ["도서관에서 읽던 책을 물어봐 주기"]
+        self.assertTrue(actor.wish_touched("그 책 무슨 내용이야?", wish))
+        self.assertTrue(actor.wish_touched("그럼 같이 처음부터 다시 읽을까?", wish))  # 읽던, 읽을까
+        self.assertTrue(actor.wish_touched("주말에 차려입고 만날까?", ["주말에 입을 옷을 함께 고민해 주기"]))
+        # 누구에게나 할 수 있는 다정한 말은 짚은 것이 아니다
+        self.assertFalse(actor.wish_touched("반가워. 여기 자주 와?", wish))
+        self.assertFalse(actor.wish_touched("오늘 너 만나서 좀 덜 긴장돼. 고마워.", ["내일도 다시 만나서 대화하기"]))
+        self.assertFalse(actor.wish_touched("이제 가 봐야겠다. 오늘 진짜 즐거웠어.", ["좋아하는 구절을 함께 읽어 보기"]))
+        self.assertFalse(actor.wish_touched("그 책 좋다", []))
+
+    def test_hidden_wish_is_rewritten(self):
+        character = sample_character()
+        hidden = parse_reply(raw_reply(inner="키가 크네.", say="안녕!", narration="", wish="노바라는 이름 뜻 물어봐 주기"), FX)
+        shown = parse_reply(raw_reply(inner="노바라는 이름, 뜻 아는 사람 있으려나.", say="안녕!", narration="",
+                                      wish="노바라는 이름 뜻 물어봐 주기"), FX)
+        self.assertTrue(actor.wish_hidden(hidden))
+        self.assertIn("비치지 않는다", actor.review_reply(hidden, character))
+        self.assertFalse(actor.wish_hidden(shown))
+        self.assertIsNone(actor.review_reply(shown, character))
+        self.assertIsNone(actor.review_reply(hidden, character, finale=True))  # 결말에는 바람이 없다
+
+    def test_stuck_wish_is_changed(self):
+        same = raw_reply(wish="급식 메뉴를 물어봐 주기")
+        history = [{"role": "user", "content": "말"}, {"role": "assistant", "content": same}] * 2
+        self.assertEqual(actor._wish_streak(history), 2)
+        system = build_turn_messages(sample_character(), history + [{"role": "user", "content": "말"}],
+                                     band="mid", intensity=2, intensity_meaning="뜻", fx_allowed=[])[0]["content"]
+        self.assertIn("2답 연달아 적었는데 주인공이 짚지 않았다", system)
+        self.assertEqual(actor._wish_streak(history + [{"role": "user", "content": "말"},
+                                                       {"role": "assistant", "content": raw_reply()}]), 0)
+        # 대체 대사는 건너뛰고 센다
+        fallback = json.dumps({"say": "(소라는 고개를 갸웃한다)", "wish": ""}, ensure_ascii=False)
+        self.assertEqual(actor._wish_streak(history + [{"role": "user", "content": "말"},
+                                                       {"role": "assistant", "content": fallback}]), 2)
 
     def test_event_reminder_at_the_end(self):
         system = system_of(seed="고양이 난입", seed_kind="event")

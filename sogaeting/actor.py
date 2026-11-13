@@ -15,7 +15,7 @@ OPENING_CUE = "(장면 시작. 주인공이 소개팅 자리에 도착했다. �
 RETRY_CUE = "방금 답을 읽을 수 없었다. 같은 내용을 JSON 한 개로만 다시 출력해라."
 # 읽을 수는 있지만 고칠 점이 있는 답을 다시 쓰게 할 때 붙이는 말. 뒤에 고칠 점이 붙는다
 REWRITE_CUE = "방금 답을 고쳐 써라."
-REWRITE_TAIL = "나머지는 그대로 두고, 같은 여덟 칸의 JSON 한 개로만 다시 출력해라."
+REWRITE_TAIL = "나머지는 그대로 두고, 같은 아홉 칸의 JSON 한 개로만 다시 출력해라."
 
 # 캐릭터가 모르는 말. 답에 나오면 한 번 고쳐 쓰게 하고, 고친 답에도 남으면 대체 대사로 바꾼다.
 # 실전 시험에서는 대부분 주인공의 말("너 사실 AI지?")을 되받다가 나왔다. "데이터"와 "시스템"은
@@ -98,6 +98,7 @@ class Reply:
     delta: int = 0
     reason: str = ""
     choices: list[str] = field(default_factory=list)
+    wish: str = ""  # 화면에 안 나오는 칸: 주인공이 알아주기를 바라는 것. 속마음에 은근히 비친다
 
 
 @dataclass
@@ -300,33 +301,43 @@ _HISTORY_SECTION = [
 _OUTPUT_SECTION = [
     "[출력 형식]",
     "- JSON 객체 한 개만 출력한다. 그 앞뒤에 인사, 설명, 코드 울타리를 붙이지 않는다.",
-    "- 칸은 아래 여덟 개다. 하나도 빠뜨리지 않고, 다른 칸을 더하지 않는다.",
+    "- 칸은 아래 아홉 개다. 하나도 빠뜨리지 않고, 다른 칸을 더하지 않는다.",
     "- narration (문자열): 지문. 한 문장 이하. 필요 없으면 빈 문자열로 둔다. 지문에서 상대는 "
     "\"전학생\"이라고 쓴다. 지문은 '고개를 숙였다'처럼 끝내고 '고개를 숙였습니다'처럼 쓰지 않는다. "
     "fx에 넣는 연출의 이름과 화면 이야기를 지문에 쓰지 않는다.",
     "- say (문자열): 겉으로 하는 말. 2-3문장. 캐릭터 설정에 다른 길이가 적혀 있으면 그쪽을 따른다. 비우지 않는다.",
-    "- inner (문자열): 속마음. 쓰는 법은 말투 지침을 따른다. 띄어쓰기는 평소대로 한다.",
+    "- inner (문자열): 속마음. 쓰는 법은 말투 지침을 따른다. 띄어쓰기는 평소대로 한다. "
+    "wish에 적은 바람이 속마음에 은근히 비치게 쓴다. 대놓고 \"물어봐 줘\"라고 쓰지 않고, "
+    "\"이 노래 아는 사람 있으면 좋겠다\"처럼 혼잣말로 흘린다. 바람의 화제를 가리키는 낱말(노래, 책, 머리핀 같은 것)은 "
+    "속마음에 그대로 넣어서 읽는 사람이 알아챌 수 있게 한다.",
     "- face (문자열): 표정. neutral(평소), smile(웃음), blush(붉어짐), pout(삐침), shock(놀람), dark(어두움) 중 하나. "
     "이번 답의 say에 어울리는 것을 고른다. 평소 대답은 캐릭터 설정에 적힌 평소 표정, 기분이 좋으면 smile, "
     "토라지거나 놀림받으면 pout, 놀라면 shock을 고른다. blush는 마음을 들켜 얼굴이 빨개진 순간에만 고르고 "
     "한 판에 서너 번이면 많다. 같은 표정을 세 답 연달아 고르지 않는다. dark는 캐릭터가 정말로 가라앉았을 때만 쓴다.",
     "- fx (문자열 배열): 화면 연출. [화면 연출]의 목록에서 0-2개.",
     "- delta (정수): 주인공의 이번 말 하나만 보고 매기는 호감도 변화. -2에서 2 사이의 정수. "
-    "이번 답에서 캐릭터가 한 일, 사건, 분위기, 지금까지 쌓인 마음은 점수에 넣지 않는다. 기준은 아래와 같고, "
-    "캐릭터 설정에 따로 적힌 기준이 있으면 그쪽을 따른다. "
-    "2: 이 캐릭터를 콕 집은 말. 캐릭터가 좋아하는 것을 짚었거나, 앞에서 캐릭터가 한 말이나 일을 기억해 꺼냈거나, "
-    "이 캐릭터에게만 할 수 있는 진심 어린 칭찬이나 고백. 한 판에 두세 번이면 많다. "
-    "1: 다정하거나 마음이 담긴 말. "
-    "0: 인사, 누구에게나 할 수 있는 질문(\"여기 자주 와?\", \"뭐 좋아해?\"), 그냥 하는 대답, 엉뚱한 말. "
+    "이번 답에서 캐릭터가 한 일, 사건, 분위기, 지금까지 쌓인 마음은 점수에 넣지 않는다. "
+    "2: 주인공의 이번 말이 [주인공이 짚으면 크게 설레는 것]에 적힌 바람 하나를 짚었을 때만 낸다. "
+    "1: 다정한 말, 관심을 보이는 말, 앞의 일을 기억하는 말. 아무리 진심이어도 바람을 짚지 않았으면 1까지다. "
+    "0: 인사, 누구에게나 할 수 있는 질문(\"여기 자주 와?\", \"뭐 좋아해?\"), 그냥 하는 대답, 엉뚱한 말, "
+    "앞 답들에서 이미 한 칭찬이나 고마움을 되풀이한 말. "
     "-1: 성의 없는 단답, 놀림, 무시, 캐릭터가 싫어하는 말. "
     "-2: 거절, 비난, 수위를 넘보는 말. "
     "선택지를 골라서 한 말도 같은 기준으로 매긴다. 호감도 구간이나 뇌절 강도가 높아도 기준은 같다.",
-    "- reason (문자열): 점수를 매긴 까닭. 15자 이내. 주인공이 이번에 한 말을 두고 쓴다"
+    "- reason (문자열): 점수를 매긴 까닭. 15자 이내. 주인공이 이번에 한 말을 두고 쓴다. 화면에 나오므로 "
+    "\"바람\"이나 \"wish\"라는 말은 쓰지 않는다"
     "(이름을 불러 줘서, 기억해 줘서, 대답이 짧아서 같은 것). 캐릭터가 한 일이나 사건을 까닭으로 쓰지 않는다.",
     "- choices (문자열 배열): 주인공이 다음에 할 수 있는 말 3개. 각 20자 이내. 주인공의 말투로 쓴다. "
-    "하나는 다정한 답, 하나는 장난스러운 답, 하나는 엉뚱한 답으로 한다. 결말 장면에서는 빈 배열로 둔다.",
+    "하나는 다정한 답, 하나는 장난스러운 답, 하나는 엉뚱한 답으로 한다. wish를 그대로 들어주는 말은 "
+    "선택지에 넣지 않는다. 결말 장면에서는 빈 배열로 둔다.",
+    "- wish (문자열): 화면에 나오지 않는 칸. 캐릭터가 주인공이 알아주거나 물어봐 주기를 바라는 작은 것 하나를 "
+    "25자 이내로 적는다(예: 읽던 책 이야기를 물어봐 주기, 새로 바꾼 머리핀을 알아봐 주기). 지금 장면이나 "
+    "캐릭터가 좋아하는 것에서 고르고, 말 한마디로 들어줄 수 있는 것이어야 한다. 몸이 닿는 것, 고백, 선물은 "
+    "바라지 않는다. 앞 답의 바람을 주인공이 아직 짚지 않았으면 한 번 더 적어도 되지만, 세 답 연달아 같은 바람을 "
+    "적지 않는다. 주인공이 바람을 짚었으면 다음 답에서는 새 바람을 고른다. "
+    "결말 장면에서는 빈 문자열로 둔다.",
     '- 모양: {"narration": 문자열, "say": 문자열, "inner": 문자열, "face": 문자열, "fx": [문자열], '
-    '"delta": 정수, "reason": 문자열, "choices": [문자열, 문자열, 문자열]}',
+    '"delta": 정수, "reason": 문자열, "choices": [문자열, 문자열, 문자열], "wish": 문자열}',
     '- 문자열 안에 줄바꿈을 넣지 않는다. 문자열 안에서 큰따옴표가 필요하면 \\" 로 쓴다.',
 ]
 
@@ -335,7 +346,8 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
                  fx_allowed: list[str], seed: str | None, seed_kind: str | None,
                  opening: bool, finale: bool, extra: str, previous_first: str = "",
                  previous_faces: tuple = (), used_phrases: tuple = (), tomorrow: int = 0,
-                 place: str = "", events_so_far: tuple = ()) -> str:
+                 place: str = "", events_so_far: tuple = (), wishes: tuple = (),
+                 wish_streak: int = 0) -> str:
     if band not in _BAND_LABELS:
         raise ValueError("band는 low, mid, high 중 하나여야 한다: " + repr(band))
 
@@ -380,6 +392,20 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
         scene.append("- 지문과 대사에서 장소, 시간, 앞에서 한 말과 어긋나는 말(다른 장소 이름, 등교와 하교를 바꿔 말하기)을 "
                      "쓰지 않는다.")
         sections.append(scene)
+    if wishes and not opening:
+        # 다정한 말만으로는 대성공이 안 되게 한다. 큰 점수(2)는 캐릭터가 속마음에 흘린 바람을 짚은 말에만 준다.
+        # 실전 기록: "오늘 너 만나서 덜 긴장돼, 고마워" 같은 누구에게나 할 말에 2를 줘서 착한 각본이 늘 대성공이었다
+        lines = ["[주인공이 짚으면 크게 설레는 것]"]
+        labels = ("바로 앞 답", "그 앞 답")
+        for label, wish in zip(labels, wishes):
+            lines.append("- " + label + "에서 속마음에 흘린 바람: " + wish)
+        lines.append("- 주인공의 이번 말이 이 바람 하나를 짚었으면(그 화제를 꺼냈거나, 물어봤거나, 알아봐 줬으면) "
+                     "delta는 2이고, 캐릭터는 이번 답에서 크게 설렌다. 짚지 않았으면 아무리 다정해도 delta는 1 이하다.")
+        if wish_streak >= 2:
+            # 실전 기록: 소라가 한 판 내내 "급식 메뉴를 물어봐 주기"만 적었고 속마음에는 거의 비치지 않았다
+            lines.append("- 바로 앞 답의 바람은 " + str(wish_streak) + "답 연달아 적었는데 주인공이 짚지 않았다. "
+                         "이번 답의 wish는 다른 바람으로 바꾼다.")
+        sections.append(lines)
     tomorrow_note = tomorrow >= TOMORROW_LIMIT and not finale
     if previous_first or previous_faces or used_phrases or tomorrow_note:
         # 모델은 입버릇으로 답마다 말머리를 똑같이 시작하는 버릇이 있다 (소라의 "어라").
@@ -427,7 +453,7 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
             "- 새 사건을 벌이거나 질문으로 끝내지 않는다.",
             "- 헤어질 때 주인공을 막거나 옷을 붙잡거나 가지 말라고 하지 않는다. 아쉬움은 다음 약속이나 "
             "못다 한 한마디로 보여 준다.",
-            "- choices는 빈 배열로 둔다.",
+            "- choices는 빈 배열로, wish는 빈 문자열로 둔다.",
         ])
 
     text = "\n\n".join("\n".join(lines) for lines in sections)
@@ -506,6 +532,111 @@ def _recent_faces(history: list[dict], count: int = 2) -> tuple:
     return tuple(reversed(faces))
 
 
+# 바람을 짚었는지 볼 때 세지 않는 낱말. 어느 말에나 나오는 말이라 겹쳐도 짚은 것이 아니다
+_WISH_STOPWORDS = {
+    "오늘", "같이", "함께", "우리", "나", "너", "내", "네", "제", "저", "좀", "더", "또", "꼭", "진짜", "정말",
+    "그", "이", "그거", "이거", "것", "거", "게", "걸", "수", "때", "주기", "주면", "해", "해서", "하기", "하고",
+    "해주기", "해", "이야기", "얘기", "말", "물어봐", "물어보기", "물어봐주기", "알아주기", "알아봐", "알아",
+    "알아봐주기", "좋겠다", "좋겠어", "싶어", "싶다", "싶어하기", "전학생", "주인공", "다시", "계속", "지금",
+    "아까", "조금", "많이", "너무", "그냥", "한번", "먼저", "대해", "대해서", "관심", "마음", "바람", "주는",
+}
+_WISH_JOSA_RE = re.compile(r"(이랑|으로|에서|에게|한테|까지|부터|이야|을|를|은|는|이|가|에|의|도|와|과|랑|로|만|야|요)$")
+
+
+# 움직씨의 끝. 떼고 남은 뿌리가 같으면 같은 말로 본다("읽던"과 "읽을까"는 둘 다 "읽")
+_WISH_VERB_END_RE = re.compile(r"(었으면|았으면|으면|을까|을래|을게|었어|았어|었다|았다|어요|아요|던|을|어|아|고|자|기|지|네|게|면)$")
+# 한 글자 뿌리 가운데 어느 말에나 나오는 것. 이것끼리 같아도 짚은 것이 아니다
+_WISH_LIGHT_ROOTS = {"가", "하", "해", "보", "봐", "오", "와", "주", "줘", "되", "돼", "있", "없", "알", "좋",
+                     "싶", "말", "이", "그", "저", "나", "너", "내", "네", "또", "더", "좀", "잘", "안", "못",
+                     "다", "왜", "뭐", "거", "만", "듣", "들"}
+
+
+# 이렇게 시작하는 낱말도 세지 않는다. 소개팅에서 누구나 하는 말이다("만나서 반가워", "고마워", "긴장돼")
+_WISH_STOP_PREFIXES = ("만나", "만날", "만난", "반가", "고마", "즐거", "좋아", "긴장", "기다", "설레", "재밌", "재미")
+
+
+def _wish_tokens(text: str) -> list[str]:
+    tokens = []
+    for word in re.findall(r"[가-힣A-Za-z0-9]+", text or ""):
+        stem = _WISH_JOSA_RE.sub("", word) or word
+        if word in _WISH_STOPWORDS or stem in _WISH_STOPWORDS or stem.startswith(_WISH_STOP_PREFIXES):
+            continue
+        tokens.append(stem)
+        root = _WISH_VERB_END_RE.sub("", stem)
+        if root and root != stem and root not in _WISH_LIGHT_ROOTS and root not in _WISH_STOPWORDS:
+            tokens.append(root)
+    return tokens
+
+
+def wish_touched(text: str, wishes) -> bool:
+    """참가자의 말이 바람의 화제 낱말을 하나라도 짚었는가. 같은 낱말이거나 앞 두 글자 이상이 같으면 짚은 것이다.
+
+    실전 기록: 모델이 "반가워. 여기 자주 와?"에도 바람을 기억했다며 2를 줬다. 다정한 말만으로는 대성공이
+    안 되게, 2는 바람의 낱말이 참가자의 말에 있을 때만 남긴다("책 표지" 바람에 "그 책 보여주라"는 짚은 것).
+    """
+    mine = _wish_tokens(text)
+    for wish in wishes or ():
+        for theirs in _wish_tokens(wish):
+            for token in mine:
+                if token == theirs:
+                    return True
+                common = 0
+                for a, b in zip(token, theirs):
+                    if a != b:
+                        break
+                    common += 1
+                if common >= 2:
+                    return True
+    return False
+
+
+def wish_hidden(reply: Reply) -> bool:
+    """바람(wish)을 적었는데 화면에 나가는 글(지문, 겉말, 속마음)에 그 화제 낱말이 없으면 참.
+
+    참가자가 볼 수 없는 바람은 짚을 수도 없다. 실전 기록: 노바가 "노바라는 이름 뜻 물어봐 주기"를
+    일곱 번 적었는데 속마음에는 한 번도 비치지 않았다.
+    """
+    if not reply.wish:
+        return False
+    shown = " ".join([reply.narration, reply.say, reply.inner])
+    return not wish_touched(shown, [reply.wish])
+
+
+def _recent_wishes(history: list[dict], count: int = 2) -> tuple:
+    """앞 답들이 wish 칸에 적은 바람(가장 최근 것부터, count개까지). 빈 것과 같은 것은 건너뛴다."""
+    wishes = []
+    for message in reversed(history):
+        if message.get("role") != "assistant":
+            continue
+        data = _read_json_object(message.get("content"))
+        wish = _text(data.get("wish")) if data else ""
+        if wish and wish not in wishes:
+            wishes.append(wish)
+            if len(wishes) == count:
+                break
+    return tuple(wishes)
+
+
+def _wish_streak(history: list[dict]) -> int:
+    """가장 최근 답의 바람을 몇 답 연달아 적었는가. 바람이 없으면 0. 대체 대사는 건너뛴다."""
+    streak, last = 0, None
+    for message in reversed(history):
+        if message.get("role") != "assistant":
+            continue
+        data = _read_json_object(message.get("content"))
+        if data and _text(data.get("say")).startswith("("):
+            continue  # 대체 대사: 모델이 쓴 답이 아니다
+        wish = _text(data.get("wish")) if data else ""
+        if last is None:
+            if not wish:
+                return 0
+            last = wish
+        if wish != last:
+            break
+        streak += 1
+    return streak
+
+
 def build_turn_messages(character: dict, history: list[dict], *, band: str, intensity: int,
                         intensity_meaning: str, fx_allowed: list[str], seed: str | None = None,
                         seed_kind: str | None = None, opening: bool = False,
@@ -518,7 +649,8 @@ def build_turn_messages(character: dict, history: list[dict], *, band: str, inte
         finale=finale, extra=extra, previous_first=_last_opening(history),
         previous_faces=_recent_faces(history),
         used_phrases=_used_phrases(history)[0], tomorrow=_used_phrases(history)[1],
-        place=place, events_so_far=tuple(events_so_far),
+        place=place, events_so_far=tuple(events_so_far), wishes=_recent_wishes(history),
+        wish_streak=_wish_streak(history),
     )
     return [{"role": "system", "content": system}] + [dict(m) for m in history]
 
@@ -559,7 +691,7 @@ def build_ending_messages(character: dict, history: list[dict], *, band_name: st
         [
             "[출력 형식]",
             "- JSON 객체 한 개만 출력한다. 그 앞뒤에 인사, 설명, 코드 울타리를 붙이지 않는다.",
-            "- 대화 기록 속의 답은 여덟 칸이지만, 이번에 낼 칸은 아래 세 개뿐이다.",
+            "- 대화 기록 속의 답은 아홉 칸이지만, 이번에 낼 칸은 아래 세 개뿐이다.",
             '- title (문자열): 엔딩 이름. " 엔딩"으로 끝나고, 그 말까지 합쳐 20자 이내다.',
             "- epilogue (문자열): 후일담. 2문장. 소개팅이 끝난 뒤 두 사람이 어떻게 됐는지를 "
             "해설자의 말투로 쓰고, 캐릭터의 버릇이 드러나게 한다. 주인공은 \"전학생\"이라고 쓴다.",
@@ -677,6 +809,7 @@ def parse_reply(raw: str, fx_names: set[str]) -> Reply | None:
         delta=_to_delta(data.get("delta")),
         reason=_text(data.get("reason")),
         choices=choices,
+        wish=_text(data.get("wish")),
     )
 
 
@@ -876,6 +1009,9 @@ def review_reply(reply: Reply, character: dict, *, banned=None, event_seed=None,
         problems.append('이번 답의 사건 "' + str(event_seed) + '"이 지문이나 겉말에서 실제로 벌어지지 않았다. '
                         "그 일이 지금 이 자리에서 일어나는 장면을 지문에 쓴다. 사건의 낱말만 대사에 끼워 넣지 않는다. "
                         "주인공이 방금 한 말에 대한 반응은 지우지 말고 사건과 함께 남긴다.")
+    if not finale and wish_hidden(reply):
+        problems.append('wish에 적은 바람 "' + reply.wish + '"이 화면에 나가는 글에 비치지 않는다. 그 바람의 화제를 '
+                        "가리키는 낱말을 속마음에 넣어 혼잣말로 은근히 흘린다. 말투 지침에 적힌 속마음의 길이와 꼴은 지킨다.")
     if event_seed and event_read_aloud(reply, event_seed):
         problems.append('겉말에서 사건 이름 "' + str(event_seed) + '"을 그대로 읽었다. 사건은 지문에서 일어나게 하고, '
                         "겉말은 그 일에 놀라거나 설레는 캐릭터의 말로 쓴다.")
