@@ -288,7 +288,7 @@ def _try_provider(p, key, messages, temperature, json_mode, timeout, slot=None):
         if e.code == 429 and _is_daily_quota(raw):
             _rest(slot, DAILY_COOLDOWN_SEC)
             detail = (f"하루 한도 초과. 이 키는 {DAILY_COOLDOWN_SEC}초 쉬고 다른 키나 모델을 쓴다. "
-                      "자주 보이면 다른 계정의 키를 예비 키로 적는다")
+                      "자주 보이면 다른 프로젝트의 키를 예비 키로 적는다")
         elif e.code == 429:
             _rest(slot, _retry_after(e) or COOLDOWN_SEC)  # 이 키의 한도만 찼다. 다른 키는 쓸 수 있다
         elif e.code >= 500:

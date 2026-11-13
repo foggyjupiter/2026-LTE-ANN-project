@@ -121,7 +121,7 @@
     function Read-Key($prompt) {
         Write-Host ''
         Write-Host $prompt
-        Write-Host '예비 키는 쉼표로 이어 적습니다 (키1,키2). 다른 구글 계정에서 만든 키여야 한도가 따로 잡힙니다.'
+        Write-Host '예비 키는 쉼표로 이어 적습니다 (키1,키2). AI Studio에서 프로젝트를 새로 만들어 받은 키여야 한도가 따로 잡힙니다.'
         $secure = Read-Host -AsSecureString '키 (화면에는 안 보입니다)'
         $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
         try { return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr).Trim() }

@@ -25,7 +25,7 @@ def explain_http(code, body):
     """HTTP 오류를 사람이 읽을 말로."""
     if code == 429:
         if "PerDay" in body:
-            return "오늘 하루 한도를 다 썼습니다. 한국 시간 오후 5시에 풀립니다. 다른 계정의 키를 쓰세요."
+            return "오늘 하루 한도를 다 썼습니다. 한국 시간 오후 5시에 풀립니다. 다른 프로젝트에서 만든 키를 예비 키로 더하세요."
         return "분당 한도에 걸렸습니다. 1분쯤 뒤에 풀립니다."
     if code == 400 and ("API key not valid" in body or "API_KEY_INVALID" in body):
         return "키가 틀렸습니다. 복사할 때 앞뒤가 잘리거나 다른 글자가 섞이지 않았는지 보세요."
