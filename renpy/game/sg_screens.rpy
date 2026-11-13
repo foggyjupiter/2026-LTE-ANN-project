@@ -391,9 +391,9 @@ style sg_bubble_text:
 ## 선택지 그림에는 빛이 번질 자리가 둘레에 10픽셀씩 있다. 그래서 단추는 보이는 것보다 20픽셀 크다.
 
 style sg_choice:
-    xsize 620
+    xsize 540
     yminimum 72
-    padding (64, 21, 64, 22)
+    padding (56, 21, 56, 22)
     background sg_gal("choice", 46, 14)
     hover_background sg_gal("choice_hover", 46, 14)
 
@@ -409,7 +409,7 @@ style sg_choice_text:
 
 ## 직접 말하기 칸은 말풍선이다. 아래 20픽셀은 꼬리가 차지한다.
 style sg_input_box:
-    xsize 600
+    xsize 530
     xalign 0.5
     padding (24, 13, 14, 32)
     background sg_gal("speech", 64, 24, 30, 38)
@@ -419,7 +419,7 @@ style sg_input:
     size 20
     color gui.sg_plum
     caret Solid("#f2558e", xysize=(2, 24))
-    xmaximum 452
+    xmaximum 382
     adjust_spacing False
 
 style sg_placeholder_text:
@@ -915,11 +915,12 @@ screen sg_talk(v, first):
     if nxt:
         add "images/ui/gal_ctc.png" xpos 1172 ypos 656 at sg_ctc_blink
 
-    ## 선택지와 직접 말하기: 대사창 바로 위, 가운데
+    ## 선택지와 직접 말하기: 대사창 바로 위, 오른쪽. 가운데에 두면 캐릭터의 얼굴을 가렸다.
+    ## 스탠딩은 가운데(640)에 서고 얼굴은 대략 x 530-730 이다. 선택지는 그 오른쪽에서 시작한다.
     if stage == "choices":
         vbox:
-            xpos 336
-            xsize 620
+            xpos 728
+            xsize 540
             yanchor 1.0
             ypos 512
             spacing -8
@@ -940,7 +941,7 @@ screen sg_talk(v, first):
                     spacing 12
 
                     fixed:
-                        xsize 452
+                        xsize 382
                         yfit True
                         yalign 0.5
 

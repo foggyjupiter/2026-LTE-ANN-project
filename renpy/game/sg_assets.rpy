@@ -65,19 +65,22 @@ init -5 python:
         return Transform(path, xysize=(1280, 720), fit="cover")
 
     def sg_sprite_path(char_id, face):
-        """스탠딩 그림 파일. 그 표정이 없으면 평소 표정, 그것도 없으면 자리표시 그림."""
+        """스탠딩 그림 파일. 그 표정이 없으면 평소 표정, 그것도 없으면 그 캐릭터의 다른 진짜 그림,
+        진짜 그림이 하나도 없을 때만 자리표시 그림. 진짜 그림과 자리표시 그림이 한 판에 섞이지 않게 한다."""
         if not isinstance(char_id, str) or not char_id.replace("_", "").isalnum():
             return None
         if face not in sg_faces:
             face = "neutral"
-        return sg_first_loadable([
-            "images/sprites/%s/%s.png" % (char_id, face),
-            "images/sprites/%s/%s.webp" % (char_id, face),
-            "images/sprites/%s/neutral.png" % char_id,
-            "images/sprites/%s/neutral.webp" % char_id,
+        real = [face, "neutral"] + [f for f in sg_faces if f not in (face, "neutral")]
+        candidates = []
+        for f in real:
+            candidates += ["images/sprites/%s/%s.png" % (char_id, f),
+                           "images/sprites/%s/%s.webp" % (char_id, f)]
+        candidates += [
             "images/placeholder/sprites/%s/%s.png" % (char_id, face),
             "images/placeholder/sprites/%s/neutral.png" % char_id,
-        ])
+        ]
+        return sg_first_loadable(candidates)
 
     def sg_sprite_image(char_id, face):
         """스탠딩 그림. 파일이 하나도 없는 캐릭터면 빈 그림."""
