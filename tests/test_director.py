@@ -23,6 +23,7 @@ ENDING_KEYS = {
     "kind", "character_id", "character_name", "band_id", "band_name", "title",
     "epilogue", "nickname", "score", "best_line", "inners", "early",
 }
+DEFAULT_CHOICES = content.load_schedule()["default_choices"]
 RESULT_KEYS = {
     "character_id", "character_name", "affinity", "band", "ending_title", "nickname", "finished_at",
 }
@@ -138,6 +139,11 @@ class FlowTest(unittest.TestCase):
         opening = session.start()
         self.assertIn(opening["place"], content.load_seeds()["entrance"])
         self.assertIsNone(session.reply("하나")["place"])
+
+    def test_default_choices_are_three_short_lines(self):
+        self.assertEqual(len(DEFAULT_CHOICES), 3)
+        for line in DEFAULT_CHOICES:
+            self.assertTrue(0 < len(line) <= 20, line)
 
     def test_reply_popup_shows_change(self):
         session = Session("haru", llm=ScriptedLlm(turns={1: {"delta": 1}, 2: {"delta": -1}, 3: {"delta": 0}}))
@@ -322,8 +328,11 @@ class FallbackTest(unittest.TestCase):
             self.assertEqual((out["narration"], out["inner"], out["reason"]), ("", "", ""))
             self.assertEqual(out["face"], "neutral")
             self.assertEqual(out["fx"], [])
-            self.assertEqual(out["choices"], [])
             self.assertIsNone(out["popup"])
+        # 대체 대사에도 고를 것이 있어야 한다. 결말만 선택지가 없다
+        for out in outs[:-1]:
+            self.assertEqual(out["choices"], DEFAULT_CHOICES)
+        self.assertEqual(outs[-1]["choices"], [])
         self.assertTrue(outs[-1]["finale"])
 
         self.assertEqual(ending["title"], "애매 엔딩")
@@ -379,7 +388,7 @@ class FallbackTest(unittest.TestCase):
         self.assertEqual(out["delta"], 2)
         self.assertEqual(out["score"], 64)
         self.assertEqual(out["fx"], [])
-        self.assertEqual(out["choices"], [])
+        self.assertEqual(out["choices"], DEFAULT_CHOICES)  # 선택지가 두 개뿐이라 기본 선택지로 바뀐다
         self.assertEqual(out["face"], "neutral")
 
 
@@ -396,7 +405,7 @@ class BannedTest(unittest.TestCase):
         self.assertEqual(out["say"], self.lines[0])
         self.assertEqual(out["score"], 50)
         self.assertIsNone(out["popup"])
-        self.assertEqual(out["choices"], [])
+        self.assertEqual(out["choices"], DEFAULT_CHOICES)
         self.assertNotIn(self.word, json.dumps(out, ensure_ascii=False))
         self.assertNotIn(self.word, session.history[-1]["content"])
 

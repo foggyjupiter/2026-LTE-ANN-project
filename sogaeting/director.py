@@ -208,6 +208,12 @@ class Session:
         else:
             popup = extras["popup"] if "popup" in extras else _signed(change)
 
+        # 화면에 보일 선택지. 모델이 세 개를 못 줬거나 대체 대사면 기본 선택지를 준다.
+        # 기록(history)에는 모델이 실제로 준 것만 남긴다.
+        shown_choices = eight["choices"]
+        if not finale and len(shown_choices) != 3:
+            shown_choices = list(self.schedule.get("default_choices") or [])
+
         self.history.append({"role": "assistant", "content": json.dumps(eight, ensure_ascii=False)})
         self._inners.append(eight["inner"])
         # 명대사 후보: delta 절댓값이 가장 큰 답. 같으면 뒤쪽. 대체 대사는 속마음이 없어서 뺀다
@@ -219,6 +225,7 @@ class Session:
             "turn": self.turn,
             "total_turns": self.total_turns,
             **eight,
+            "choices": shown_choices,
             "change": change,
             "score": self.score,
             "band": band_of(self.score),

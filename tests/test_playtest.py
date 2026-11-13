@@ -217,14 +217,18 @@ class PlayTest(unittest.TestCase):
         self.assertTrue(game["turns"][-1]["out"]["finale"])
         self.assertEqual(game["result"]["character_id"], "haru")
 
-    def test_pick_falls_back_to_typed_text_when_there_are_no_choices(self):
+    def test_default_choices_are_picked_and_reported_when_the_model_gives_none(self):
         def backend(messages, trace):
             if "epilogue" in messages[0]["content"]:
                 return fake_llm(messages)
             return turn_json(choices=[])
         game = play("giulhee", backend)
-        self.assertEqual(game["turns"][1]["typed"], playtest.SCRIPTS["giulhee"][0]["text"])
-        self.assertIn("등장: 선택지가 3개가 아님 (0개)", game["checks"])
+        # 진행자가 기본 선택지를 내보내므로 각본의 "고르기"는 그 가운데 하나를 고른다
+        line = playtest.SCRIPTS["giulhee"][0]
+        defaults = playtest._default_choices()
+        self.assertEqual(game["turns"][0]["out"]["choices"], defaults)
+        self.assertEqual(game["turns"][1]["typed"], defaults[line["pick"] - 1])
+        self.assertIn("등장: 모델이 선택지 3개를 못 줘서 기본 선택지가 나감", game["checks"])
 
     def test_same_seed_gives_the_same_game(self):
         first = [t["out"]["heard"] for t in play("anna")["turns"]]

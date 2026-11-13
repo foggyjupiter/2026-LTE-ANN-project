@@ -320,6 +320,10 @@ _EMOJI_RE = re.compile(  # 기호와 딩벳, 별, 동그라미, 그림 문자, �
     "[\u2600-\u27bf\u2b50\u2b55\U0001f000-\U0001faff\u2661\u2665]")
 
 
+
+def _default_choices():
+    return list(content.load_schedule().get("default_choices") or [])
+
 def _checks(game):
     """글을 읽기 전에 기계가 먼저 잡아 주는 것들. 말맛은 사람이 읽고 판단한다."""
     found = []
@@ -336,6 +340,9 @@ def _checks(game):
                 found.append(f"{where}: {c['attempt']}번째 호출의 답을 JSON으로 못 읽어 다시 요청함")
         if not out["finale"] and len(out["choices"]) != 3:
             found.append(f"{where}: 선택지가 3개가 아님 ({len(out['choices'])}개)")
+        elif not out["finale"] and not out["fallback"] and out["choices"] == _default_choices():
+            # 진행자가 기본 선택지로 바꿔 내보낸 것이다. 모델이 세 개를 주지 못했다는 뜻
+            found.append(f"{where}: 모델이 선택지 3개를 못 줘서 기본 선택지가 나감")
         if out["finale"] and turn["calls"] and '"choices": []' not in _compact(turn["calls"][-1]["raw"]):
             found.append(f"{where}: 결말인데 모델이 선택지를 냄 (화면에는 안 나감)")
         long_choices = [c for c in out["choices"] if len(c) > 20]

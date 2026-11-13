@@ -9,6 +9,7 @@
     {"intensity": 5, "seed": null},
     {"intensity": 5, "seed": null, "finale": true}
   ],
+  "default_choices": ["응, 계속 말해 줘.", "음, 잘 모르겠어.", "우리 다른 얘기 하자."],
   "intensities": {
     "1": "잔잔: 아직 정상인 척한다",
     "2": "조짐: 버릇이 하나 새어 나온다",
