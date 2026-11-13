@@ -543,7 +543,7 @@ class EndingTest(unittest.TestCase):
         self.assertEqual(len(llm.calls), calls)  # 다시 불러도 모델을 또 부르지 않는다
         self.assertEqual(set(first), ENDING_KEYS)
         self.assertEqual(first["kind"], "ending")
-        self.assertEqual((first["character_id"], first["character_name"]), ("haru", "신하루"))
+        self.assertEqual((first["character_id"], first["character_name"]), ("haru", "미스트랄"))
         self.assertEqual((first["title"], first["epilogue"], first["nickname"]),
                          (ENDING["title"], ENDING["epilogue"], ENDING["nickname"]))
         self.assertFalse(first["early"])
@@ -621,7 +621,7 @@ class EndingTest(unittest.TestCase):
         result = session.result()
         self.assertEqual(set(result), RESULT_KEYS)
         self.assertEqual(result["character_id"], "haru")
-        self.assertEqual(result["character_name"], "신하루")
+        self.assertEqual(result["character_name"], "미스트랄")
         self.assertEqual(result["affinity"], ending["score"])
         self.assertEqual(result["band"], ending["band_name"])
         self.assertEqual(result["ending_title"], ending["title"])
@@ -754,7 +754,7 @@ class CliTest(unittest.TestCase):
         self.assertIn("나: 좋아, 더 말해줘", text)  # 1을 치면 첫째 선택지가 입력이 된다
         self.assertIn("빈 입력은 보낼 수 없어요.", text)
         self.assertIn("팝업: NaN", text)
-        self.assertIn("[엔딩] 기울희", text)
+        self.assertIn("[엔딩] 아스트라", text)
         self.assertIn("결과 저장:", text)
         self.assertEqual(len(saved), 1)
         self.assertEqual(set(saved[0]), RESULT_KEYS)
@@ -766,7 +766,7 @@ class CliTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("[답 1/7]", text)
         self.assertNotIn("[답 2/7]", text)
-        self.assertIn("[엔딩] 박스현", text)
+        self.assertIn("[엔딩] 하이쿠", text)
         self.assertIn("가려져 있던 속마음:", text)
         self.assertEqual(len(saved), 1)
 

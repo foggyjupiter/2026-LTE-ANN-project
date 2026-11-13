@@ -205,7 +205,7 @@ class FullGameTest(ServerCase):
         self.assertTrue(sid)
         self.assertEqual(set(created["character"]), CARD_KEYS)
         self.assertEqual(created["character"]["id"], "haru")
-        self.assertEqual(created["character"]["name"], "신하루")
+        self.assertEqual(created["character"]["name"], "미스트랄")
         self.assertEqual(created["character"]["motif"], "할루시네이션")
         opening = created["turn"]
         self.assertEqual((opening["kind"], opening["turn"], opening["finale"]), ("turn", 0, False))
@@ -595,7 +595,7 @@ class KoreanTest(ServerCase):
     def test_korean_is_sent_as_utf8(self):
         res = self.get("/api/characters")
         self.assertEqual(res.headers["Content-Type"], JSON_TYPE)
-        self.assertIn("신하루".encode("utf-8"), res.raw)
+        self.assertIn("미스트랄".encode("utf-8"), res.raw)
         self.assertIn("할루시네이션".encode("utf-8"), res.raw)
         self.assertNotIn(b"\\u", res.raw)  # \uXXXX 꼴로 바뀌지 않았다
 

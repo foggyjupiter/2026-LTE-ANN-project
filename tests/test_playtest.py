@@ -238,7 +238,7 @@ class PlayTest(unittest.TestCase):
 
     def test_transcript_shows_each_gimmick(self):
         expect = {
-            "anna": "**안나에게 들린 말:**",
+            "anna": "**소라에게 들린 말:**",
             "boxhyun": "**화면에 보이는 속마음:**",
             "giulhee": "팝업 NaN",
             "haru": "[출처 필요]",
@@ -370,7 +370,7 @@ class RecorderTest(unittest.TestCase):
 
 class TableTest(unittest.TestCase):
     def test_terminal_table_lines_up_with_korean(self):
-        lines = playtest._table(["캐릭터", "점수"], [["안나 (anna)", 15], ["박스현 (boxhyun)", 71]],
+        lines = playtest._table(["캐릭터", "점수"], [["소라 (anna)", 15], ["하이쿠 (boxhyun)", 71]],
                                 markdown=False)
         starts = {playtest._width(line[:line.index(str(n))]) for line, n in zip(lines[2:], (15, 71))}
         self.assertEqual(len(starts), 1)  # 둘째 칸이 같은 자리에서 시작한다
