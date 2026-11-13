@@ -61,6 +61,8 @@ testcase sg_flow:
     screenshot "flow_05_reply1_say.png"
     click id "sg_advance"
     pause until id "sg_input"
+    pause 0.6
+    screenshot "flow_05b_reply1_choices.png"
 
     ## 답 2: 직접 말하기 (영문은 글쇠로, 한글은 확정된 글로), Enter로 보내기
     type "hello "

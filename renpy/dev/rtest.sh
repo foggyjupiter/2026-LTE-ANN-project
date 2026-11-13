@@ -5,6 +5,7 @@
 #
 # 캡처는 renpy/tests/screenshots/ 에 생긴다. 서버는 따로 켜 두어야 한다:
 #   python3 -m sogaeting.server --fake --port <포트>
+# sg_errors 는 첫 답에서 오류를 내는 중계 서버를 거쳐야 한다: python3 renpy/dev/error_proxy.py 를 켜고 포트 8121
 set -euo pipefail
 here="$(cd "$(dirname "$0")/.." && pwd)"
 sdk="${RENPY_SDK:?RENPY_SDK에 렌파이 SDK 폴더를 적어 주세요}"

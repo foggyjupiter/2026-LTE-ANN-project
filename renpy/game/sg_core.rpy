@@ -419,7 +419,7 @@ init -5 python:
                 "bad": gui.sg_blue, "worst": "#6a5a9c",
             }.get(band_id, "#7c86ad"),
             "title": title,
-            "title_size": sg_fit_size(title, "sg_end_title", 660, 48, (36, 32, 28, 24, 20)),
+            "title_size": sg_fit_size(title, "sg_end_title", 570, 48, (36, 32, 28, 24, 20)),
             "epilogue": epilogue,
             "epilogue_size": sg_fit_size(epilogue, "sg_end_text", 660, 112, (20, 18, 16, 14)),
             "nickname": sg_esc(sg_str(ending.get("nickname")).strip()),

@@ -97,6 +97,7 @@ class _Entry:
         self.lock = threading.Lock()        # 같은 판의 요청이 겹치면 차례로 처리한다
         self.last_seen = time.monotonic()   # 마지막 요청이 온 때
         self.finished = None                # finish가 끝나면 {"ending": ..., "result": ...}
+        self.last_reply = None              # (보낸 글, 턴 번호, 돌려준 턴). 같은 답을 다시 보냈을 때 쓴다
 
 
 class _App:
@@ -144,14 +145,23 @@ class _App:
         text = body.get("text")
         if not isinstance(text, str):
             raise _ApiError(400, "text에 보낼 글을 문자열로 적어 주세요.")
+        expected = body.get("turn")
         entry = self._find(session_id)
         with entry.lock:
+            # 화면이 시간 초과로 답을 못 받고 "다시 시도"로 같은 답을 또 보낸 경우: 이미 처리했으면
+            # 그때의 턴을 그대로 돌려준다. 같은 말이 두 번 들어가 턴이 하나 더 지나가지 않게 한다.
+            # 턴 번호(turn)를 보내는 화면(Ren'Py)에만 해당한다. 브라우저 화면은 보내지 않는다
+            last = entry.last_reply
+            if (last is not None and isinstance(expected, int) and not isinstance(expected, bool)
+                    and (last[0], last[1]) == (text, expected)):
+                return last[2]
             try:
                 turn = entry.session.reply(text)
             except ValueError:
                 raise _ApiError(400, "빈 글은 보낼 수 없습니다.") from None
             except RuntimeError:
                 raise _ApiError(409, "이 판은 더 답을 받지 않습니다. 엔딩을 보러 가세요.") from None
+            entry.last_reply = (text, turn["turn"], turn)
         self._report_model_call()
         return turn
 

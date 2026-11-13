@@ -80,7 +80,9 @@ label sg_listen:
 label sg_send:
 
     show screen sg_wait_reply(sg_answer[1])
-    $ sg_result = sg_request(sg_session_path("reply"), { "text": sg_answer[1] }, check=sg_is_turn, min_wait=sg_min_wait)
+    ## turn: 이 답으로 받을 턴의 번호. 시간 초과 뒤 "다시 시도"로 같은 답을 또 보내도, 서버가 이미 처리한
+    ## 답이면 같은 턴을 다시 돌려준다. 같은 말이 두 번 들어가지 않는다
+    $ sg_result = sg_request(sg_session_path("reply"), { "text": sg_answer[1], "turn": sg_turn_no + 1 }, check=sg_is_turn, min_wait=sg_min_wait)
     hide screen sg_wait_reply
 
     if sg_result.ok:

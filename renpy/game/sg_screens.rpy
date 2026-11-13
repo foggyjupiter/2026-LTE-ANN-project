@@ -572,11 +572,12 @@ style sg_end_band:
     xalign 0.5
     yalign 0.5
 
+## 제목은 오른쪽 위의 등급 도장(x 1124부터)에 가리지 않게 570까지만 쓴다
 style sg_end_title:
     font gui.name_text_font
     size 36
     color gui.sg_plum
-    xsize 660
+    xsize 570
 
 style sg_end_text:
     font gui.interface_text_font
@@ -855,8 +856,9 @@ screen sg_talk(v, first):
 
         add "images/ui/gal_cloud_tail.png" xpos 326 ypos 176 at sg_rise(0.25)
 
-    ## 호감도 변화: 게이지 아래에서 하트가 터진다
-    if talking and v["popup"]:
+    ## 호감도 변화: 게이지 아래에서 하트가 터진다. 선택지가 뜨면 치운다.
+    ## 선택지는 오른쪽에 뜨므로 팝업의 사유와 알림 칸이 첫 선택지와 겹쳤다. 팝업은 대사 단계에서 이미 보였다
+    if talking and stage != "choices" and v["popup"]:
         $ kind, label = sg_popup_kind(v["popup"])
 
         vbox:

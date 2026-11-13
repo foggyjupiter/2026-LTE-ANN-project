@@ -269,6 +269,33 @@ class FullGameTest(ServerCase):
         self.assertEqual(self.reply(second).json()["turn"], 2)  # 옆 판이 끝나도 이어진다
 
 
+class RetryTest(ServerCase):
+    """화면이 시간 초과로 답을 못 받고 같은 답을 다시 보내도 턴이 하나 더 지나가지 않는다."""
+
+    def send(self, sid, text, turn):
+        return self.post(f"/api/session/{sid}/reply", {"text": text, "turn": turn})
+
+    def test_same_answer_with_same_turn_is_answered_once(self):
+        sid, _ = self.new_game()
+        first = self.send(sid, "안녕, 반가워", 1)
+        again = self.send(sid, "안녕, 반가워", 1)
+        self.assertEqual((first.status, again.status), (200, 200))
+        self.assertEqual(again.json(), first.json())
+        self.assertEqual(again.json()["turn"], 1)
+        self.assertEqual(self.send(sid, "안녕, 반가워", 2).json()["turn"], 2)  # 다음 턴의 같은 말은 새 답이다
+
+    def test_without_turn_number_every_request_is_a_new_answer(self):
+        # 브라우저 화면은 턴 번호를 보내지 않는다. 예전처럼 동작한다
+        sid, _ = self.new_game()
+        self.assertEqual(self.reply(sid).json()["turn"], 1)
+        self.assertEqual(self.reply(sid).json()["turn"], 2)
+
+    def test_different_text_is_not_a_retry(self):
+        sid, _ = self.new_game()
+        self.send(sid, "하나", 1)
+        self.assertEqual(self.send(sid, "둘", 1).json()["turn"], 2)
+
+
 class ErrorTest(ServerCase):
     def test_unknown_character_is_404(self):
         for name in ("nobody", "", "../banned", "HARU"):
