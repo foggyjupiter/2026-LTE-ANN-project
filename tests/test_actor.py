@@ -858,6 +858,36 @@ class VarietyTest(unittest.TestCase):
         self.assertTrue(actor.grabs_protagonist(hands))
         self.assertFalse(actor.grabs_protagonist(handle))  # 문 손잡이는 괜찮다
 
+    def test_plain_narration(self):
+        self.assertEqual(actor.plain_narration("젬마가 고개를 숙였습니다."), "젬마가 고개를 숙였다.")
+        self.assertEqual(actor.plain_narration("비가 오고 있습니다"), "비가 오고 있다")
+        self.assertEqual(actor.plain_narration("소라가 웃었다."), "소라가 웃었다.")
+        self.assertEqual(actor.plain_narration(""), "")
+
+    def test_repeated_stock_phrase_is_rewritten(self):
+        reply = parse_reply(raw_reply(say="가슴이 뛰어.", inner="왜 이러지", narration=""), FX)
+        used = (("가슴이 뛴다", 1),)
+        self.assertEqual(actor.repeated_phrases(reply, dict(used)), ["가슴이 뛴다"])
+        problem = actor.review_reply(reply, sample_character(), used_phrases=used)
+        self.assertIn("이미 쓴 표현(가슴이 뛴다)", problem)
+        self.assertIsNone(actor.review_reply(reply, sample_character()))  # 처음 쓰는 것은 괜찮다
+
+    def test_tomorrow_after_two_is_rewritten_except_finale(self):
+        reply = parse_reply(raw_reply(say="내일 또 보자.", inner="딴생각", narration=""), FX)
+        self.assertIn("내일 이야기를 이미 2번", actor.review_reply(reply, sample_character(), tomorrow=2))
+        self.assertIsNone(actor.review_reply(reply, sample_character(), tomorrow=2, finale=True))
+        self.assertIsNone(actor.review_reply(reply, sample_character(), tomorrow=1))
+
+    def test_scene_section_names_place_and_events(self):
+        system = build(place="도서관", events_so_far=("답 3 소나기와 우산 하나",))[0]["content"]
+        self.assertIn("[지금 장면]", system)
+        self.assertIn("- 장소: 도서관.", system)
+        self.assertIn("이 판에서 이미 있었던 일: 답 3 소나기와 우산 하나", system)
+        self.assertLess(system.index("[연기 규칙]"), system.index("[지금 장면]"))
+        self.assertLess(system.index("[지금 장면]"), system.index("[출력 형식]"))
+        self.assertNotIn("[지금 장면]", build(place="도서관", opening=True)[0]["content"])
+        self.assertNotIn("[지금 장면]", build()[0]["content"])
+
     def test_problems_are_joined_into_one_rewrite(self):
         reply = parse_reply(raw_reply(narration="줌인.", say="AI가 뭔데?"), FX)
         problem = actor.review_reply(reply, sample_character())

@@ -477,6 +477,23 @@ class FaceTest(unittest.TestCase):
         # 기록에도 바뀐 표정이 남는다. 다음 답의 지시문이 앞 표정을 그대로 알려 준다
         self.assertEqual(json.loads(session.history[-1]["content"])["face"], "smile")
 
+    def test_blush_is_limited_per_game(self):
+        # blush, blush, (smile), blush, blush, (smile) ... 한 판에 BLUSH_LIMIT번까지만
+        llm = ScriptedLlm(default={"face": "blush"})
+        outs = play(Session("gemma", llm=llm))
+        self.assertEqual([o["face"] for o in outs].count("blush"), director.BLUSH_LIMIT)
+
+    def test_scene_place_and_events_reach_later_prompts(self):
+        llm = ScriptedLlm(turns={2: {"narration": "고개를 숙였습니다."}})
+        session = Session("gemma", llm=llm, rng=random.Random(5))
+        outs = play(session, count=4)
+        place = outs[0]["place"]
+        self.assertIn("- 장소: " + place + ".", llm.system_of(1))
+        event = [k for k in [llm.system_of(3)] if "사건 씨앗" in k]
+        self.assertTrue(event)
+        self.assertIn("이 판에서 이미 있었던 일: 답 3 ", llm.system_of(4))
+        self.assertEqual(outs[2]["narration"], "고개를 숙였다.")  # 지문 말투를 맞춘다
+
     def test_fallback_does_not_count(self):
         llm = ScriptedLlm(turns={0: {"face": "blush"}, 1: {"face": "blush"}, 2: AllProvidersDown(), 3: {"face": "blush"}})
         outs = play(Session("gemma", llm=llm), count=3)

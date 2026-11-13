@@ -15,6 +15,7 @@ START_SCORE = 50
 # delta 1칸에 움직이는 점수. 한 판이 답 7번일 때는 7이었다. 10번으로 늘리면서 5로 줄여
 # 한 판에 움직일 수 있는 폭(답 수 x 1칸)과 등급에 닿는 어려움을 예전과 비슷하게 맞췄다
 STEP = 5
+BLUSH_LIMIT = 4  # 한 판에 붉어진 얼굴(blush)을 이만큼까지만 낸다. 그 뒤는 smile
 
 
 def band_of(score: int) -> str:
@@ -58,6 +59,8 @@ class Session:
         self._fallback_count = 0
         self._inners = []        # 속마음 전부 (등장 포함)
         self._faces = []         # 화면에 낸 표정 전부 (등장 포함, 대체 대사 제외)
+        self._place = ""         # 등장 장소. 판 내내 그곳이다
+        self._events = []        # 지금까지 일어난 사건 ("답 3 소나기와 우산 하나")
         self._best = None        # (delta 절댓값, 속마음)
         self._ending = None
         self._finished_at = None
@@ -165,12 +168,16 @@ class Session:
             opening=opening,
             finale=finale,
             extra="" if opening else self.gimmick.extra_instruction(list(self.past_inputs)),
+            place=self._place,
+            events_so_far=tuple(self._events),
         )
         fx_names = set(self.fx["light"]) | set(self.fx["heavy"])
         event_seed = seed if seed_kind == "event" else None
+        used, tomorrow = actor._used_phrases(self.history)
         reply = actor.ask_turn(self.llm, messages, fx_names,
                                review=lambda r: actor.review_reply(r, self.character, banned=self.banned,
-                                                                   event_seed=event_seed))
+                                                                   event_seed=event_seed, used_phrases=used,
+                                                                   tomorrow=tomorrow, finale=finale))
 
         # 모델이 답을 못 줬거나, 금지어가 걸리거나, 고쳐 쓰게 했는데도 캐릭터가 모르는 말이
         # 남았으면 대체 대사로 바꾼다
@@ -183,8 +190,10 @@ class Session:
             # 모델이 지시문을 "주인공"이라는 말 그대로 옮겨 쓸 때가 있다. 이야기 속 이름으로 바꾼다
             for name in ("narration", "say", "inner", "reason"):
                 setattr(reply, name, getattr(reply, name).replace("주인공", "전학생"))
+            reply.narration = actor.plain_narration(reply.narration)
             # 붉어진 얼굴이 세 번 연달아 나오면 웃는 얼굴로 바꾼다. 실제 모델은 답의 3분의 2를 blush로 냈다
-            if reply.face == "blush" and self._faces[-2:] == ["blush", "blush"]:
+            if reply.face == "blush" and (self._faces[-2:] == ["blush", "blush"]
+                                          or self._faces.count("blush") >= BLUSH_LIMIT):
                 reply.face = "smile"
             self._faces.append(reply.face)
             # 설정을 버리라는 입력에는 점수를 올리지 않는다 (연기 규칙 7). 모델이 올려도 여기서 내린다
@@ -235,6 +244,11 @@ class Session:
             shown_choices = list(self.schedule.get("default_choices") or [])
 
         self.history.append({"role": "assistant", "content": json.dumps(eight, ensure_ascii=False)})
+        # 지금 장면: 등장 장소와 실제로 일어난 사건을 적어 두고 다음 답들의 지시문에 알려 준다
+        if opening and seed_kind == "entrance" and seed:
+            self._place = seed
+        if seed_kind == "event" and seed and not fallback:
+            self._events.append(f"답 {self.turn} {seed}")
         self._inners.append(eight["inner"])
         # 명대사 후보: delta 절댓값이 가장 큰 답. 같으면 뒤쪽. 대체 대사는 속마음이 없어서 뺀다
         if not opening and not fallback and (self._best is None or abs(delta) >= self._best[0]):
