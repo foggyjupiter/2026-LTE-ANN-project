@@ -79,7 +79,7 @@ SLOW_COOLDOWN_SEC = 12   # 시간 초과와 연결 실패: 같은 턴에 또 기
 BUSY_COOLDOWN_MAX_SEC = 120
 RETRY_AFTER_MAX_SEC = 600  # 서버가 알려 준 대기 시간을 믿는 상한
 
-_blocked_until = {}   # 제공자 이름 -> 다시 써도 되는 시각
+_blocked_until = {}   # 키 자리 이름(_slot) -> 다시 써도 되는 시각
 _busy_streak = {}     # 제공자 이름 -> 과부하나 시간 초과가 연달아 난 횟수
 _no_json_mode = set()  # JSON 강제 옵션을 거부한 제공자 이름
 stats = {"calls": 0, "failures": 0, "last_provider": None, "last_sec": None}
@@ -100,6 +100,25 @@ def load_dotenv(path=".env"):
                 continue
             key, value = line.split("=", 1)
             os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+def _keys(provider):
+    """제공자의 키 목록. 환경변수에 쉼표로 이어 적으면 여러 개다 (GEMINI_API_KEY=키1,키2).
+
+    한도(429)는 키가 속한 프로젝트마다 따로 잡히므로, 한도가 찬 키는 건너뛰고 다음 키를 쓴다.
+    같은 프로젝트에서 만든 키끼리는 한도를 나눠 쓰니 여러 개 적어도 소용이 없다.
+    """
+    return [k.strip() for k in os.environ.get(provider["key_env"], "").split(",") if k.strip()]
+
+
+def _slot(name, index):
+    """키마다 쉬는 시간을 따로 적어 두는 이름. 첫 키는 제공자 이름 그대로, 다음부터 "이름#2"."""
+    return name if index == 0 else f"{name}#{index + 1}"
+
+
+def _slots(provider):
+    """[(키 자리 이름, 키)]"""
+    return [(_slot(provider["name"], i), key) for i, key in enumerate(_keys(provider))]
 
 
 def _post(provider, key, messages, temperature, json_mode, timeout=None):
@@ -161,16 +180,23 @@ def _rest(name, seconds):
     _blocked_until[name] = time.time() + seconds
 
 
-def _rest_busy(name, base):
-    """과부하나 시간 초과: 연달아 날수록 오래 쉬게 둔다."""
+def _rest_busy(provider, base):
+    """과부하나 시간 초과: 연달아 날수록 오래 쉬게 둔다.
+
+    모델 쪽 사정이라 키를 바꿔도 소용없다. 그 제공자의 키를 전부 쉬게 둔다.
+    """
+    name = provider["name"]
     streak = _busy_streak.get(name, 0) + 1
     _busy_streak[name] = streak
-    _rest(name, min(base * 2 ** (streak - 1), BUSY_COOLDOWN_MAX_SEC))
+    seconds = min(base * 2 ** (streak - 1), BUSY_COOLDOWN_MAX_SEC)
+    for slot in [slot for slot, _ in _slots(provider)] or [name]:
+        _rest(slot, seconds)
 
 
-def _try_provider(p, key, messages, temperature, json_mode, timeout):
-    """제공자 하나에 요청한다. (답 문자열 또는 None, 실패 사유 또는 None)"""
+def _try_provider(p, key, messages, temperature, json_mode, timeout, slot=None):
+    """제공자 하나에 키 하나로 요청한다. (답 문자열 또는 None, 실패 사유 또는 None)"""
     name = p["name"]
+    slot = slot or name
     use_json = json_mode and name not in _no_json_mode
     try:
         try:
@@ -185,23 +211,23 @@ def _try_provider(p, key, messages, temperature, json_mode, timeout):
         if text and text.strip():
             _busy_streak.pop(name, None)
             return text.strip(), None
-        print(f"[{name}] 빈 응답")
+        print(f"[{slot}] 빈 응답")
         return None, "빈 응답"
     except urllib.error.HTTPError as e:
         detail = _error_detail(e, key)
         if e.code == 429:
-            _rest(name, _retry_after(e) or COOLDOWN_SEC)
+            _rest(slot, _retry_after(e) or COOLDOWN_SEC)  # 이 키의 한도만 찼다. 다른 키는 쓸 수 있다
         elif e.code >= 500:
-            _rest_busy(name, BUSY_COOLDOWN_SEC)
+            _rest_busy(p, BUSY_COOLDOWN_SEC)
         # 400, 401, 403, 404는 키나 모델명이 틀렸다는 뜻이니 리허설 때 이 로그를 확인할 것
-        print(f"[{name}] HTTP {e.code}" + (f" {detail}" if detail else ""))
+        print(f"[{slot}] HTTP {e.code}" + (f" {detail}" if detail else ""))
         return None, f"HTTP {e.code}" + (f" {detail}" if detail else "")
     except Exception as e:  # 시간 초과, 인터넷 끊김, 응답 형식 이상
-        _rest_busy(name, SLOW_COOLDOWN_SEC)
+        _rest_busy(p, SLOW_COOLDOWN_SEC)
         reason = f"{type(e).__name__}: {e}"
         if key:
             reason = reason.replace(key, "***")
-        print(f"[{name}] {reason}")
+        print(f"[{slot}] {reason}")
         return None, reason
 
 
@@ -214,31 +240,31 @@ def call_llm(messages, temperature=0.9, json_mode=False, trace=None):
     키와 요청 헤더는 담지 않는다.
     """
     deadline = time.monotonic() + TURN_BUDGET_SEC
-    gave_up = set()  # 이번 호출에서 다시 해 봐야 소용없는 제공자 (키나 모델명 오류, 빈 응답)
+    gave_up = set()  # 이번 호출에서 다시 해 봐야 소용없는 키 자리 (키나 모델명 오류, 빈 응답)
     while True:
         for p in PROVIDERS:
             name = p["name"]
-            key = os.environ.get(p["key_env"], "")
-            if not key or name in gave_up or time.time() < _blocked_until.get(name, 0):
-                continue
-            left = deadline - time.monotonic()
-            if left < MIN_ATTEMPT_SEC:
-                raise AllProvidersDown()
-            stats["calls"] += 1
-            started = time.monotonic()
-            text, error = _try_provider(p, key, messages, temperature, json_mode,
-                                        min(p.get("timeout", TIMEOUT_SEC), left))
-            sec = round(time.monotonic() - started, 2)
-            if trace is not None:
-                trace.append({"provider": name, "model": p["model"],
-                              "ok": text is not None, "sec": sec, "error": error})
-            if text is not None:
-                stats["last_provider"] = name
-                stats["last_sec"] = sec
-                return text
-            stats["failures"] += 1
-            if time.time() >= _blocked_until.get(name, 0):
-                gave_up.add(name)  # 쉬게 둘 실패가 아니었다. 이번 호출에서는 다시 부르지 않는다
+            for slot, key in _slots(p):
+                if slot in gave_up or time.time() < _blocked_until.get(slot, 0):
+                    continue
+                left = deadline - time.monotonic()
+                if left < MIN_ATTEMPT_SEC:
+                    raise AllProvidersDown()
+                stats["calls"] += 1
+                started = time.monotonic()
+                text, error = _try_provider(p, key, messages, temperature, json_mode,
+                                            min(p.get("timeout", TIMEOUT_SEC), left), slot)
+                sec = round(time.monotonic() - started, 2)
+                if trace is not None:
+                    trace.append({"provider": name, "model": p["model"],
+                                  "ok": text is not None, "sec": sec, "error": error})
+                if text is not None:
+                    stats["last_provider"] = name
+                    stats["last_sec"] = sec
+                    return text
+                stats["failures"] += 1
+                if time.time() >= _blocked_until.get(slot, 0):
+                    gave_up.add(slot)  # 쉬게 둘 실패가 아니었다. 이번 호출에서는 다시 부르지 않는다
 
         # 한 바퀴를 다 돌았다. 남은 시간 안에 풀리는 제공자가 있으면 그때까지 기다린다
         wait = seconds_until_ready(skip=gave_up)
@@ -248,14 +274,14 @@ def call_llm(messages, temperature=0.9, json_mode=False, trace=None):
 
 
 def seconds_until_ready(skip=()):
-    """키가 있는 제공자 가운데 가장 먼저 풀리는 것까지 남은 시간(초).
+    """키가 있는 제공자의 키 자리 가운데 가장 먼저 풀리는 것까지 남은 시간(초).
 
-    지금 바로 쓸 수 있는 제공자가 있으면 0, 쓸 제공자가 하나도 없으면 None.
-    skip에 든 이름은 없는 셈 친다.
+    지금 바로 쓸 수 있는 키가 있으면 0, 쓸 키가 하나도 없으면 None.
+    skip에 든 키 자리 이름은 없는 셈 친다.
     """
     waits = [
-        max(0.0, _blocked_until.get(p["name"], 0) - time.time())
-        for p in PROVIDERS if os.environ.get(p["key_env"], "") and p["name"] not in skip
+        max(0.0, _blocked_until.get(slot, 0) - time.time())
+        for p in PROVIDERS for slot, _ in _slots(p) if slot not in skip
     ]
     return min(waits) if waits else None
 

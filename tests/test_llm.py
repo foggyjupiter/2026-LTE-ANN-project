@@ -346,6 +346,80 @@ class CallLlmTest(LlmTestCase):
         self.assertLess(len(line), 400)
 
 
+class SpareKeysTest(LlmTestCase):
+    """GEMINI_API_KEY=키1,키2 처럼 예비 키를 여러 개 적었을 때."""
+
+    def setUp(self):
+        super().setUp()
+        env = mock.patch.dict(os.environ, {"GEMINI_API_KEY": " a1, ,a2 ,", "GROQ_API_KEY": ""})
+        env.start()
+        self.addCleanup(env.stop)
+        self.keys = []
+
+    def patch_post_by_key(self, fn):
+        def post(p, key, *a):
+            self.keys.append((p["name"], key))
+            return fn(p, key)
+        self.patch_post(post)
+
+    def test_keys_are_split_and_blanks_dropped(self):
+        self.assertEqual(llm._keys(llm.PROVIDERS[0]), ["a1", "a2"])
+        self.assertEqual([slot for slot, _ in llm._slots(llm.PROVIDERS[0])], [FIRST, FIRST + "#2"])
+
+    def test_429_moves_to_the_next_key_of_the_same_model(self):
+        def post(p, key):
+            if key == "a1":
+                raise http_error(429)
+            return "답"
+        self.patch_post_by_key(post)
+        self.assertEqual(llm.call_llm([]), "답")
+        self.assertEqual(self.keys, [(FIRST, "a1"), (FIRST, "a2")])
+        self.assertEqual(llm._blocked_until[FIRST], 1000.0 + llm.COOLDOWN_SEC)
+        self.assertNotIn(FIRST + "#2", llm._blocked_until)
+        self.keys.clear()
+        llm.call_llm([])
+        self.assertEqual(self.keys, [(FIRST, "a2")])  # 한도가 찬 키는 건너뛴다
+
+    def test_503_rests_every_key_of_that_model(self):
+        def post(p, key):
+            if p["name"] == FIRST:
+                raise http_error(503)
+            return "답"
+        self.patch_post_by_key(post)
+        self.assertEqual(llm.call_llm([]), "답")
+        # 과부하는 모델 사정이라 같은 모델의 다른 키로 다시 두드리지 않는다
+        self.assertEqual(self.keys, [(FIRST, "a1"), (SECOND, "a1")])
+        self.assertEqual(llm._blocked_until[FIRST], llm._blocked_until[FIRST + "#2"])
+
+    def test_wrong_key_does_not_stop_the_other_key(self):
+        def post(p, key):
+            if key == "a1":
+                raise http_error(401)
+            return "답"
+        self.patch_post_by_key(post)
+        self.assertEqual(llm.call_llm([]), "답")
+        self.assertEqual(self.keys, [(FIRST, "a1"), (FIRST, "a2")])
+
+    def test_every_key_out_of_quota_raises(self):
+        def post(p, key):
+            raise http_error(429)
+        self.patch_post_by_key(post)
+        with self.assertRaises(llm.AllProvidersDown):
+            llm.call_llm([])
+        self.assertEqual(len(self.keys), 4)  # 모델 둘에 키 둘씩, 한 번씩만
+        self.assertEqual(llm.seconds_until_ready(), llm.COOLDOWN_SEC)
+
+    def test_key_never_appears_in_the_log(self):
+        def post(p, key):
+            raise http_error(403, json.dumps({"error": {"message": f"bad key {key}"}}).encode())
+        self.patch_post_by_key(post)
+        with self.assertRaises(llm.AllProvidersDown):
+            llm.call_llm([])
+        self.assertNotIn("a1", self.printed.getvalue())
+        self.assertNotIn("a2", self.printed.getvalue())
+        self.assertIn(FIRST + "#2", self.printed.getvalue())
+
+
 class PostTest(LlmTestCase):
     """요청 본문에 무엇이 실리는지."""
 
