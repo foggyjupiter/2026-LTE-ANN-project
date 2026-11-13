@@ -856,6 +856,8 @@ class VarietyTest(unittest.TestCase):
         hands = parse_reply(raw_reply(narration="", say="내일 같이 손잡고 갈까?", inner="딴생각"), FX)
         handle = parse_reply(raw_reply(narration="노바가 문 손잡이를 돌린다.", say="응.", inner="딴생각"), FX)
         self.assertTrue(actor.grabs_protagonist(hands))
+        tips = parse_reply(raw_reply(narration="", say="손끝 조금 잡아 봐도 될까아", inner="딴생각"), FX)
+        self.assertTrue(actor.grabs_protagonist(tips))
         self.assertFalse(actor.grabs_protagonist(handle))  # 문 손잡이는 괜찮다
 
     def test_plain_narration(self):

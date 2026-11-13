@@ -746,7 +746,8 @@ _GRAB_RE = re.compile(r"전학생(의|에게|을|를)\s?(\S+\s){0,3}?\S*(잡|쥐
 
 
 # 손잡자는 말. 실전 기록: 노바의 "내일 급식실까지 같이 손잡고 갈까?". "손잡이"는 문고리라 뺀다
-_HOLD_HANDS_RE = re.compile(r"손(을\s?)?잡(?!이)")
+# 손끝, 손목, 손가락을 잡자는 말도 잡는다(실전 기록: 소라의 "손끝 조금 잡아 봐도 될까아")
+_HOLD_HANDS_RE = re.compile(r"손(끝|목|가락)?(을|를)?\s?(\S{1,3}\s)?잡(?!이)")
 
 
 def grabs_protagonist(reply: Reply) -> bool:
