@@ -26,6 +26,11 @@ testcase sg_flow:
     pause 0.8
     screenshot "flow_01_select.png"
 
+    ## 카드에 마우스를 올리면 떠오르며 빛난다
+    move "신하루"
+    pause 0.5
+    screenshot "flow_01b_card_hover.png"
+
     click "기울희"
     pause until screen "sg_talk"
     pause 0.8
@@ -41,6 +46,11 @@ testcase sg_flow:
     pause until id "sg_input"
     pause 0.6
     screenshot "flow_04_choices.png"
+
+    ## 선택지에 마우스를 올리면 빛나고 살짝 커진다
+    move "잘 모르겠는데"
+    pause 0.5
+    screenshot "flow_04b_choice_hover.png"
 
     ## 답 1: 선택지
     click "좋아, 더 말해줘"

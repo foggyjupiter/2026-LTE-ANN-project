@@ -57,14 +57,15 @@ init -3 python:
         Jua에는 자주 쓰는 한글(KS X 1001의 2,350자)과 영문, 숫자만 있다.
         """
         for ch in str(text):
-            if " " <= ch < "\x7f":
+            if " " <= ch < "\x7f" and ch != "`":
                 continue
-            if "가" <= ch <= "힣":
-                try:
-                    ch.encode("euc_kr")
+            # 파이썬의 euc_kr 은 2,350자 밖의 한글도 여덟 바이트로 풀어서 바꿔 준다.
+            # 두 바이트로 바뀌는 글자만 KS X 1001 에 있는 글자다.
+            try:
+                if "가" <= ch <= "힣" and len(ch.encode("euc_kr")) == 2:
                     continue
-                except UnicodeError:
-                    return gui.name_text_font
+            except (LookupError, UnicodeError):
+                pass
             return gui.name_text_font
         return gui.sg_cute_font
 
@@ -819,7 +820,7 @@ screen sg_talk(v, first):
         vbox:
             xalign 1.0
             xoffset -24
-            ypos 70
+            ypos 76
             spacing 2
 
             fixed:
