@@ -157,7 +157,7 @@ testsuite sg_gimmicks:
         screenshot "gimmick_gemma_highlight.png"
         run Jump("sg_select")
 
-    ## 소라: 가려진 채 들린 내 말
+    ## 소라: 장치가 없다. 내 말이 가려지지 않고 "들린 말" 단계 없이 바로 지문으로 간다
     testcase sora:
         pause until screen "sg_select"
         click "소라"
@@ -165,10 +165,8 @@ testsuite sg_gimmicks:
         click id "sg_advance" until id "sg_input"
         click "좋아, 더 말해줘"
         pause until eval (sg_turn_no == 1)
-        pause 0.8
-        screenshot "gimmick_sora_heard.png"
-        click id "sg_advance"
         pause 0.5
+        assert eval (sg_view["stages"][0] != "heard")
         click id "sg_advance"
         pause 1.8
         screenshot "gimmick_sora_say.png"

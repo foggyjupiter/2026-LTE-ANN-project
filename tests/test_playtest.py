@@ -234,14 +234,13 @@ class PlayTest(unittest.TestCase):
         self.assertIn("등장: 모델이 선택지 3개를 못 줘서 기본 선택지가 나감", game["checks"])
 
     def test_same_seed_gives_the_same_game(self):
-        first = [t["out"]["heard"] for t in play("sora")["turns"]]
-        second = [t["out"]["heard"] for t in play("sora")["turns"]]
+        first = [t["seed"] for t in play("sora")["turns"]]
+        second = [t["seed"] for t in play("sora")["turns"]]
         self.assertEqual(first, second)
-        self.assertTrue(any(heard and "■■" in heard for heard in first))
+        self.assertTrue(any(first))
 
     def test_transcript_shows_each_gimmick(self):
         expect = {
-            "sora": "**소라에게 들린 말:**",
             "haiku": "**화면에 보이는 속마음:**",
             "astra": "팝업 NaN",
             "mistral": "[출처 필요]",

@@ -12,7 +12,7 @@ CHARACTER_IDS = ["astra", "gemma", "haiku", "mistral", "nova", "sora"]
 GIMMICKS = {
     "astra": "exploding_popup",
     "gemma": "quote_memory",
-    "sora": "dropout",
+    "sora": "none",  # 들린 말 가리기(dropout)를 뺐다
     "nova": "relu",
     "mistral": "citation_needed",
     "haiku": "blackbox",

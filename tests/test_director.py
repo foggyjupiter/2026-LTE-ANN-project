@@ -549,16 +549,14 @@ class GimmickTest(unittest.TestCase):
         out = session.reply("좋아")
         self.assertEqual((out["delta"], out["score"], out["notes"]), (1, 50 + STEP, []))  # 문턱 1을 넘은 만큼
 
-    def test_sora_hears_masked_words(self):
+    def test_sora_hears_every_word(self):
+        # 2026-11-13에 소라의 들린 말 가리기(■■)를 뺐다. 참가자의 말이 그대로 간다
         text = "하나 둘 셋 넷 다섯 여섯 일곱 여덟 아홉 열"
         session = Session("sora", llm=ScriptedLlm(), rng=random.Random(3))
         session.start()
         out = session.reply(text)
-        sent = session.history[2]["content"]
-        self.assertIn("■■", sent)
-        self.assertEqual(out["heard"], sent)
-        self.assertEqual(sent.split().count("■■"), 3)
-        self.assertEqual(session.past_inputs, [text])  # 참가자가 친 원문은 그대로 남는다
+        self.assertEqual(session.history[2]["content"], text)
+        self.assertIsNone(out["heard"])
 
     def test_other_characters_hear_nothing_special(self):
         session = Session("astra", llm=ScriptedLlm())
