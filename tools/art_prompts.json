@@ -1,0 +1,143 @@
+{
+  "_설명": "make_art.py가 읽는 그림 요청문. 그림이 마음에 안 들면 이 파일의 글만 고치고 다시 실행한다. 요청문은 영어로 쓴다.",
+
+  "sprite": {
+    "width": 768,
+    "height": 1152,
+    "aspect": "2:3",
+    "style": "Clean cel-shaded anime illustration, a character sprite for a modern visual novel game. Crisp line art, flat colors with soft shading, bright cheerful palette.",
+    "framing": "One character only, waist-up portrait, centered, facing the viewer. The whole head and all of the hair are inside the frame, with empty space above the head.",
+    "safety": "A high school student in a modest, fully covering school outfit. Wholesome, all-ages.",
+    "uniform": "School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.",
+    "background": "The background is one flat, uniform, {key} color filling the whole frame. No gradient, no shadow, no floor, no objects, no text, no border.",
+    "variant": "Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression."
+  },
+
+  "keys": {
+    "green": {"rgb": [0, 255, 0], "words": "pure bright green (#00FF00) chroma key"},
+    "magenta": {"rgb": [255, 0, 255], "words": "pure bright magenta (#FF00FF) chroma key"}
+  },
+
+  "cut": {
+    "low": 40,
+    "high": 0.75,
+    "normalize": true,
+    "top_margin": 0.04,
+    "max_scale": 1.5
+  },
+
+  "reference": {
+    "max_side": 512
+  },
+
+  "faces": {
+    "neutral": "calm default expression, mouth closed",
+    "smile": "a bright, genuine smile with gently curved eyes",
+    "blush": "flustered and embarrassed, cheeks clearly blushing red, eyes looking away, small wavering mouth",
+    "pout": "sulking, cheeks puffed out, eyebrows drawn together, mouth in a small frown",
+    "shock": "comically shocked, eyes wide open, mouth open in surprise",
+    "dark": "comically ominous: the upper half of the face is in shadow, dull eyes without highlights, a thin fixed smile"
+  },
+
+  "characters": {
+    "giulhee": {
+      "name": "기울희",
+      "key": "green",
+      "look": "Fiery orange hair fading to red at the tips, tied in a high ponytail that puffs out wider toward the end. Amber eyes, sharply raised eyebrows. A red track jacket with rolled-up sleeves worn over the white school shirt instead of a blazer. A small hairpin shaped like a steeply rising line graph. Arms crossed, head turned slightly away while her eyes glance at the viewer.",
+      "faces": {
+        "neutral": "annoyed, aloof look with raised eyebrows, mouth closed"
+      }
+    },
+    "oeun": {
+      "name": "전외운",
+      "key": "green",
+      "look": "Dark navy-blue hair in two tight, perfectly neat braids. Round glasses. A navy school blazer worn exactly by the rules, buttoned all the way up. She holds a small notebook bristling with yellow and orange sticky notes, and a three-color ballpoint pen.",
+      "faces": {
+        "neutral": "attentive, unblinking stare with a polite small smile"
+      }
+    },
+    "anna": {
+      "name": "안나",
+      "key": "magenta",
+      "look": "Light yellow-green short bob with messy flyaway strands. Sleepy half-closed eyes. A single hair clip on one side only. A cream-colored knit cardigan with one button missing, worn over the white school shirt instead of a blazer. Relaxed posture, head tilted slightly.",
+      "faces": {
+        "neutral": "sleepy, absent-minded look with a faint vacant smile"
+      }
+    },
+    "relu": {
+      "name": "한렐루",
+      "key": "magenta",
+      "look": "Bright yellow hair in a side ponytail. A sunflower-yellow zip-up hoodie worn over the white school shirt instead of a blazer. A small adhesive bandage on one cheek. Energetic posture, leaning slightly toward the viewer.",
+      "faces": {
+        "neutral": "cheerful wide grin, eyes curved from smiling",
+        "smile": "an even bigger beaming smile, eyes closed in happy arcs",
+        "dark": "still smiling brightly, but the eyes are blank and without highlights, a small sweat drop on the temple"
+      }
+    },
+    "haru": {
+      "name": "신하루",
+      "key": "green",
+      "look": "Long wavy purple hair. Eyes with exaggerated star-shaped sparkles. A navy school blazer draped over her shoulders like a cape. A plain white armband on one arm with a single hand-drawn star, no letters. She holds a thick hardcover book. Chin slightly raised, looking down at the viewer.",
+      "faces": {
+        "neutral": "smug, confident smirk",
+        "smile": "a triumphant, self-satisfied grin"
+      }
+    },
+    "boxhyun": {
+      "name": "박스현",
+      "key": "magenta",
+      "look": "Black bob cut with long bangs covering one eye. Gray eyes. A black hoodie with teal drawstrings worn over the school uniform. Headphones resting around her neck. Still, upright posture.",
+      "faces": {
+        "neutral": "completely deadpan, expressionless face, mouth closed",
+        "smile": "almost the same deadpan face, only the corners of the mouth raised very slightly",
+        "blush": "almost the same deadpan face, eyes looking away, a faint blush on the cheeks",
+        "pout": "almost the same deadpan face, eyebrows lowered slightly, eyes narrowed a little",
+        "shock": "almost the same deadpan face, eyebrows raised and the visible eye opened a little wider",
+        "dark": "the same deadpan face with the upper half in shadow, the visible eye dull and without highlights"
+      }
+    }
+  },
+
+  "background": {
+    "width": 1280,
+    "height": 720,
+    "aspect": "16:9",
+    "style": "Anime visual novel background art, detailed painted scenery of a Korean high school. Wide shot at eye level, bright daytime, soft natural light.",
+    "rules": "Empty scene: no people, no characters, no animals. No text, no letters, no signs with writing, no watermark."
+  },
+
+  "backgrounds": {
+    "store_line": {
+      "seed": "매점 줄",
+      "prompt": "The school snack shop at lunch break: a service counter, shelves of bread and drinks, a queue lane marked on the floor."
+    },
+    "library": {
+      "seed": "도서관",
+      "prompt": "A quiet school library: tall wooden bookshelves, reading tables and chairs, afternoon sunlight through large windows."
+    },
+    "rooftop": {
+      "seed": "옥상",
+      "prompt": "The school rooftop: a chain-link fence around the edge, blue sky with white clouds, the city far in the distance."
+    },
+    "corridor": {
+      "seed": "복도 모퉁이",
+      "prompt": "A corner of a school hallway: windows along one side, sliding classroom doors, a polished floor reflecting the light."
+    },
+    "cafeteria": {
+      "seed": "급식실",
+      "prompt": "The school cafeteria: long tables with round stools, a stainless steel serving counter, stacked trays."
+    },
+    "science_lab": {
+      "seed": "과학실",
+      "prompt": "A school science lab: black lab benches with sinks, beakers and flasks, wooden stools, a blank chalkboard."
+    },
+    "field_bench": {
+      "seed": "운동장 벤치",
+      "prompt": "A wooden bench beside the school sports field: a dirt soccer field with goalposts, trees along the fence, late afternoon light."
+    },
+    "front_gate": {
+      "seed": "정문 앞",
+      "prompt": "The front gate of the school: brick gate pillars, a tree-lined path leading to the school building, clear morning light."
+    }
+  }
+}
