@@ -368,3 +368,64 @@ testcase sg_fallback:
     keysym "K_RETURN"
     pause until eval (sg_turn_no == 2)
     exit
+
+
+## 긴 글이 대사창, 풍선, 선택지, 엔딩 카드에서 넘치지 않는지 본다.
+## 모델이 긴 글을 내는 서버로 돌린다.
+testcase sg_long_text:
+    pause until screen "sg_select"
+    click "기울희"
+    pause until screen "sg_talk"
+    pause 2.5
+    screenshot "long_narration.png"
+    click id "sg_advance"
+    pause 0.3
+    click id "sg_advance"
+    pause 0.8
+    screenshot "long_say.png"
+    click id "sg_advance" until id "sg_input"
+    pause 0.5
+    screenshot "long_choices.png"
+    $ sg_test_text("백 자를 꽉 채운 긴 답을 직접 말하기 칸에 넣어 본다. 줄이 바뀌어도 선택지와 대사창을 가리지 않아야 하고, 글자 수 표시도 맞아야 한다. 과연 어디까지 들어갈까 궁금하다 정말로")
+    pause 0.5
+    screenshot "long_typing.png"
+    keysym "K_RETURN"
+    pause 0.25
+    screenshot "long_my_line.png"
+    pause until eval (sg_turn_no == 1)
+    pause 0.5
+    click id "sg_advance"
+    pause 0.3
+    click id "sg_advance"
+    pause 0.8
+    screenshot "long_say_popup.png"
+    click "엔딩 보러 가기"
+    pause until screen "sg_confirm"
+    click "엔딩 보기"
+    pause until screen "sg_ending"
+    pause 1.0
+    screenshot "long_ending.png"
+    exit
+
+
+## 부스용 잠금: 오른쪽 클릭, Esc, 되감기 글쇠를 눌러도 메뉴가 뜨거나 되감기지 않는다.
+testcase sg_locked:
+    pause until screen "sg_select"
+    click button 2 pos (640, 100)
+    keysym "K_ESCAPE"
+    keysym "K_PAGEUP"
+    pause 0.5
+    assert screen "sg_select"
+    click "안나"
+    pause until screen "sg_talk"
+    click id "sg_advance"
+    pause 1.0
+    click button 2 pos (640, 300)
+    keysym "K_ESCAPE"
+    keysym "K_PAGEUP"
+    keysym "K_TAB"
+    pause 0.5
+    assert screen "sg_talk"
+    assert eval (sg_turn_no == 0 and not renpy.get_screen("sg_select"))
+    screenshot "locked_still_talking.png"
+    exit
