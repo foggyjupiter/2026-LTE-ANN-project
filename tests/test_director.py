@@ -318,7 +318,7 @@ class StrengthScoreTest(unittest.TestCase):
 
     def test_strength_multiplies_each_step(self):
         cases = [(1, 5, director.points_for(MISTRAL[1], 5)), (1, 1, director.points_for(MISTRAL[1], 1)),
-                 (2, 1, director.points_for(MISTRAL[2], 1, hit=True)), (2, 5, round(MISTRAL[2] * 1.25, 1)),
+                 (2, 1, director.points_for(MISTRAL[2], 1, hit=True)), (2, 5, round(MISTRAL[2] * 1.1, 1)),
                  (-1, 4, director.points_for(MISTRAL[-1], 4))]
         for delta, strength, points in cases:
             session = Session("mistral", llm=ScriptedLlm(default={"delta": delta, "strength": strength}))
@@ -350,9 +350,9 @@ class StrengthScoreTest(unittest.TestCase):
         self.assertLess(scales[0], 0.5)       # 낱말만 꺼낸 말은 절반도 안 된다
         self.assertGreater(scales[-1], 1.0)   # 숨이 멎을 말은 hit_points보다 크다
         self.assertEqual(director.points_for(-5, 4), -6.0)
-        # 바라던 말은 설렘에 따라 hit_points의 0.4-1.25배다
-        self.assertEqual(director.points_for(8, 5, hit=True), 10.0)
-        self.assertEqual(director.points_for(8, 4, hit=True), 8.0)
+        # 바라던 말은 설렘에 따라 hit_points의 0.4-1.1배다
+        self.assertEqual(director.points_for(8, 5, hit=True), 8.8)
+        self.assertEqual(director.points_for(8, 4, hit=True), 7.2)
         self.assertEqual(director.points_for(5, 1, hit=True), 2.0)
 
     def test_scores_stay_at_one_decimal(self):
