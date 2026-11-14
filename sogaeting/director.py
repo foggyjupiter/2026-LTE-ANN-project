@@ -46,6 +46,9 @@ SHORT_INPUT = 2
 # 점수 사유에서 바람(wish)을 가리키는 말. 날씨의 바람("바람이 불어서")은 건드리지 않는다
 WISH_REASON_RE = re.compile(r"바람(을|대로|에\s?맞|이\s?이루)|wish", re.IGNORECASE)
 BLUSH_LIMIT = 4  # 한 판에 붉어진 얼굴(blush)을 이만큼까지만 낸다. 그 뒤는 smile
+# 지문이나 겉말이 웃음, 붉어짐을 그리고 있는지. 그렇다면 표정 고르기(_balance_face)가 그 표정을 바꾸지 않는다
+SMILE_WORDS_RE = re.compile(r"웃|미소|후훗|싱긋|빙긋|방긋")
+BLUSH_WORDS_RE = re.compile(r"빨개|빨갛|붉어|붉게|붉은|달아오|화끈|홍조")
 # 이야기 모드(실험, 2026-11-14): 이 환경변수가 비어 있지 않고 0이 아니면 답을 길게 쓰고 캐릭터가 이야기를 끌고
 # 가는 진행표(data/schedule_story.json, 답 12번)를 쓴다. 친구의 의견("노잼, Zeta처럼 대화가 길었으면")으로 만든 실험이다
 STORY_ENV = "SOGAETING_STORY"
@@ -301,16 +304,6 @@ class Session:
                 reply.narration = reply.narration.replace(slip, "전학생")
             reply.say = actor.fix_stretched_vowels(reply.say)
             reply.inner = actor.fix_stretched_vowels(reply.inner)
-            # 캐릭터만의 표정은 하나를 한 판에 EXTRA_FACE_LIMIT번까지 낸다. 넘으면 그 자리의 기본 표정으로 바꾼다
-            if reply.face not in actor.FACES and self._faces.count(reply.face) >= actor.EXTRA_FACE_LIMIT:
-                reply.face = actor.face_base(self.character, reply.face)
-            # 붉어진 얼굴이 세 번 연달아 나오면 웃는 얼굴로 바꾼다. 실제 모델은 답의 3분의 2를 blush로 냈다.
-            # blush 자리에 쓰는 캐릭터만의 표정(아스트라의 denial 같은 것)도 blush로 센다
-            bases = [actor.face_base(self.character, f) for f in self._faces]
-            if actor.face_base(self.character, reply.face) == "blush" and (
-                    bases[-2:] == ["blush", "blush"] or bases.count("blush") >= BLUSH_LIMIT):
-                reply.face = "smile"
-            self._faces.append(reply.face)
             # 설정을 버리라는 입력에는 점수를 올리지 않는다 (연기 규칙 7). 모델이 올려도 여기서 내린다
             if not opening and safety.looks_like_override(self.past_inputs[-1]):
                 reply.delta = min(reply.delta, -1)
@@ -332,6 +325,9 @@ class Session:
                 # 바람의 낱말만 짧게 던진 말은 크게 설레게 하지 못한다
                 if reply.delta == 2 and len(re.findall(r"[0-9A-Za-z가-힣]", self.past_inputs[-1])) <= SHORT_HIT_LETTERS:
                     reply.strength = min(reply.strength, SHORT_HIT_STRENGTH_MAX)
+            # 표정은 점수를 다 고친 뒤에 고른다(점수가 그대로인 답을 알아야 한다)
+            reply.face = self._balance_face(reply, opening=opening, finale=finale, event=bool(event_seed))
+            self._faces.append(reply.face)
 
         fx = self._filter_fx(reply.fx, intensity)
 
@@ -416,6 +412,37 @@ class Session:
             # 연출(기호, 움직임)도 이것으로 고른다
             "face_base": actor.face_base(self.character, reply.face),
         }
+
+    def _balance_face(self, reply, *, opening, finale, event):
+        """모델이 고른 표정이 한쪽으로 쏠리지 않게 고친다. 고친 표정을 돌려준다.
+
+        실제 모델 36판(답 373개)에서 웃음 44%, 붉어짐 38%였고 평소 얼굴은 11%였다(2026-11-14).
+        평소 얼굴(neutral)의 그림은 캐릭터마다 그 캐릭터다운 얼굴이다(아스트라는 시큰둥, 노바는 활짝 웃음,
+        미스트랄은 의기양양). 그래서 바꿀 곳은 평소 얼굴로 한다."""
+        face = reply.face
+        # 캐릭터만의 표정은 하나를 한 판에 EXTRA_FACE_LIMIT번까지 낸다. 넘으면 그 자리의 기본 표정으로 바꾼다
+        if face not in actor.FACES and self._faces.count(face) >= actor.EXTRA_FACE_LIMIT:
+            face = actor.face_base(self.character, face)
+        bases = [actor.face_base(self.character, f) for f in self._faces]
+        base = actor.face_base(self.character, face)
+        # 붉어진 얼굴이 세 번 연달아 나오면 웃는 얼굴로 바꾼다. 실제 모델은 답의 3분의 2를 blush로 냈다.
+        # blush 자리에 쓰는 캐릭터만의 표정(아스트라의 denial 같은 것)도 blush로 센다
+        if base == "blush" and (bases[-2:] == ["blush", "blush"] or bases.count("blush") >= BLUSH_LIMIT):
+            face, base = "smile", "smile"
+        # 아래 두 가지는 지문과 겉말이 그 표정을 그리고 있으면 하지 않는다. 글과 그림이 어긋나지 않게 한다.
+        # 실제 모델 기록에서 지문이 웃음이나 붉어짐을 직접 쓴 답은 5-8%였다
+        text = reply.narration + " " + reply.say
+        drawn = (base == "smile" and SMILE_WORDS_RE.search(text)) or (base == "blush" and BLUSH_WORDS_RE.search(text))
+        if not drawn:
+            # 웃는 얼굴(그 자리의 표정 포함)이 세 번 연달아 나오면 평소 얼굴로. 실제 모델 30판에서 27번 있었다
+            if base == "smile" and bases[-2:] == ["smile", "smile"]:
+                return "neutral"
+            # 점수가 그대로인 답의 웃음과 붉어짐은 평소 얼굴로(실제 모델 21답 가운데 12답).
+            # 등장, 결말, 사건이 일어난 답은 그대로 둔다. 사건 때문에 붉어지는 것은 자연스럽다
+            if (reply.delta == 0 and base in ("smile", "blush")
+                    and not opening and not finale and not event):
+                return "neutral"
+        return face
 
     def _pick_seed(self, kind, close=False):
         """아직 안 쓴 씨앗 가운데 하나를 뽑는다. 종류가 없거나 다 썼으면 None.

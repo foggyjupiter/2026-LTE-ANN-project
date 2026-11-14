@@ -807,6 +807,41 @@ class FaceTest(unittest.TestCase):
         self.assertEqual([o["face"] for o in outs], ["blush", "denial", "smile"])
         self.assertEqual(outs[2]["face_base"], "smile")
 
+    def test_third_smile_in_a_row_becomes_neutral(self):
+        # reply_json의 기본 표정은 smile이다. 지문과 겉말에는 웃음을 그리는 말이 없다
+        outs = play(Session("gemma", llm=ScriptedLlm()), count=5)
+        self.assertEqual([o["face"] for o in outs], ["smile", "smile", "neutral", "smile", "smile", "neutral"])
+
+    def test_smile_drawn_in_the_text_is_kept(self):
+        llm = ScriptedLlm(default={"narration": "젬마가 수첩을 안고 작게 웃었다."})
+        outs = play(Session("gemma", llm=llm), count=3)
+        self.assertEqual({o["face"] for o in outs}, {"smile"})
+
+    def test_smile_like_extra_face_counts_as_smile(self):
+        llm = ScriptedLlm(turns={0: {"face": "excited"}, 1: {"face": "smile"}, 2: {"face": "excited"}})
+        outs = play(Session("nova", llm=llm), count=2)
+        self.assertEqual([o["face"] for o in outs], ["excited", "smile", "neutral"])
+
+    def test_unchanged_score_turns_smile_and_blush_into_neutral(self):
+        # 답 1, 2는 사건이 없는 답이다(data/schedule.json)
+        llm = ScriptedLlm(turns={0: {"delta": 0}, 1: {"delta": 0, "face": "smile"}, 2: {"delta": 0, "face": "blush"}})
+        outs = play(Session("gemma", llm=llm), count=2)
+        self.assertEqual(outs[0]["face"], "smile")              # 등장은 그대로 둔다
+        self.assertEqual((outs[1]["face"], outs[2]["face"]), ("neutral", "neutral"))
+
+    def test_unchanged_score_keeps_a_blush_the_text_draws(self):
+        llm = ScriptedLlm(turns={1: {"delta": 0, "face": "blush", "narration": "젬마의 얼굴이 빨개졌다."},
+                                 2: {"delta": 0, "face": "denial"}})
+        outs = play(Session("gemma", llm=llm), count=1)
+        self.assertEqual(outs[1]["face"], "blush")
+        outs = play(Session("astra", llm=ScriptedLlm(turns={1: {"delta": 0, "face": "denial"}})), count=1)
+        self.assertEqual((outs[1]["face"], outs[1]["face_base"]), ("neutral", "neutral"))
+
+    def test_unchanged_score_keeps_the_face_on_event_turns(self):
+        llm = ScriptedLlm(turns={3: {"delta": 0, "face": "blush"}})
+        outs = play(Session("gemma", llm=llm), count=3)
+        self.assertEqual(outs[3]["face"], "blush")               # 답 3은 사건이 일어나는 답이다
+
     def test_recent_faces_keep_extra_faces(self):
         llm = ScriptedLlm(turns={0: {"face": "huff"}, 1: {"face": "huff"}})
         play(Session("astra", llm=llm), count=2)
