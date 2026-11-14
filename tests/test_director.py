@@ -230,6 +230,41 @@ class FlowTest(unittest.TestCase):
             self.assertEqual(set(json.loads(message["content"])), HISTORY_KEYS)
 
 
+class StoryModeTest(unittest.TestCase):
+    """이야기 모드(실험) 진행표와 켜는 법."""
+
+    def test_story_schedule_shape(self):
+        schedule = content.load_schedule("schedule_story")
+        replies = schedule["replies"]
+        self.assertEqual(len(replies), 12)
+        self.assertTrue(replies[-1].get("finale"))
+        self.assertEqual([i for i, r in enumerate(replies, start=1) if r.get("seed") == "event"], [4, 7, 10])
+        for slot in [schedule["opening"]] + replies:
+            self.assertTrue(slot.get("beat"), slot)
+            self.assertIn(slot["intensity"], range(1, 6))
+        self.assertEqual(len(schedule["default_choices"]), 3)
+
+    def test_session_picks_the_schedule(self):
+        self.assertEqual(Session("mistral", llm=ScriptedLlm(), story=True).total_turns, 12)
+        self.assertEqual(Session("mistral", llm=ScriptedLlm(), story=False).total_turns, TOTAL)
+        with mock.patch.dict("os.environ", {director.STORY_ENV: "1"}):
+            self.assertTrue(Session("mistral", llm=ScriptedLlm()).story)
+        with mock.patch.dict("os.environ", {director.STORY_ENV: "0"}):
+            self.assertFalse(Session("mistral", llm=ScriptedLlm()).story)
+
+    def test_story_prompt_carries_the_beat(self):
+        llm = ScriptedLlm()
+        session = Session("mistral", llm=llm, story=True)
+        outs = play(session, count=2)
+        self.assertEqual(len(outs), 3)
+        schedule = content.load_schedule("schedule_story")
+        self.assertIn("이번 답의 이야기 단계: " + schedule["opening"]["beat"], llm.calls[0][0]["content"])
+        self.assertIn("이번 답의 이야기 단계: " + schedule["replies"][1]["beat"], llm.calls[2][0]["content"])
+        normal = ScriptedLlm()
+        play(Session("mistral", llm=normal, story=False), count=1)
+        self.assertNotIn("이야기 단계", normal.calls[1][0]["content"])
+
+
 class StrengthScoreTest(unittest.TestCase):
     """세기(strength)를 곱한 소수 점수. 순위 경쟁에서 같은 점수가 덜 나오게 한다(사용자, 2026-11-14)."""
 

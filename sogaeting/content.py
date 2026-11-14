@@ -70,9 +70,9 @@ def load_fx() -> dict:
     return _read_json(DATA_DIR / "fx.json")
 
 
-def load_schedule() -> dict:
-    """한 판의 진행표. 등장, 답 목록, 강도별 뜻."""
-    return _read_json(DATA_DIR / "schedule.json")
+def load_schedule(name: str = "schedule") -> dict:
+    """한 판의 진행표. 등장, 답 목록, 강도별 뜻. name="schedule_story"는 이야기 모드(실험)의 진행표다."""
+    return _read_json(DATA_DIR / f"{name}.json")
 
 
 def load_banned() -> list[str]:

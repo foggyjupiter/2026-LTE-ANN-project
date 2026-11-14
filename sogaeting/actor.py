@@ -311,6 +311,9 @@ _HISTORY_SECTION = [
     "못 들은 자리를 어떻게 다룰지는 캐릭터 설정을 따른다.",
 ]
 
+# 원래 지문 줄에서 길이를 말하는 앞부분. 이야기 모드는 이 부분만 바꾼다
+_NARRATION_HEAD = "- narration (문자열): 지문. 한 문장 이하. 필요 없으면 빈 문자열로 둔다. 지문에서 상대는 "
+
 _OUTPUT_SECTION = [
     "[출력 형식]",
     "- JSON 객체 한 개만 출력한다. 그 앞뒤에 인사, 설명, 코드 울타리를 붙이지 않는다.",
@@ -365,12 +368,51 @@ _OUTPUT_SECTION = [
 ]
 
 
+# 이야기 모드(실험, 2026-11-14): 답을 길게 쓰고 캐릭터가 이야기를 끌고 간다. 친구의 의견("노잼, Zeta처럼 대화가
+# 길었으면")으로 만든 실험이다. 켜는 법은 director.STORY_ENV. 출력 형식의 길이 줄을 바꾸고 아래 칸을 더한다
+_STORY_NARRATION = (
+    "- narration (문자열): 지문. 2-3문장. 장면이 그려지게 소리, 빛, 거리, 캐릭터의 몸짓을 쓴다. 지문에서 상대는 "
+)
+_STORY_SAY = (
+    "- say (문자열): 겉으로 하는 말. 3-5문장. 짧은 문장 여러 개로 쓴다. 캐릭터 설정에 다른 길이가 적혀 있으면 "
+    "그쪽을 따르고, 못 한 이야기는 지문과 속마음으로 옮긴다. 비우지 않는다."
+)
+_STORY_SECTION = [
+    "[이야기 모드] 캐릭터가 이야기를 끌고 간다.",
+    "- 주인공의 말에 반응하는 것으로 답을 끝내지 않는다. 답마다 캐릭터가 먼저 무언가를 한다: 함께 할 일을 제안한다"
+    "(\"매점 가 볼래?\"), 둘이 다른 곳으로 옮겨 간다, 작은 비밀이나 취향을 털어놓는다, 주인공에게만 할 수 있는 질문을 한다.",
+    "- 겉말의 마지막 문장은 주인공이 받아칠 거리로 끝낸다: 제안, 질문, 방금 생긴 작은 일. 누구에게나 할 수 있는 질문"
+    "(\"뭐 좋아해?\")은 받아칠 거리가 아니다.",
+    "- 앞 답에서 꺼낸 제안, 장소, 비밀을 이어 간다. 한 판이 하나의 이야기로 이어지게 한다. 주인공이 제안을 받아 주면 "
+    "그 일을 실제로 하는 장면으로 넘어가고, 거절하면 서운해하거나 다른 제안을 한다.",
+    "- 지문에서 둘은 함께 다른 곳으로 옮겨 갈 수 있다(학교 안이나 학교 앞). 옮겨 가면 지문에 새 장소를 적는다. "
+    "주인공이 무엇을 했는지는 여전히 지어내지 않는다(\"둘은 매점으로 향했다\"는 괜찮고 \"전학생이 빵을 골랐다\"는 안 된다).",
+]
+
+
+_STORY_RULE_10 = "10. 장소는 지금 둘이 있는 곳이다(처음 만난 곳이거나 함께 옮겨 간 곳). 그곳에 없을 물건을 꺼내지 않는다."
+
+
+def _output_section(story: bool) -> list[str]:
+    """출력 형식. 이야기 모드에서는 지문과 겉말의 길이 줄이 다르다."""
+    if not story:
+        return _OUTPUT_SECTION
+    lines = []
+    for line in _OUTPUT_SECTION:
+        if line.startswith("- narration (문자열):"):
+            line = _STORY_NARRATION + line[len(_NARRATION_HEAD):]
+        elif line.startswith("- say (문자열):"):
+            line = _STORY_SAY
+        lines.append(line)
+    return lines
+
+
 def _turn_system(character: dict, *, band: str, intensity: int, intensity_meaning: str,
                  fx_allowed: list[str], seed: str | None, seed_kind: str | None,
                  opening: bool, finale: bool, extra: str, previous_first: str = "",
                  previous_faces: tuple = (), used_phrases: tuple = (), tomorrow: int = 0,
                  place: str = "", events_so_far: tuple = (), wishes: tuple = (),
-                 wish_streak: int = 0, seed_hint: str = "") -> str:
+                 wish_streak: int = 0, seed_hint: str = "", story: bool = False, beat: str = "") -> str:
     if band not in _BAND_LABELS:
         raise ValueError("band는 low, mid, high 중 하나여야 한다: " + repr(band))
 
@@ -402,12 +444,16 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
             kind = "entrance" if opening else "event"
         sections.append(_seed_section(str(seed), kind, seed_hint))
 
-    sections.append(_RULES_SECTION)
+    # 이야기 모드에서는 둘이 함께 장소를 옮겨 갈 수 있다. 장소를 묶어 두는 연기 규칙 10을 바꾼다
+    sections.append([_STORY_RULE_10 if story and line.startswith("10. ") else line for line in _RULES_SECTION])
+    if story:
+        sections.append(_STORY_SECTION + (["- 이번 답의 이야기 단계: " + beat] if beat else []))
     if place and not opening:
         # 실전 기록: 하굣길 장면에서 "등교 길에 우연히 마주친 것뿐"이라고 했다. 모델이 지금 어디서 무슨 일이
         # 있었는지 잊는다. 매 답 장소와 지금까지 일어난 일을 적어 준다
         scene = ["[지금 장면]",
-                 "- 장소: " + place + ". 둘은 처음부터 이곳에서 만나고 있다. 사건이 있어도 다른 곳으로 옮겨 가지 않는다.",
+                 ("- 처음 만난 곳: " + place + ". 둘이 함께 다른 곳으로 옮겨 갔으면 대화 기록의 지문을 따른다." if story else
+                  "- 장소: " + place + ". 둘은 처음부터 이곳에서 만나고 있다. 사건이 있어도 다른 곳으로 옮겨 가지 않는다."),
                  "- 시간: 오늘. 둘은 오늘 처음 만났고, 오늘 이 자리에서 있었던 일만 안다."]
         if events_so_far:
             scene.append("- 이 판에서 이미 있었던 일: " + ", ".join(events_so_far)
@@ -455,7 +501,7 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
         _TURN_SAFETY_SECTION,
         _HISTORY_SECTION,
         _fx_section(fx_allowed),
-        _OUTPUT_SECTION,
+        _output_section(story),
     ]
 
     if opening:
@@ -685,7 +731,8 @@ def build_turn_messages(character: dict, history: list[dict], *, band: str, inte
                         intensity_meaning: str, fx_allowed: list[str], seed: str | None = None,
                         seed_kind: str | None = None, opening: bool = False,
                         finale: bool = False, extra: str = "", place: str = "",
-                        events_so_far: tuple = (), seed_hint: str = "") -> list[dict]:
+                        events_so_far: tuple = (), seed_hint: str = "", story: bool = False,
+                        beat: str = "") -> list[dict]:
     """배우에게 보낼 메시지 목록을 만든다. `[system] + history`이고 `history`는 고치지 않는다."""
     system = _turn_system(
         character, band=band, intensity=intensity, intensity_meaning=intensity_meaning,
@@ -694,7 +741,7 @@ def build_turn_messages(character: dict, history: list[dict], *, band: str, inte
         previous_faces=_recent_faces(history),
         used_phrases=_used_phrases(history)[0], tomorrow=_used_phrases(history)[1],
         place=place, events_so_far=tuple(events_so_far), wishes=_recent_wishes(history),
-        wish_streak=_wish_streak(history), seed_hint=seed_hint,
+        wish_streak=_wish_streak(history), seed_hint=seed_hint, story=story, beat=beat,
     )
     return [{"role": "system", "content": system}] + [dict(m) for m in history]
 

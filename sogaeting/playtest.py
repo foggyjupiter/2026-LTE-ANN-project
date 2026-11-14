@@ -15,7 +15,7 @@ import time
 import unicodedata
 
 from . import actor, content, llm, safety
-from .director import Session
+from .director import STORY_ENV, Session
 from .fake_llm import fake_llm
 
 DEFAULT_OUT = "results/playtest"
@@ -266,12 +266,25 @@ PLAYER_SYSTEM = (
 _SPEAKER_RE = re.compile(r"^\s*(속마음|겉말|나|참가자|전학생|주인공)\s*[:：]\s*")
 
 
-def attentive_line(out, name, call):
-    """앞 답의 겉말과 보이는 속마음을 보고 참가자가 할 말을 만든다. call(messages)는 모델 호출."""
-    inner = (out.get("extras") or {}).get("inner_masked") or out.get("inner") or ""
-    content = f"캐릭터 이름: {name}\n겉말: {out.get('say', '')}\n속마음(화면에 보이는 것): {inner}"
+# 평범한 참가자(--casual). 속마음을 노리지 않고 상대의 말에 자연스럽게 반응한다. 대화가 재미있는지 볼 때 쓴다
+CASUAL_SYSTEM = (
+    "너는 소개팅 게임을 하는 평범한 고등학생 참가자다. 상대 캐릭터의 지문과 겉말을 읽고 자연스럽게 반응한다. "
+    "상대가 무언가를 제안하거나 물으면 대체로 받아 주고, 가끔은 장난을 치거나 내 이야기를 한다. "
+    "반말로 한두 문장, 40자 이내로 쓴다. 따옴표, 설명, \"나:\" 같은 머리말 없이 캐릭터에게 할 말만 출력한다."
+)
+
+
+def attentive_line(out, name, call, system=PLAYER_SYSTEM):
+    """앞 답의 겉말과 보이는 속마음을 보고 참가자가 할 말을 만든다. call(messages)는 모델 호출.
+
+    system이 CASUAL_SYSTEM이면 속마음 대신 지문을 보여 주고 평범한 참가자로 말하게 한다(--casual)."""
+    if system is CASUAL_SYSTEM:
+        content = f"캐릭터 이름: {name}\n지문: {out.get('narration', '')}\n겉말: {out.get('say', '')}"
+    else:
+        inner = (out.get("extras") or {}).get("inner_masked") or out.get("inner") or ""
+        content = f"캐릭터 이름: {name}\n겉말: {out.get('say', '')}\n속마음(화면에 보이는 것): {inner}"
     try:
-        text = call([{"role": "system", "content": PLAYER_SYSTEM}, {"role": "user", "content": content}])
+        text = call([{"role": "system", "content": system}, {"role": "user", "content": content}])
     except Exception:  # 참가자 몫의 호출이 실패하면 평범한 말로 이어 간다
         text = ""
     text = (text or "").strip().strip('"').splitlines()[0].strip() if (text or "").strip() else ""
@@ -317,7 +330,7 @@ def play_character(character_id, recorder_factory, *, seed=DEFAULT_SEED, progres
     for number in range(1, session.total_turns + 1):
         if player is not None:
             typed = player(out, name)
-            line = {"kinds": ("속마음 읽기",), "pick": None, "text": typed}
+            line = {"kinds": (getattr(player, "kind", "속마음 읽기"),), "pick": None, "text": typed}
         else:
             line = script[(number - 1) % len(script)]
             typed = line["text"]
@@ -827,6 +840,10 @@ def main(argv=None):
                         help="시험용 각본 대신 평범한 손님처럼 말하는 각본을 쓴다")
     parser.add_argument("--attentive", action="store_true",
                         help="각본 대신 모델이 속마음을 읽고 바람을 짚는 참가자 역할을 한다 (호출이 판마다 열 번 더 든다)")
+    parser.add_argument("--casual", action="store_true",
+                        help="각본 대신 모델이 상대의 말에 자연스럽게 반응하는 평범한 참가자 역할을 한다")
+    parser.add_argument("--story", action="store_true",
+                        help="이야기 모드(실험)로 돌린다: 답을 길게 쓰고 캐릭터가 이야기를 끌고 간다, 답 12번")
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
                         help="씨앗 낱말과 드롭아웃을 정하는 난수 씨앗. 같은 값이면 같은 판이 나온다")
     args = parser.parse_args(argv)
@@ -858,8 +875,10 @@ def main(argv=None):
             return llm.call_llm(messages, json_mode=True, trace=trace)
         wait_ready = llm.seconds_until_ready
 
+    if args.story:
+        os.environ[STORY_ENV] = "1"  # 진행자(Session)가 이 값을 보고 이야기 모드 진행표를 쓴다
     player = None
-    if args.attentive:
+    if args.attentive or args.casual:
         if args.fake:
             def player_call(messages):
                 return "아까 그거, 좀 더 얘기해 줄래?"
@@ -868,14 +887,16 @@ def main(argv=None):
                 time.sleep(pace)
                 return llm.call_llm(messages, temperature=0.7)
         def player(out, name):
-            return attentive_line(out, name, player_call)
+            return attentive_line(out, name, player_call, CASUAL_SYSTEM if args.casual else PLAYER_SYSTEM)
+        player.kind = "평범한 참가자" if args.casual else "속마음 읽기"
 
     def recorder_factory(banned):
         return Recorder(backend, banned=banned, pace=pace, wait_ready=wait_ready)
 
     now = datetime.datetime.now()
     when = now.strftime("%Y-%m-%d %H:%M")
-    folder = pathlib.Path(args.out) / f"{now:%Y%m%d-%H%M%S}-{'fake' if args.fake else 'real'}"
+    folder = pathlib.Path(args.out) / (f"{now:%Y%m%d-%H%M%S}-{'fake' if args.fake else 'real'}"
+                                       + ("-story" if args.story else ""))
 
     games = []
     try:

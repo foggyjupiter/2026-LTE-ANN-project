@@ -172,6 +172,36 @@ class StrengthTest(unittest.TestCase):
         self.assertIn("열 칸", actor.REWRITE_TAIL)
 
 
+class StoryModeTest(unittest.TestCase):
+    """이야기 모드(실험): 답을 길게 쓰고 캐릭터가 이야기를 끌고 간다."""
+
+    def system(self, story, beat="", place="옥상"):
+        return actor._turn_system(sample_character(), band="mid", intensity=2, intensity_meaning="",
+                                  fx_allowed=[], seed=None, seed_kind=None, opening=False, finale=False,
+                                  extra="", place=place, story=story, beat=beat)
+
+    def test_story_mode_changes_length_and_adds_the_story_section(self):
+        story = self.system(True, beat="작은 엇갈림")
+        self.assertIn("[이야기 모드]", story)
+        self.assertIn("- 이번 답의 이야기 단계: 작은 엇갈림", story)
+        self.assertIn("지문. 2-3문장.", story)
+        self.assertIn("겉으로 하는 말. 3-5문장.", story)
+        self.assertNotIn("지문. 한 문장 이하.", story)
+        self.assertIn(actor._STORY_RULE_10, story)
+        self.assertNotIn("장소는 등장 장면의 그곳이다", story)
+        self.assertIn("- 처음 만난 곳: 옥상", story)
+        # 지문 줄의 뒷부분(전학생의 행동을 지어내지 않는다)은 그대로 남는다
+        self.assertIn("전학생이 무엇을 하는지, 느끼는지 지어내지 않는다", story)
+
+    def test_normal_mode_is_unchanged(self):
+        normal = self.system(False, beat="무시된다")
+        self.assertNotIn("[이야기 모드]", normal)
+        self.assertNotIn("이야기 단계", normal)
+        self.assertIn("지문. 한 문장 이하.", normal)
+        self.assertIn("겉으로 하는 말. 2-3문장.", normal)
+        self.assertIn("장소는 등장 장면의 그곳이다", normal)
+
+
 class ParseReplyTest(unittest.TestCase):
     def test_normal_json(self):
         reply = parse_reply(raw_reply(), FX)

@@ -5,6 +5,7 @@
 """
 import datetime
 import json
+import os
 import pathlib
 import random
 import re
@@ -33,6 +34,13 @@ SHORT_INPUT = 2
 # 점수 사유에서 바람(wish)을 가리키는 말. 날씨의 바람("바람이 불어서")은 건드리지 않는다
 WISH_REASON_RE = re.compile(r"바람(을|대로|에\s?맞|이\s?이루)|wish", re.IGNORECASE)
 BLUSH_LIMIT = 4  # 한 판에 붉어진 얼굴(blush)을 이만큼까지만 낸다. 그 뒤는 smile
+# 이야기 모드(실험, 2026-11-14): 이 환경변수가 비어 있지 않고 0이 아니면 답을 길게 쓰고 캐릭터가 이야기를 끌고
+# 가는 진행표(data/schedule_story.json, 답 12번)를 쓴다. 친구의 의견("노잼, Zeta처럼 대화가 길었으면")으로 만든 실험이다
+STORY_ENV = "SOGAETING_STORY"
+
+
+def story_mode_on() -> bool:
+    return os.environ.get(STORY_ENV, "").strip() not in ("", "0")
 
 
 def band_of(score: float) -> str:
@@ -63,7 +71,7 @@ def points_for(step: float, strength: int) -> float:
 class Session:
     """한 판. start() → reply() 여러 번 → finish() → result() 순서로 부른다."""
 
-    def __init__(self, character_id: str, *, llm=None, rng: random.Random | None = None):
+    def __init__(self, character_id: str, *, llm=None, rng: random.Random | None = None, story: bool | None = None):
         self.character = content.load_character(character_id)  # 없으면 KeyError
         self.llm = llm if llm is not None else (lambda m: call_llm(m, json_mode=True))
         self.rng = rng if rng is not None else random.Random()
@@ -71,7 +79,8 @@ class Session:
 
         self.seeds = content.load_seeds()
         self.fx = content.load_fx()
-        self.schedule = content.load_schedule()
+        self.story = story_mode_on() if story is None else bool(story)
+        self.schedule = content.load_schedule("schedule_story" if self.story else "schedule")
         self.banned = content.load_banned()
         self.endings = content.load_endings()
         self.total_turns = len(self.schedule["replies"])
@@ -210,6 +219,8 @@ class Session:
             place=self._place,
             events_so_far=tuple(self._events),
             seed_hint=seed_hint,
+            story=self.story,
+            beat=str(slot.get("beat") or "") if self.story else "",
         )
         fx_names = set(self.fx["light"]) | set(self.fx["heavy"])
         event_seed = seed if seed_kind == "event" else None
