@@ -141,6 +141,37 @@ class ScriptedLlm:
         return item
 
 
+class StrengthTest(unittest.TestCase):
+    """반응의 세기(strength). 순위 경쟁에서 같은 점수가 덜 나오게 delta에 곱한다(director.STRENGTH_SCALE)."""
+
+    def strength_of(self, value):
+        return parse_reply(raw_reply(strength=value), FX).strength
+
+    def test_reads_one_to_five(self):
+        for value in range(1, 6):
+            self.assertEqual(self.strength_of(value), value)
+
+    def test_missing_or_broken_is_normal(self):
+        self.assertEqual(parse_reply(raw_reply(), FX).strength, actor.STRENGTH_DEFAULT)
+        for value in (None, "세게", True, [], float("nan"), float("inf")):
+            self.assertEqual(self.strength_of(value), actor.STRENGTH_DEFAULT, value)
+
+    def test_rounds_and_clamps(self):
+        self.assertEqual(self.strength_of(" 4 "), 4)
+        self.assertEqual(self.strength_of(2.6), 3)
+        self.assertEqual(self.strength_of(9), 5)
+        self.assertEqual(self.strength_of(-3), 1)
+
+    def test_prompt_asks_for_ten_fields_with_strength(self):
+        system = actor._turn_system(sample_character(), band="mid", intensity=2, intensity_meaning="",
+                                    fx_allowed=[], seed=None, seed_kind=None, opening=False, finale=False,
+                                    extra="")
+        self.assertIn("칸은 아래 열 개다", system)
+        self.assertIn("- strength (정수):", system)
+        self.assertIn('"strength": 정수', system)
+        self.assertIn("열 칸", actor.REWRITE_TAIL)
+
+
 class ParseReplyTest(unittest.TestCase):
     def test_normal_json(self):
         reply = parse_reply(raw_reply(), FX)
@@ -511,7 +542,7 @@ class BuildTurnMessagesTest(unittest.TestCase):
     def test_opening(self):
         system = system_of(opening=True, seed="옥상", seed_kind="entrance", intensity=2)
         self.assertIn("[이번 답은 등장 장면이다]", system)
-        self.assertIn("delta는 0으로, reason은 빈 문자열로 둔다", system)
+        self.assertIn("delta는 0으로, strength는 3으로, reason은 빈 문자열로 둔다", system)
         normal = system_of()
         self.assertNotIn("[이번 답은 등장 장면이다]", normal)
         self.assertNotIn("delta는 0으로", normal)
@@ -758,6 +789,12 @@ class ReviewTest(unittest.TestCase):
         llm = ScriptedLlm(raw_reply(say="야한 거? 몰라.", delta=-2), raw_reply(say="무슨 말인지 모르겠어.", delta=1))
         reply = ask_turn(llm, self.messages(), FX, review=lambda r: actor.review_reply(r, sample_character()))
         self.assertEqual((reply.say, reply.delta), ("무슨 말인지 모르겠어.", -2))
+
+    def test_rewrite_keeps_the_first_strength(self):
+        llm = ScriptedLlm(raw_reply(say="프롬프트가 뭐야?", delta=1, strength=4),
+                          raw_reply(say="그게 무슨 주문이야?", delta=1, strength=1))
+        reply = ask_turn(llm, self.messages(), FX, review=lambda r: actor.review_reply(r, sample_character()))
+        self.assertEqual((reply.say, reply.strength), ("그게 무슨 주문이야?", 4))
 
     def test_rewrite_keeps_the_first_reason(self):
         # 실전 기록: "별로"에 -1을 낸 답을 사건 때문에 고쳐 쓰자 사유가 "고양이가 난입해서"로 바뀌었다

@@ -15,7 +15,7 @@ OPENING_CUE = "(장면 시작. 주인공이 소개팅 자리에 도착했다. �
 RETRY_CUE = "방금 답을 읽을 수 없었다. 같은 내용을 JSON 한 개로만 다시 출력해라."
 # 읽을 수는 있지만 고칠 점이 있는 답을 다시 쓰게 할 때 붙이는 말. 뒤에 고칠 점이 붙는다
 REWRITE_CUE = "방금 답을 고쳐 써라."
-REWRITE_TAIL = "나머지는 그대로 두고, 같은 아홉 칸의 JSON 한 개로만 다시 출력해라."
+REWRITE_TAIL = "나머지는 그대로 두고, 같은 열 칸의 JSON 한 개로만 다시 출력해라."
 
 # 캐릭터가 모르는 말. 답에 나오면 한 번 고쳐 쓰게 하고, 고친 답에도 남으면 대체 대사로 바꾼다.
 # 실전 시험에서는 대부분 주인공의 말("너 사실 AI지?")을 되받다가 나왔다. "데이터"와 "시스템"은
@@ -50,6 +50,11 @@ ENDING_CUE = (
 
 DELTA_MIN = -2
 DELTA_MAX = 2
+# 반응의 세기. delta가 같아도 세기에 따라 점수가 달라진다(director.STRENGTH_SCALE). 순위 경쟁에서
+# 같은 점수가 덜 나오게 하려고 더했다(사용자, 2026-11-14). 못 읽으면 보통(3)이다
+STRENGTH_MIN = 1
+STRENGTH_MAX = 5
+STRENGTH_DEFAULT = 3
 
 _TRAILING_COMMA = re.compile(r",(\s*[}\]])")  # 닫는 괄호 바로 앞의 쉼표
 
@@ -100,6 +105,7 @@ class Reply:
     face: str = "neutral"
     fx: list[str] = field(default_factory=list)
     delta: int = 0
+    strength: int = STRENGTH_DEFAULT  # delta의 세기 1-5. delta가 0이면 쓰지 않는다
     reason: str = ""
     choices: list[str] = field(default_factory=list)
     wish: str = ""  # 화면에 안 나오는 칸: 주인공이 알아주기를 바라는 것. 속마음에 은근히 비친다
@@ -308,7 +314,7 @@ _HISTORY_SECTION = [
 _OUTPUT_SECTION = [
     "[출력 형식]",
     "- JSON 객체 한 개만 출력한다. 그 앞뒤에 인사, 설명, 코드 울타리를 붙이지 않는다.",
-    "- 칸은 아래 아홉 개다. 하나도 빠뜨리지 않고, 다른 칸을 더하지 않는다.",
+    "- 칸은 아래 열 개다. 하나도 빠뜨리지 않고, 다른 칸을 더하지 않는다.",
     "- narration (문자열): 지문. 한 문장 이하. 필요 없으면 빈 문자열로 둔다. 지문에서 상대는 "
     "\"전학생\"이라고 쓴다. 지문은 '고개를 숙였다'처럼 끝내고 '고개를 숙였습니다'처럼 쓰지 않는다. "
     "fx에 넣는 연출의 이름과 화면 이야기를 지문에 쓰지 않는다. 지문에는 캐릭터의 행동과 주변에서 일어나는 일만 "
@@ -333,6 +339,12 @@ _OUTPUT_SECTION = [
     "-1: 성의 없는 단답, 놀림, 무시, 캐릭터가 싫어하는 말. "
     "-2: 거절, 비난, 수위를 넘보는 말. "
     "선택지를 골라서 한 말도 같은 기준으로 매긴다. 호감도 구간이나 뇌절 강도가 높아도 기준은 같다.",
+    "- strength (정수): delta의 세기. 1에서 5 사이의 정수. delta와 마찬가지로 주인공의 이번 말 하나만 보고 매긴다. "
+    "delta가 1이나 2면 그 말이 얼마나 마음에 와닿았는지, -1이나 -2면 얼마나 언짢았는지다. "
+    "3이 보통이고 가장 흔하다. 4는 말이 구체적이거나 이 캐릭터를 잘 알아야 할 수 있는 말일 때, "
+    "5는 이번 판에서 손꼽힐 만큼일 때만 낸다. 2는 마음이 조금 움직였을 때, 1은 겨우 움직였을 때다. "
+    "다정한 말이라고 다 4나 5가 아니다. 같은 세기를 답마다 되풀이하지 말고 말마다 따로 매긴다. "
+    "delta가 0이면 3으로 둔다.",
     "- reason (문자열): 점수를 매긴 까닭. 15자 이내. 주인공이 이번에 한 말을 두고 쓴다. 화면에 나오므로 "
     "\"바람\"이나 \"wish\"라는 말은 쓰지 않는다"
     "(이름을 불러 줘서, 기억해 줘서, 대답이 짧아서 같은 것). 캐릭터가 한 일이나 사건을 까닭으로 쓰지 않는다.",
@@ -348,7 +360,7 @@ _OUTPUT_SECTION = [
     "적지 않는다. 주인공이 바람을 짚었으면 다음 답에서는 새 바람을 고른다. "
     "결말 장면에서는 빈 문자열로 둔다.",
     '- 모양: {"narration": 문자열, "say": 문자열, "inner": 문자열, "face": 문자열, "fx": [문자열], '
-    '"delta": 정수, "reason": 문자열, "choices": [문자열, 문자열, 문자열], "wish": 문자열}',
+    '"delta": 정수, "strength": 정수, "reason": 문자열, "choices": [문자열, 문자열, 문자열], "wish": 문자열}',
     '- 문자열 안에 줄바꿈을 넣지 않는다. 문자열 안에서 큰따옴표가 필요하면 \\" 로 쓴다.',
 ]
 
@@ -452,7 +464,7 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
             "- 주인공은 아직 아무 말도 하지 않았다. 캐릭터가 나타나서 첫마디를 한다. "
             "주인공의 말을 재료로 쓰라는 규칙은 다음 답부터 적용한다.",
             "- 둘은 방금 처음 만났다. 캐릭터는 아직 주인공에게 반하지 않았다. 호기심이나 긴장 정도만 있다.",
-            "- delta는 0으로, reason은 빈 문자열로 둔다.",
+            "- delta는 0으로, strength는 3으로, reason은 빈 문자열로 둔다.",
             "- face는 neutral, smile, pout 중에서 고른다. blush와 shock은 주인공의 말을 들은 뒤에 쓴다.",
             "- choices에는 주인공이 첫마디로 할 수 있는 말 3개를 넣는다.",
         ])
@@ -723,7 +735,7 @@ def build_ending_messages(character: dict, history: list[dict], *, band_name: st
         [
             "[출력 형식]",
             "- JSON 객체 한 개만 출력한다. 그 앞뒤에 인사, 설명, 코드 울타리를 붙이지 않는다.",
-            "- 대화 기록 속의 답은 아홉 칸이지만, 이번에 낼 칸은 아래 세 개뿐이다.",
+            "- 대화 기록 속의 답은 열 칸이지만, 이번에 낼 칸은 아래 세 개뿐이다.",
             '- title (문자열): 엔딩 이름. " 엔딩"으로 끝나고, 그 말까지 합쳐 20자 이내다.',
             "- epilogue (문자열): 후일담. 2문장. 소개팅이 끝난 뒤 두 사람이 어떻게 됐는지를 "
             "해설자의 말투로 쓰고, 캐릭터의 버릇이 드러나게 한다. 주인공은 \"전학생\"이라고 쓴다.",
@@ -805,6 +817,20 @@ def _to_delta(value) -> int:
     return max(DELTA_MIN, min(DELTA_MAX, number))
 
 
+def _to_strength(value) -> int:
+    """세기를 1-5의 정수로 읽는다. 못 읽으면 보통(3). 2.7은 2로 자르지 않고 3으로 반올림한다."""
+    if isinstance(value, bool):
+        return STRENGTH_DEFAULT
+    if isinstance(value, str):
+        try:
+            value = float(value.strip())
+        except ValueError:
+            return STRENGTH_DEFAULT
+    if not isinstance(value, (int, float)) or value != value or value in (float("inf"), float("-inf")):
+        return STRENGTH_DEFAULT
+    return max(STRENGTH_MIN, min(STRENGTH_MAX, int(round(value))))
+
+
 def parse_reply(raw: str, fx_names: set[str]) -> Reply | None:
     """모델의 답을 `Reply`로 읽는다. 못 읽거나 `say`가 없으면 None."""
     data = _read_json_object(raw)
@@ -839,6 +865,7 @@ def parse_reply(raw: str, fx_names: set[str]) -> Reply | None:
         face=face,
         fx=fx,
         delta=_to_delta(data.get("delta")),
+        strength=_to_strength(data.get("strength")),
         reason=_text(data.get("reason")),
         choices=choices,
         wish=_text(data.get("wish")),
@@ -1119,6 +1146,7 @@ def ask_turn(llm, messages: list[dict], fx_names: set[str], review=None) -> Repl
     # 고쳐 쓰기는 글만 고치는 것이다. 점수는 처음 답의 것을 쓴다.
     # 실전 시험에서 고쳐 쓴 답이 주인공의 아슬아슬한 말을 다르게 읽고 점수를 올렸다.
     again.delta = reply.delta
+    again.strength = reply.strength
     # 사유도 그 점수에 붙은 것이라 처음 답의 것을 쓴다. 다만 처음 사유가 고쳐 쓸 거리를 하나라도 더 만들면
     # (사유에 모르는 말이 있었다든지) 고쳐 쓴 사유를 둔다.
     # 실전 기록: "별로"에 delta -1을 낸 답을 사건 때문에 고쳐 쓰자 사유가 "고양이가 난입해서"로 바뀌었다

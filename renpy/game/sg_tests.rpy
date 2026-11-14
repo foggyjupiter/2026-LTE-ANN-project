@@ -139,12 +139,47 @@ testcase sg_flow:
     screenshot "flow_10_ending.png"
     ## 엔딩에서는 배경음을 줄이고 엔딩 음을 들려준다
     assert eval (sg_bgm_now is None)
+    ## 호감도는 소수 한 자리다 (가짜 모델은 반응의 세기를 차례로 돌린다)
+    assert eval (sg_score_text(sg_end_view["score"]).count(".") == 1)
+
+    ## 순위표 등록: 학번과 이름. 금지어가 든 이름은 까닭을 띄우고 고쳐 쓰게 한다
+    click "순위표 등록"
+    pause until screen "sg_rank_entry"
+    $ sg_test_text("20312")
+    click id "sg_rank_person"
+    $ sg_test_text("시발")
+    pause 0.3
+    click "올리기"
+    pause until eval (sg_rank_error != "")
+    pause until screen "sg_rank_entry"
+    pause 0.4
+    screenshot "flow_10b_rank_refused.png"
+    ## 거절된 이름 칸만 비고 학번은 남아 있다
+    assert eval (sg_rank_sid == "20312" and sg_rank_person == "")
+    click id "sg_rank_person"
+    $ sg_test_text("김민수")
+    pause 0.3
+    screenshot "flow_10c_rank_typed.png"
+    click "올리기"
+    pause until screen "sg_ranking"
+    pause 0.6
+    screenshot "flow_10d_ranking.png"
+    ## 결과 폴더에 다른 판이 많으면 내 줄은 위 열 줄 밖(you_below)에 있다. 이름은 가운데가 가려져 온다
+    assert eval (any(r["you"] and r["student_id"] == "20312" and r["name"] == "김*수" for r in sg_board_view["rows"] + [ sg_board_view["you_below"] or { } ]))
 
     click "다른 캐릭터 고르기"
     pause until screen "sg_select"
     assert eval (sg_audio_muted or sg_bgm_now == "menu")
     pause 0.6
     screenshot "flow_11_back_to_select.png"
+
+    ## 첫 화면의 오늘의 순위
+    click "오늘의 순위"
+    pause until screen "sg_ranking"
+    pause 0.6
+    screenshot "flow_12_ranking_from_select.png"
+    click "닫기"
+    pause until screen "sg_select"
     exit
 
 
@@ -242,7 +277,7 @@ testsuite sg_gimmicks:
         pause until screen "sg_ending"
         pause 1.2
         screenshot "gimmick_haiku_ending.png"
-        click "가려졌던 속마음 보기"
+        click "속마음 보기"
         pause 0.6
         screenshot "gimmick_haiku_reveal.png"
         click "닫기"

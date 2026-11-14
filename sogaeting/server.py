@@ -17,7 +17,7 @@ import time
 import traceback
 import urllib.parse
 
-from . import content
+from . import content, ranking
 from . import llm as model  # 인자 이름 llm과 헷갈리지 않게 다른 이름으로 부른다
 from .director import Session, save_result
 from .fake_llm import fake_llm
@@ -44,7 +44,7 @@ CONTENT_TYPES = {
     ".ogg": "audio/ogg",
 }
 
-_SESSION_PATH = re.compile(r"/api/session/([^/]+)/(reply|finish|result)")
+_SESSION_PATH = re.compile(r"/api/session/([^/]+)/(reply|finish|result|rank)")
 _SENTENCE_END = re.compile(r"[.!?](?=\s|$)")
 
 
@@ -97,6 +97,7 @@ class _Entry:
         self.lock = threading.Lock()        # 같은 판의 요청이 겹치면 차례로 처리한다
         self.last_seen = time.monotonic()   # 마지막 요청이 온 때
         self.finished = None                # finish가 끝나면 {"ending": ..., "result": ...}
+        self.result_path = None             # finish가 쓴 결과 파일. 순위표에 올릴 학번과 이름을 여기에 적는다
         self.last_reply = None              # (보낸 글, 턴 번호, 돌려준 턴). 같은 답을 다시 보냈을 때 쓴다
 
 
@@ -105,6 +106,8 @@ class _App:
 
     def __init__(self, *, llm, results_dir, web_dir, session_ttl):
         self.llm = llm
+        # 가짜 모델로 돈 판은 결과 파일에 표시해 두고, 실제 모델 서버의 순위표에는 넣지 않는다(반대도 같다)
+        self.fake = llm is fake_llm
         self.results_dir = results_dir
         self.web_root = pathlib.Path(web_dir if web_dir is not None else WEB_DIR).resolve()
         self.session_ttl = session_ttl
@@ -174,7 +177,8 @@ class _App:
             if entry.finished is None:
                 ending = entry.session.finish()
                 result = entry.session.result()
-                save_result(result, self.results_dir)
+                entry.result_path = save_result(dict(result, fake=True) if self.fake else result,
+                                                self.results_dir)
                 # 저장까지 끝난 뒤에 적어 둔다. 저장이 실패하면 다음 요청이 다시 시도한다
                 entry.finished = {"ending": ending, "result": result}
                 self._report_model_call()
@@ -187,6 +191,33 @@ class _App:
                 return entry.session.result()
             except RuntimeError:
                 raise _ApiError(404, "아직 끝나지 않은 판입니다.") from None
+
+    def rank(self, session_id, body):
+        """끝난 판을 학번과 이름으로 순위표에 올리고 오늘의 순위표를 돌려준다. 다시 보내면 고쳐 적는다."""
+        entry = self._find(session_id)
+        with entry.lock:
+            if entry.finished is None or entry.result_path is None:
+                raise _ApiError(409, "엔딩을 본 뒤에 순위표에 올릴 수 있어요.")
+            cleaned, problem = ranking.clean_entry(body.get("student_id"), body.get("name"),
+                                                   content.load_banned())
+            if cleaned is None:
+                raise _ApiError(400, problem)
+            student_id, name = cleaned
+            try:
+                ranking.set_entry(entry.result_path, student_id, name)
+            except (OSError, ValueError):
+                raise _ApiError(500, "결과 파일에 학번과 이름을 적지 못했습니다.") from None
+            you = entry.result_path.stem
+        return {"student_id": student_id, "name": ranking.shown_name(name), **self._board(you)}
+
+    def ranking(self):
+        """오늘의 순위표."""
+        return self._board(None)
+
+    def _board(self, you):
+        day = ranking.today()
+        entries = ranking.load_entries(self.results_dir, day=day, fake=self.fake)
+        return {"date": day.isoformat(), **ranking.board(entries, you=you)}
 
     def status(self):
         with self._lock:
@@ -304,6 +335,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             return "GET", lambda: (200, app.characters())
         if path == "/api/status":
             return "GET", lambda: (200, app.status())
+        if path == "/api/ranking":
+            return "GET", lambda: (200, app.ranking())
         if path == "/api/session":
             return "POST", lambda: (201, app.create(self._json_body()))
         match = _SESSION_PATH.fullmatch(path)
@@ -314,6 +347,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             return "POST", lambda: (200, app.reply(session_id, self._json_body()))
         if action == "finish":
             return "POST", lambda: self._finish(app, session_id)
+        if action == "rank":
+            return "POST", lambda: (200, app.rank(session_id, self._json_body()))
         return "GET", lambda: (200, app.result(session_id))
 
     def _finish(self, app, session_id):

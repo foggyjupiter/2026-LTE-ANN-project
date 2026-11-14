@@ -100,7 +100,7 @@ init python:
                 xysize=(0, 0))
             box.add(At(Transform(dot, xpos=px, ypos=py), sg_curve_dot_in(step * i, 1.0)))
         px, py = points[last]
-        label = Text(str(scores[last]), font=gui.interface_text_font, size=16, bold=True,
+        label = Text(sg_score_text(scores[last]), font=gui.interface_text_font, size=16, bold=True,
                      color=gui.sg_pink_deep, outlines=[ (2, "#ffffff", 0, 0) ])
         box.add(At(Transform(label, xanchor=0.5, yanchor=1.0, xpos=px, ypos=max(16, py - 12)),
                    sg_curve_in(step * last + 0.1)))

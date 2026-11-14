@@ -149,7 +149,8 @@ testsuite sg_stage_demo:
         screenshot "stage_03_standing.png"
 
     testcase smile:
-        $ sg_stage_demo_go("smile", 7)
+        ## 다정한 말(+1)은 세기를 곱해도 3점이 안 된다(작게 오름). sg_stage.rpy 의 sg_stage_big_up
+        $ sg_stage_demo_go("smile", 2.4)
         pause 0.16
         screenshot "stage_04_smile_hop.png"
         pause 0.55
@@ -159,7 +160,7 @@ testsuite sg_stage_demo:
 
     ## 크게 올랐다: 김과 떠오르는 하트 여러 개
     testcase blush:
-        $ sg_stage_demo_go("blush", 14)
+        $ sg_stage_demo_go("blush", 8.4)
         pause 0.2
         screenshot "stage_06_blush_flinch.png"
         pause 0.75
@@ -202,11 +203,11 @@ testsuite sg_stage_demo:
 
     ## 같은 표정이 이어지면 동작(sg_stage_act_smile)을 되풀이하지 않는다
     testcase same_face:
-        $ sg_stage_demo_go("smile", 14)
+        $ sg_stage_demo_go("smile", 8.4)
         pause 0.75
         screenshot "stage_15_smile_big.png"
         pause 1.6
-        $ sg_stage_demo_go("smile", 7)
+        $ sg_stage_demo_go("smile", 2.4)
         pause 0.16
         screenshot "stage_16_same_face_no_hop.png"
         pause 0.6

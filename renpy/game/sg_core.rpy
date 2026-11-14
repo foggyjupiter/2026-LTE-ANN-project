@@ -83,6 +83,20 @@ init -5 python:
         except (ValueError, OverflowError):
             return fallback
 
+    def sg_num(value, fallback=0.0):
+        """호감도 같은 소수 한 자리 수. 숫자가 아니거나 NaN, 무한대면 fallback.
+
+        서버의 호감도는 반응의 세기를 곱해 소수 한 자리까지 움직인다(sogaeting/director.py STRENGTH_SCALE)."""
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return fallback
+        if value != value or value in (float("inf"), float("-inf")):
+            return fallback
+        return round(float(value), 1)
+
+    def sg_score_text(value):
+        """화면에 쓰는 호감도: 소수 한 자리("73.4", "50.0")."""
+        return "%.1f" % sg_num(value, 0.0)
+
     ############################################################################
     ## 2. 색
     ############################################################################
@@ -357,7 +371,7 @@ init -5 python:
             "progress": "등장" if turn_no == 0 else "답 %d/%d" % (turn_no, total),
             "stages": stages,
             "face": turn.get("face") if turn.get("face") in sg_faces else "neutral",
-            "score": max(0, min(100, sg_int(turn.get("score"), 50))),
+            "score": max(0.0, min(100.0, sg_num(turn.get("score"), 50.0))),
             "fallback": fallback,
             "finale": finale,
             "heard": sg_esc(heard),
@@ -424,15 +438,15 @@ init -5 python:
             "epilogue": epilogue,
             "epilogue_size": sg_fit_size(epilogue, "sg_end_text", 660, 112, (20, 18, 16, 14)),
             "nickname": sg_esc(sg_str(ending.get("nickname")).strip()),
-            "score": max(0, min(100, sg_int(ending.get("score"), 50))),
+            "score": max(0.0, min(100.0, sg_num(ending.get("score"), 50.0))),
             "best": best,
             "best_size": sg_fit_size(best, "sg_end_text", 620, 78, (18, 16, 14, 12)),
             "early": bool(ending.get("early")),
             "reveal": reveal,
-            "curve": [ max(0, min(100, sg_int(s, 50))) for s in store.sg_score_log ],
+            "curve": [ max(0.0, min(100.0, sg_num(s, 50.0))) for s in store.sg_score_log ],
             "total": max(1, sg_int(store.sg_total_turns, 10)),
             # 곡선 그림은 엔딩마다 한 번만 만든다. 화면이 다시 그려질 때마다 만들면 그리는 움직임이 처음부터 되풀이된다
-            "curve_box": sg_curve([ max(0, min(100, sg_int(s, 50))) for s in store.sg_score_log ],
+            "curve_box": sg_curve([ max(0.0, min(100.0, sg_num(s, 50.0))) for s in store.sg_score_log ],
                                   max(1, sg_int(store.sg_total_turns, 10)),
                                   height=sg_curve_height(
                                       epilogue, sg_fit_size(epilogue, "sg_end_text", 660, 112, (20, 18, 16, 14)),
@@ -539,7 +553,7 @@ init -5 python:
             sg_show_bg(sg_bg_key(place))
         sg_show_char(store.sg_char["id"], view["face"])
         # 표정과 호감도 변화에 맞는 만화 기호. 등장 턴이면 장소 제목 카드도 뜬다
-        sg_stage_call("sg_stage_turn", view["face"], sg_int(turn.get("change")),
+        sg_stage_call("sg_stage_turn", view["face"], sg_num(turn.get("change")),
                       first=first, fallback=view["fallback"], place=place, score=view["score"])
         # 레이어를 지정한 전환(layer="master")은 쓰지 않는다. 시험 도구가 그 전환이
         # 끝난 것을 알아채지 못해서 다음 클릭에서 멈춘다.

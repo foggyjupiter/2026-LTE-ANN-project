@@ -236,7 +236,8 @@ class FullGameTest(ServerCase):
 
         files = self.result_files()
         self.assertEqual(len(files), 1)
-        self.assertEqual(json.loads(files[0].read_text(encoding="utf-8")), finished["result"])
+        # 가짜 모델로 돈 판은 결과 파일에 표시가 붙는다(실제 모델 서버의 순위표에 안 들어가게)
+        self.assertEqual(json.loads(files[0].read_text(encoding="utf-8")), dict(finished["result"], fake=True))
 
         again = self.post(f"/api/session/{sid}/finish")  # 다시 불러도 같은 값, 파일은 그대로
         self.assertEqual(again.status, 200)
@@ -893,3 +894,89 @@ class SourceTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RankingTest(ServerCase):
+    """엔딩 뒤 학번과 이름으로 순위표에 올리기, 오늘의 순위표."""
+
+    def finished_game(self, character="mistral", replies=2):
+        sid, _ = self.new_game(character)
+        for n in range(replies):
+            self.assertEqual(self.reply(sid, f"{n + 1}번째 말").status, 200)
+        res = self.post(f"/api/session/{sid}/finish")
+        self.assertEqual(res.status, 200, res.raw)
+        return sid, res.json()
+
+    def rank(self, sid, student_id="20312", name="김민수"):
+        return self.post(f"/api/session/{sid}/rank", {"student_id": student_id, "name": name})
+
+    def test_entry_goes_into_the_result_and_the_board(self):
+        sid, finished = self.finished_game()
+        res = self.rank(sid, " 203-12 ", "  김민수 ")
+        self.assertEqual(res.status, 200, res.raw)
+        body = res.json()
+        self.assertEqual((body["student_id"], body["name"]), ("20312", "김*수"))
+        self.assertEqual(body["count"], 1)
+        self.assertEqual(body["rows"], [body["you"]])
+        self.assertEqual((body["you"]["rank"], body["you"]["student_id"], body["you"]["name"]), (1, "20312", "김*수"))
+        self.assertTrue(body["you"]["you"])
+        self.assertEqual(body["you"]["score"], finished["result"]["affinity"])
+        self.assertEqual(body["this_game"], finished["result"]["affinity"])
+        self.assertEqual(body["you"]["character_name"], "미스트랄")
+        # 파일에는 학번과 이름이 다 남는다(상품을 줄 때 본다)
+        saved = json.loads(self.result_files()[0].read_text(encoding="utf-8"))
+        self.assertEqual((saved["student_id"], saved["player_name"]), ("20312", "김민수"))
+        # 다시 보내면 고쳐 적는다
+        res = self.rank(sid, "20313", "김민수")
+        self.assertEqual(res.json()["you"]["student_id"], "20313")
+        self.assertEqual(len(self.result_files()), 1)
+
+    def test_one_row_per_student_with_the_best_game(self):
+        games = [self.finished_game(replies=n) for n in (1, 2, 3)]
+        scores = [g[1]["result"]["affinity"] for g in games]
+        for sid, _ in games:
+            body = self.rank(sid).json()
+        self.assertEqual(body["count"], 1)
+        self.assertEqual(body["you"]["score"], max(scores))
+        self.assertEqual(body["this_game"], scores[-1])
+
+    def test_public_board_lists_entered_games_only(self):
+        first, _ = self.finished_game("mistral")
+        self.finished_game("astra")  # 순위표에 올리지 않은 판은 없다
+        self.rank(first, "10101", "이준")
+        res = self.get("/api/ranking")
+        self.assertEqual(res.status, 200)
+        body = res.json()
+        self.assertEqual(body["count"], 1)
+        self.assertEqual([(r["student_id"], r["name"]) for r in body["rows"]], [("10101", "이*")])
+        self.assertIsNone(body["you"])
+        self.assertIsNone(body["this_game"])
+        self.assertFalse(body["rows"][0]["you"])
+        self.assertRegex(body["date"], r"^\d{4}-\d{2}-\d{2}$")
+        self.assertNotIn("이준", res.raw.decode("utf-8"))  # 순위표에는 이름이 다 나가지 않는다
+
+    def test_real_model_board_skips_fake_games(self):
+        sid, _ = self.finished_game()
+        self.rank(sid)
+        real = self.start(llm=lambda messages: fake_llm(messages))  # 가짜 모델 함수가 아니면 실제 모델 서버로 본다
+        body = self.get("/api/ranking", srv=real).json()
+        self.assertEqual((body["count"], body["rows"]), (0, []))
+
+    def test_bad_entries_are_refused(self):
+        sid, _ = self.finished_game()
+        cases = (("", "김민수", "학번을"), ("2학년3반", "김민수", "숫자로"), ("123", "김민수", "숫자로"),
+                 ("20312", "", "이름을"), ("20312", "김", "2-12자"), ("20312", "김민수!", "2-12자"),
+                 ("20312", "시발", "올릴 수 없어요"), (20312, "김민수", "학번을"))
+        for student_id, name, word in cases:
+            res = self.rank(sid, student_id, name)
+            self.assert_error(res, 400)
+            self.assertIn(word, res.json()["error"], (student_id, name))
+        saved = json.loads(self.result_files()[0].read_text(encoding="utf-8"))
+        self.assertNotIn("student_id", saved)
+
+    def test_entry_needs_a_finished_game(self):
+        sid, _ = self.new_game()
+        self.assert_error(self.rank(sid), 409)
+        self.assert_error(self.rank("nobody"), 404)
+        self.assert_error(self.get(f"/api/session/{sid}/rank"), 405)
+        self.assert_error(self.post("/api/ranking"), 405)

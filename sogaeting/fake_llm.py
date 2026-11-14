@@ -57,7 +57,7 @@ def _hide_offstage(text: str) -> str:
 
 
 def fake_llm(messages: list[dict]) -> str:
-    """차례에 맞는 JSON 문자열을 돌려준다. 엔딩 요청에는 세 칸, 그 밖에는 아홉 칸."""
+    """차례에 맞는 JSON 문자열을 돌려준다. 엔딩 요청에는 세 칸, 그 밖에는 열 칸."""
     system = ""
     last_user = ""
     turn = 0  # 지금까지 나온 답의 수. 0이면 등장 차례다
@@ -81,11 +81,13 @@ def fake_llm(messages: list[dict]) -> str:
 
     if turn == 0:
         delta = 0
+        strength = 3
         say = f"{TAG} 안녕, 전학생. 오늘 소개팅 상대가 나야."
         inner = "가짜 속마음: 첫마디는 무난하게 가자"
         reason = ""
     else:
         delta = len(last_user) % 5 - 2  # 참가자 글의 길이로 정한다
+        strength = turn % 5 + 1         # 세기는 차례로 돌린다. 점수가 소수로 움직이는 것을 보여 준다
         tail = _TAILS[(turn - 1) % len(_TAILS)]
         say = f"{TAG} {turn}번째로 들은 말: \"{_hide_offstage(last_user)}\". {tail}"
         if _SHORT_SAY_RE.search(system):  # 겉말 길이가 정해진 캐릭터(하이쿠)에게는 짧게 답한다
@@ -100,6 +102,7 @@ def fake_llm(messages: list[dict]) -> str:
         "face": _FACE_BY_DELTA[delta],
         "fx": _FX[turn % len(_FX)],
         "delta": delta,
+        "strength": strength,
         "reason": reason,
         "choices": list(_CHOICES),
         "wish": f"가짜 바람 {turn}번",
@@ -109,7 +112,7 @@ def fake_llm(messages: list[dict]) -> str:
 def _is_ending_request(system, last_user):
     """엔딩 요청은 마지막 user 메시지에 "엔딩"이 들어 있다.
 
-    참가자가 대화 중에 "엔딩"이라고 쳤을 때 헷갈리지 않게, 지시문이 아홉 칸을
+    참가자가 대화 중에 "엔딩"이라고 쳤을 때 헷갈리지 않게, 지시문이 열 칸을
     요구하는 차례 요청이면 엔딩 요청으로 보지 않는다.
     """
     if "엔딩" not in last_user:

@@ -576,7 +576,10 @@ def provider_numbers(games):
 # ---------------------------------------------------------------------------
 
 def _signed(n):
-    return "±0" if n == 0 else f"{n:+d}"
+    """호감도 변화: "+2.4", "-6.0", "±0". delta 같은 정수는 "+1"."""
+    if n == 0:
+        return "±0"
+    return f"{n:+d}" if isinstance(n, int) else f"{n:+.1f}"
 
 
 def _one_line(text):
@@ -672,6 +675,8 @@ def _render_turn(game, turn, score_before):
     else:
         facts.append(f"호감도 {score_before} → {out['score']} "
                      f"({_signed(out['change'])}, {BAND_NAMES[out['band']]})")
+        if out.get("delta"):
+            facts.append(f"칸 {_signed(out['delta'])}, 세기 {out.get('strength', '?')}")
     if out["popup"] is not None:
         facts.append(f"팝업 {out['popup']}")
     if out["reason"]:

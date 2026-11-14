@@ -42,11 +42,11 @@ def _text(value) -> str:
     return value if isinstance(value, str) else ""
 
 
-def _signed(value: int) -> str:
-    """부호와 천 단위 쉼표를 붙인다. 0은 "±0"."""
-    if value == 0:
+def _signed(value: float) -> str:
+    """부호와 천 단위 쉼표를 붙이고 소수 한 자리까지 쓴다(진행자의 점수가 소수 한 자리다). 0은 "±0"."""
+    if round(value, 1) == 0:
         return "±0"
-    return f"{value:+,}"
+    return f"{value:+,.1f}"
 
 
 class Gimmick:
@@ -87,10 +87,10 @@ class ExplodingPopup(Gimmick):
             return {}
         if turn == ctx.get("total_turns"):
             return {"popup": "NaN"}
-        change = int(ctx.get("change", 0) or 0)
+        change = float(ctx.get("change", 0) or 0)
         total = int(ctx.get("total_turns", 0) or 0)
         power = max(0, turn - max(1, total - EXPLODE_STEPS))
-        return {"popup": _signed(change * 10 ** power)}
+        return {"popup": _signed(round(change * 10 ** power, 1))}
 
 
 class QuoteMemory(Gimmick):

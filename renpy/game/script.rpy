@@ -33,8 +33,29 @@ label sg_select:
         $ sg_cards = sg_result.data
 
     call screen sg_select(sg_cards)
+    if _return == "ranking":
+        jump sg_show_ranking
     $ sg_char = _return
     jump sg_begin
+
+
+## 첫 화면의 "오늘의 순위". 보고 닫으면 고르기 화면으로 돌아간다.
+label sg_show_ranking:
+
+    ## 순위표를 열어 둔 채 떠나도 입력이 없으면 고르기 화면으로 돌아오게 감시를 켠다
+    $ sg_in_play = True
+    show screen sg_wait("순위표를 불러오는 중")
+    $ sg_result = sg_request("/api/ranking", check=sg_is_board)
+    hide screen sg_wait
+
+    if not sg_result.ok:
+        call screen sg_error(sg_result.message, [ ("다시 시도", "retry"), ("닫기", "home") ])
+        if _return == "retry":
+            jump sg_show_ranking
+        jump sg_select
+
+    call screen sg_ranking(sg_build_board(sg_result.data), after_game=False)
+    jump sg_select
 
 
 ## 2. 대화 #########################################################################
@@ -132,7 +153,55 @@ label sg_finish:
         jump sg_select
 
     $ sg_enter_ending(sg_result.data["ending"])
+    $ sg_rank_sid = ""
+    $ sg_rank_person = ""
+    $ sg_rank_error = ""
+
+label sg_show_ending:
+
     call screen sg_ending(sg_end_view)
+
+    if _return == "rank":
+        jump sg_rank
+    if _return == "again":
+        jump sg_begin
+    jump sg_select
+
+
+## 엔딩의 "순위표 등록": 학번과 이름을 받아 서버에 남기고 오늘의 순위표를 보여 준다. 상품을 줄 때 쓴다.
+label sg_rank:
+
+    call screen sg_rank_entry(sg_end_view["score"], sg_rank_error)
+    if _return[0] == "skip":
+        jump sg_show_ending
+
+    show screen sg_wait("순위표에 올리는 중")
+    $ sg_result = sg_request(sg_session_path("rank"), { "student_id": _return[1], "name": _return[2] }, check=sg_is_board)
+    hide screen sg_wait
+
+    if not sg_result.ok:
+        ## 400: 서버가 받지 않았다(학번 모양, 이름 길이, 금지어). 까닭을 띄우고 거절된 칸만 비워 다시 쓰게 한다.
+        ## 어느 칸인지는 서버의 문구(sogaeting/ranking.py MSG_*)가 "학번"으로 시작하는지로 가른다
+        if sg_result.status == 400:
+            $ sg_rank_error = sg_result.message
+            if sg_result.message.startswith("학번"):
+                $ sg_rank_sid = ""
+            else:
+                $ sg_rank_person = ""
+            jump sg_rank
+
+        if sg_result.status == 404:
+            call screen sg_error(SG_MSG_GONE, [ ("처음으로", "home") ])
+            jump sg_select
+
+        call screen sg_error(sg_result.message, [ ("다시 시도", "retry"), ("건너뛰기", "skip") ])
+        if _return == "retry":
+            jump sg_rank
+        jump sg_show_ending
+
+    $ sg_rank_error = ""
+    $ sg_board_view = sg_build_board(sg_result.data)
+    call screen sg_ranking(sg_board_view, after_game=True)
 
     if _return == "again":
         jump sg_begin

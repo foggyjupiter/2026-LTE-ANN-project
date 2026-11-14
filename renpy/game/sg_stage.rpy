@@ -58,10 +58,12 @@ define sg_stage_emote_art = {
 }
 
 ## 호감도가 이만큼 움직이면 크게 움직인 것으로 본다. 서버(sogaeting/director.py의 POINTS)는 바라던 말(+2)에
-## 캐릭터마다 5-8점(hit_points), 다정한 말(+1)에 2점, -1에 5점, -2에 10점을 움직인다.
-## 오를 때는 바라던 말의 가장 작은 점수, 내릴 때는 -2의 점수에 맞춘다.
-define sg_stage_big_up = 5
-define sg_stage_big_down = 10
+## 캐릭터마다 5-8점(hit_points), 다정한 말(+1)에 2점, -1에 5점, -2에 10점을 움직이고, 여기에 반응의 세기에 따라
+## 0.6-1.4배를 곱한다(STRENGTH_SCALE). 그래서 다정한 말은 1.2-2.8점, 바라던 말은 3.0-11.2점이다.
+## 오를 때는 바라던 말이면 늘 크게 움직인 것으로 본다(3). 내릴 때는 -1(3.0-7.0점)보다 크고 -2(6.0-14.0점)의
+## 대부분이 들어오는 8로 둔다.
+define sg_stage_big_up = 3
+define sg_stage_big_down = 8
 
 ## 한 번에 띄우는 기호의 수.
 define sg_stage_emote_max = 5

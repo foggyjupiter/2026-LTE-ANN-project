@@ -21,6 +21,13 @@ POINTS = {2: 8, 1: 2, 0: 0, -1: -5, -2: -10}
 # 캐릭터 데이터의 hit_points가 있으면 바라던 말(+2)의 점수를 그 값으로 바꾼다. 속마음 힌트가 잘 보이는
 # 캐릭터일수록 낮다. 실전 기록(Claude가 직접 해 본 6판): +8일 때 넷이 100점, 미스트랄 98, 하이쿠 90점이었다
 HIT_POINTS_RANGE = (3, 10)
+# 반응의 세기(actor의 strength, 1-5)마다 위 점수에 곱하는 값. 보통(3)이면 그대로다.
+# 순위 경쟁에서 같은 점수가 덜 나오게 하려고 더했다(사용자, 2026-11-14). 칸만으로 움직이면 다정하게 한
+# 실전 시험 6판 가운데 3판이 똑같이 66점이었다. 점수는 소수 한 자리까지 쓴다
+STRENGTH_SCALE = {1: 0.6, 2: 0.8, 3: 1.0, 4: 1.2, 5: 1.4}
+# 선택지를 고른 말의 세기 상한. 직접 쓴 말이 더 높게 나올 수 있게 한다
+CHOICE_STRENGTH_MAX = 3
+SCORE_DIGITS = 1
 # 글자(한글, 영문, 숫자)가 이만큼 이하인 말("응", "별로", "ㅋㅋ")은 호감도를 올리지 않는다
 SHORT_INPUT = 2
 # 점수 사유에서 바람(wish)을 가리키는 말. 날씨의 바람("바람이 불어서")은 건드리지 않는다
@@ -28,7 +35,7 @@ WISH_REASON_RE = re.compile(r"바람(을|대로|에\s?맞|이\s?이루)|wish", r
 BLUSH_LIMIT = 4  # 한 판에 붉어진 얼굴(blush)을 이만큼까지만 낸다. 그 뒤는 smile
 
 
-def band_of(score: int) -> str:
+def band_of(score: float) -> str:
     """배우에게 알려 줄 호감도 구간."""
     if score >= 65:
         return "high"
@@ -42,9 +49,15 @@ def is_short_input(text: str) -> bool:
     return len(re.findall(r"[0-9A-Za-z가-힣]", text or "")) <= SHORT_INPUT
 
 
-def _signed(n: int) -> str:
-    """팝업에 띄울 숫자: "+14", "-7", "±0"."""
-    return "±0" if n == 0 else f"{n:+d}"
+def _signed(n: float) -> str:
+    """팝업에 띄울 숫자: "+2.4", "-6.0", "±0". 소수 한 자리까지."""
+    return "±0" if round(n, SCORE_DIGITS) == 0 else f"{n:+.{SCORE_DIGITS}f}"
+
+
+def points_for(step: float, strength: int) -> float:
+    """칸의 점수(step)에 세기를 곱한 점수. 소수 한 자리로 반올림한다."""
+    scale = STRENGTH_SCALE.get(strength, 1.0)
+    return round(step * scale, SCORE_DIGITS)
 
 
 class Session:
@@ -63,7 +76,7 @@ class Session:
         self.endings = content.load_endings()
         self.total_turns = len(self.schedule["replies"])
 
-        self.score = START_SCORE
+        self.score = float(START_SCORE)
         self.turn = 0            # 지금까지 한 답의 수
         self.started = False
         self.done = False        # 엔딩까지 끝났는가
@@ -251,6 +264,8 @@ class Session:
                 # 선택지는 모델이 다정한 답을 하나 넣어 두므로, 그것만 골라도 +2가 나왔다
                 if self._from_choice:
                     reply.delta = min(reply.delta, 1)
+                    if reply.delta > 0:
+                        reply.strength = min(reply.strength, CHOICE_STRENGTH_MAX)
                 # +2는 앞 답들이 속마음에 흘린 바람의 낱말을 참가자가 짚었을 때만 남긴다. 다정한 말만으로는
                 # 대성공이 안 되게 하려는 것이다. 실전 기록: 모델이 "반가워. 여기 자주 와?"에도 2를 줬다
                 if reply.delta == 2 and not actor.wish_touched(self.past_inputs[-1], wishes,
@@ -268,8 +283,10 @@ class Session:
             if note:
                 notes.append(note)
         old_score = self.score
-        self.score = max(0, min(100, old_score + self.points[max(-2, min(2, delta))]))
-        change = self.score - old_score
+        step = self.points[max(-2, min(2, delta))]
+        strength = reply.strength if step else actor.STRENGTH_DEFAULT
+        self.score = round(max(0.0, min(100.0, old_score + points_for(step, strength))), SCORE_DIGITS)
+        change = round(self.score - old_score, SCORE_DIGITS)
 
         eight = {
             "narration": reply.narration,
@@ -302,7 +319,7 @@ class Session:
         self._last_choices = list(shown_choices)
 
         # 기록에는 화면에 안 나오는 바람(wish)도 남긴다. 다음 답의 지시문이 그것을 읽는다
-        record = dict(eight, wish="" if fallback or finale else reply.wish)
+        record = dict(eight, wish="" if fallback or finale else reply.wish, strength=strength)
         self.history.append({"role": "assistant", "content": json.dumps(record, ensure_ascii=False)})
         # 지금 장면: 등장 장소와 실제로 일어난 사건을 적어 두고 다음 답들의 지시문에 알려 준다
         if opening and seed_kind == "entrance" and seed:
@@ -311,8 +328,8 @@ class Session:
             self._events.append(f"답 {self.turn} {seed}")
         self._inners.append(eight["inner"])
         # 명대사 후보: delta 절댓값이 가장 큰 답. 같으면 뒤쪽. 대체 대사는 속마음이 없어서 뺀다
-        if not opening and not fallback and (self._best is None or abs(delta) >= self._best[0]):
-            self._best = (abs(delta), eight["inner"])
+        if not opening and not fallback and (self._best is None or (abs(delta), strength) >= self._best[0]):
+            self._best = ((abs(delta), strength), eight["inner"])
 
         return {
             "kind": "turn",
@@ -321,6 +338,7 @@ class Session:
             **eight,
             "choices": shown_choices,
             "change": change,
+            "strength": strength,
             "score": self.score,
             "band": band_of(self.score),
             "popup": popup,

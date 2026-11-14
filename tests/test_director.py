@@ -9,16 +9,16 @@ import tempfile
 import unittest
 from unittest import mock
 
-from sogaeting import cli, content, director
+from sogaeting import actor, cli, content, director
 from sogaeting.director import Session, band_of, save_result
 from sogaeting.fake_llm import fake_llm
 from sogaeting.llm import AllProvidersDown
 
 ENDING = {"title": "시험 엔딩", "epilogue": "후일담 첫 문장이다. 둘째 문장이다.", "nickname": "시험 전학생"}
 EIGHT_KEYS = {"narration", "say", "inner", "face", "fx", "delta", "reason", "choices"}
-HISTORY_KEYS = EIGHT_KEYS | {"wish"}  # 기록에는 화면에 안 나오는 바람도 남는다
+HISTORY_KEYS = EIGHT_KEYS | {"wish", "strength"}  # 기록에는 화면에 안 나오는 바람과 세기도 남는다
 TURN_KEYS = EIGHT_KEYS | {
-    "kind", "turn", "total_turns", "change", "score", "band", "popup",
+    "kind", "turn", "total_turns", "change", "strength", "score", "band", "popup",
     "notes", "heard", "extras", "fallback", "finale", "place",
 }
 ENDING_KEYS = {
@@ -185,8 +185,8 @@ class FlowTest(unittest.TestCase):
     def test_reply_popup_shows_change(self):
         session = Session("mistral", llm=ScriptedLlm(turns={1: {"delta": 1}, 2: {"delta": -1}, 3: {"delta": 0}}))
         session.start()
-        self.assertEqual(session.reply("첫 번째 말")["popup"], f"+{POINTS[1]}")
-        self.assertEqual(session.reply("두 번째 말")["popup"], f"{POINTS[-1]}")
+        self.assertEqual(session.reply("첫 번째 말")["popup"], f"+{POINTS[1]:.1f}")
+        self.assertEqual(session.reply("두 번째 말")["popup"], f"{POINTS[-1]:.1f}")
         out = session.reply("세 번째 말")
         self.assertEqual(out["popup"], "±0")
         self.assertEqual(out["reason"], "시험 사유")
@@ -230,6 +230,61 @@ class FlowTest(unittest.TestCase):
             self.assertEqual(set(json.loads(message["content"])), HISTORY_KEYS)
 
 
+class StrengthScoreTest(unittest.TestCase):
+    """세기(strength)를 곱한 소수 점수. 순위 경쟁에서 같은 점수가 덜 나오게 한다(사용자, 2026-11-14)."""
+
+    def test_scale_keeps_the_normal_strength(self):
+        self.assertEqual(director.STRENGTH_SCALE[actor.STRENGTH_DEFAULT], 1.0)
+        self.assertEqual(sorted(director.STRENGTH_SCALE), list(range(actor.STRENGTH_MIN, actor.STRENGTH_MAX + 1)))
+        # 세기가 셀수록 점수가 크다
+        scales = [director.STRENGTH_SCALE[n] for n in sorted(director.STRENGTH_SCALE)]
+        self.assertEqual(scales, sorted(scales))
+
+    def test_strength_multiplies_each_step(self):
+        cases = [(1, 5, director.points_for(MISTRAL[1], 5)), (1, 1, director.points_for(MISTRAL[1], 1)),
+                 (2, 1, director.points_for(MISTRAL[2], 1)), (-1, 4, director.points_for(MISTRAL[-1], 4))]
+        for delta, strength, points in cases:
+            session = Session("mistral", llm=ScriptedLlm(default={"delta": delta, "strength": strength}))
+            session.start()
+            out = session.reply("좋은 말이네 1")
+            self.assertEqual((out["change"], out["strength"]), (points, strength), (delta, strength))
+            self.assertEqual(out["score"], round(50 + points, 1))
+        self.assertEqual(director.points_for(2, 5), 2.8)
+        self.assertEqual(director.points_for(2, 1), 1.2)
+        self.assertEqual(director.points_for(-5, 4), -6.0)
+
+    def test_scores_stay_at_one_decimal(self):
+        session = Session("mistral", llm=ScriptedLlm(default={"delta": 1, "strength": 5}))
+        outs = play(session, count=3)
+        self.assertEqual([o["score"] for o in outs], [50, 52.8, 55.6, 58.4])
+        self.assertEqual(outs[1]["popup"], "+2.8")
+        self.assertEqual(outs[1]["change"], 2.8)
+
+    def test_strength_does_not_move_a_zero_step(self):
+        session = Session("mistral", llm=ScriptedLlm(default={"delta": 0, "strength": 5}))
+        out = session.start()
+        self.assertEqual((out["change"], out["strength"], out["score"]), (0, actor.STRENGTH_DEFAULT, 50))
+        out = session.reply("좋은 말이네 1")
+        self.assertEqual((out["change"], out["strength"], out["popup"]), (0, actor.STRENGTH_DEFAULT, "±0"))
+
+    def test_choice_is_capped_at_normal_strength(self):
+        # 선택지는 모델이 써 둔 말이다. 직접 쓴 말만 4-5가 나온다
+        session = Session("mistral", llm=ScriptedLlm(default={"delta": 1, "strength": 5}))
+        session.start()
+        out = session.reply("첫째 선택")
+        self.assertEqual((out["strength"], out["change"]), (director.CHOICE_STRENGTH_MAX, MISTRAL[1] * 1.0))
+        out = session.reply("직접 쓴 다정한 말")
+        self.assertEqual(out["strength"], 5)
+
+    def test_history_keeps_the_strength(self):
+        session = Session("mistral", llm=ScriptedLlm(default={"delta": 1, "strength": 4}))
+        session.start()
+        session.reply("좋은 말이네 1")
+        record = json.loads(session.history[-1]["content"])
+        self.assertEqual(record["strength"], 4)
+        self.assertEqual(json.loads(session.history[1]["content"])["strength"], actor.STRENGTH_DEFAULT)
+
+
 class ScoreTest(unittest.TestCase):
     def test_delta_plus_two_stops_at_100(self):
         outs = play(Session("mistral", llm=ScriptedLlm(default={"delta": 2})))
@@ -238,7 +293,7 @@ class ScoreTest(unittest.TestCase):
         self.assertEqual(scores[-1], 100)
         self.assertEqual([o["change"] for o in outs], [0] + [b - a for a, b in zip(scores, scores[1:])])
         self.assertEqual([o["delta"] for o in outs[1:]], [2] * TOTAL)
-        self.assertEqual(outs[1]["popup"], f"+{MISTRAL[2]}")
+        self.assertEqual(outs[1]["popup"], f"+{MISTRAL[2]:.1f}")
         self.assertEqual(outs[-1]["popup"], director._signed(scores[-1] - scores[-2]))
 
     def test_delta_minus_two_stops_at_0(self):
@@ -247,7 +302,7 @@ class ScoreTest(unittest.TestCase):
         self.assertEqual([o["score"] for o in outs], scores)
         self.assertEqual(scores[-1], 0)
         self.assertEqual([o["change"] for o in outs], [0] + [b - a for a, b in zip(scores, scores[1:])])
-        self.assertEqual(outs[1]["popup"], f"{POINTS[-2]}")
+        self.assertEqual(outs[1]["popup"], f"{POINTS[-2]:.1f}")
 
     def test_short_input_never_raises_score(self):
         # 실전 기록: 젬마가 "응"에 +1을 줬다(사유는 자기가 꺼낸 우산)
@@ -755,8 +810,9 @@ class GimmickTest(unittest.TestCase):
         self.assertIsNone(outs[0]["popup"])
         # 답 10번짜리 판: 앞의 넷은 그대로, 다섯째부터 10배씩, 마지막은 NaN
         self.assertEqual([o["popup"] for o in outs[1:]],
-                         ["+2", "+2", "+2", "+2", "+20", "+200", "+2,000", "+20,000", "+200,000", "NaN"])
-        self.assertEqual(outs[5]["extras"], {"popup": "+20"})
+                         ["+2.0", "+2.0", "+2.0", "+2.0", "+20.0", "+200.0", "+2,000.0", "+20,000.0",
+                          "+200,000.0", "NaN"])
+        self.assertEqual(outs[5]["extras"], {"popup": "+20.0"})
         self.assertEqual([o["score"] for o in outs], clamped_scores(1))  # 실제 점수는 그대로
 
     def test_haiku_masks_inner(self):

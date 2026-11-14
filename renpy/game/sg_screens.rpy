@@ -657,7 +657,16 @@ screen sg_select(cards):
         for c in cards:
             use sg_card(c)
 
-    text "실명과 학번은 적지 마세요." style "sg_foot" xalign 0.5 ypos 664
+    ## 대화는 바깥 모델에 보내므로 실명과 학번을 적지 않게 한다. 순위표의 학번과 이름은 이 컴퓨터에만 남는다
+    text "대화에는 실명과 학번을 적지 마세요." style "sg_foot" xalign 0.5 ypos 664
+
+    ## 오늘의 순위. 오른쪽 위 구석
+    textbutton "오늘의 순위":
+        style "sg_secondary"
+        xalign 1.0
+        xoffset -18
+        ypos 18
+        action Return("ranking")
 
 
 ## 캐릭터 카드 한 장. c는 서버가 준 카드라서 글은 sg_esc 를 거쳐 찍는다.
@@ -755,7 +764,7 @@ screen sg_hud():
 
             text "호감도" style "sg_pill_text" color gui.sg_pink_deep
             bar value AnimatedValue(sg_score_shown, 100, 0.5) style "sg_gauge"
-            text "[sg_score_shown]" style "sg_pill_num"
+            text sg_score_text(sg_score_shown) style "sg_pill_num"
 
 
 ################################################################################
@@ -864,7 +873,7 @@ screen sg_talk(v, first):
             vbox:
                 spacing 3
                 ## 가려진 속마음은 드러난 글자의 비율이 그때의 호감도와 같다. 그 숫자를 함께 적는다
-                text ("속마음" + ((" (호감도 %d%%만큼 보임)" % v["score"]) if v["masked"] else "")):
+                text ("속마음" + ((" (호감도 %s%%만큼 보임)" % sg_score_text(v["score"])) if v["masked"] else "")):
                     style "sg_bubble_label"
                     color sg_on_light(color)
                 text v["inner"] style "sg_bubble_text" size v["inner_size"]
@@ -1183,7 +1192,7 @@ screen sg_error(message, buttons):
 ## 엔딩
 ################################################################################
 ##
-## e는 sg_build_ending 이 만든 값이다. 돌려주는 값: "again"(같은 캐릭터로 다시) 또는 "other"(첫 화면).
+## e는 sg_build_ending 이 만든 값이다. 돌려주는 값: "rank"(순위표 등록), "again"(같은 캐릭터로 다시), "other"(첫 화면).
 
 screen sg_ending(e):
 
@@ -1226,7 +1235,7 @@ screen sg_ending(e):
                     hbox:
                         spacing 12
 
-                        text str(e["score"]) style "sg_end_score"
+                        text sg_score_text(e["score"]) style "sg_end_score"
                         bar value StaticValue(e["score"], 100) style "sg_gauge"
 
                 if e["nickname"]:
@@ -1290,13 +1299,14 @@ screen sg_ending(e):
         ypos 680
         spacing -4
 
-        textbutton "다시 하기" style "sg_primary" action Return("again")
-        textbutton "다른 캐릭터 고르기" style "sg_secondary" action Return("other")
+        ## 순위표 등록이 먼저다. 단추가 넷이 되어도(하이쿠) 카드 폭에 들어가게 이름을 짧게 쓴다
+        textbutton "순위표 등록" style "sg_primary" at sg_breathe action Return("rank")
+        textbutton "다시 하기" style "sg_secondary" action Return("again")
+        textbutton "다른 캐릭터" style "sg_secondary" action Return("other")
 
         if e["reveal"]:
-            textbutton "가려졌던 속마음 보기":
+            textbutton "속마음 보기":
                 style "sg_secondary"
-                at sg_breathe
                 action SetScreenVariable("reveal", True)
 
     ## 가려졌던 속마음의 원문. 속마음이 가려져 나온 판에서만 볼 수 있다.

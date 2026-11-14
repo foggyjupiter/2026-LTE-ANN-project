@@ -34,17 +34,17 @@ class ExplodingPopupTest(unittest.TestCase):
         return self.gimmick.decorate(make_reply(), make_ctx(**ctx))
 
     def test_first_reply_shows_real_change(self):
-        self.assertEqual(self.popup(turn=1, change=14), {"popup": "+14"})
+        self.assertEqual(self.popup(turn=1, change=14), {"popup": "+14.0"})
 
     def test_third_reply_is_hundredfold_with_commas(self):
-        self.assertEqual(self.popup(turn=3, change=-14), {"popup": "-1,400"})
-        self.assertEqual(self.popup(turn=3, change=14), {"popup": "+1,400"})
+        self.assertEqual(self.popup(turn=3, change=-14), {"popup": "-1,400.0"})
+        self.assertEqual(self.popup(turn=3, change=14), {"popup": "+1,400.0"})
 
     def test_second_reply_is_tenfold(self):
-        self.assertEqual(self.popup(turn=2, change=7), {"popup": "+70"})
+        self.assertEqual(self.popup(turn=2, change=7), {"popup": "+70.0"})
 
     def test_sixth_reply_is_hundred_thousandfold(self):
-        self.assertEqual(self.popup(turn=6, change=14), {"popup": "+1,400,000"})
+        self.assertEqual(self.popup(turn=6, change=14), {"popup": "+1,400,000.0"})
 
     def test_zero_change(self):
         self.assertEqual(self.popup(turn=2, change=0), {"popup": "±0"})
@@ -55,8 +55,13 @@ class ExplodingPopupTest(unittest.TestCase):
     def test_ten_reply_game_grows_only_in_the_last_six(self):
         # 답 10번짜리 판: 앞의 넷은 그대로, 다섯째부터 10배씩, 마지막은 NaN. 가장 커도 10만 배다
         shown = [self.popup(turn=t, total_turns=10, change=10)["popup"] for t in range(1, 11)]
-        self.assertEqual(shown, ["+10", "+10", "+10", "+10", "+100", "+1,000", "+10,000",
-                                 "+100,000", "+1,000,000", "NaN"])
+        self.assertEqual(shown, ["+10.0", "+10.0", "+10.0", "+10.0", "+100.0", "+1,000.0", "+10,000.0",
+                                 "+100,000.0", "+1,000,000.0", "NaN"])
+
+    def test_decimal_change_grows_without_float_noise(self):
+        # 점수는 소수 한 자리다(director.STRENGTH_SCALE). 2.4를 10배씩 키워도 24.000000000000004가 되지 않는다
+        shown = [self.popup(turn=t, total_turns=10, change=2.4)["popup"] for t in range(4, 8)]
+        self.assertEqual(shown, ["+2.4", "+24.0", "+240.0", "+2,400.0"])
 
     def test_opening_has_no_popup(self):
         self.assertEqual(self.popup(turn=0, change=0), {})
