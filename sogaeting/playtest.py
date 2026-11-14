@@ -15,7 +15,7 @@ import time
 import unicodedata
 
 from . import actor, content, llm, safety
-from .director import STORY_ENV, Session
+from .director import STORY_ENV, ModelUnavailable, Session
 from .fake_llm import fake_llm
 
 DEFAULT_OUT = "results/playtest"
@@ -127,6 +127,11 @@ DEFAULT_SCRIPT = [
 # ---------------------------------------------------------------------------
 # 모델 호출 기록기
 # ---------------------------------------------------------------------------
+
+# 모델이 답을 못 주면(ModelUnavailable) 부스의 참가자가 "다시 시도"를 누르듯 기다렸다가 같은 말을 다시 보낸다.
+# 기다리는 시간(초)이고, 이만큼 다 해도 안 되면 그 판을 멈춘다
+RETRY_WAITS = (5, 20, 60)
+
 
 class Recorder:
     """`llm(messages) -> str` 자리에 끼워서 호출마다 시간과 형식을 적는다.
@@ -312,21 +317,37 @@ def play_character(character_id, recorder_factory, *, seed=DEFAULT_SEED, progres
     turns = []
 
     def run_step(turn_number, line, typed, action):
+        """한 차례를 돌린다. 모델이 끝내 답을 못 주면 None."""
         step = ("turn", turn_number)
         recorder.begin(step)
-        out = action()
+        label = "등장" if turn_number == 0 else f"답 {turn_number}/{session.total_turns}"
+        retries = 0
+        while True:
+            try:
+                out = action()
+                break
+            except ModelUnavailable:
+                if retries >= len(RETRY_WAITS):
+                    progress(f"  [{name}] {label}: 모델이 {retries + 1}번 다 답을 못 줘서 판을 멈춤")
+                    return None
+                wait = RETRY_WAITS[retries]
+                retries += 1
+                progress(f"  [{name}] {label}: 모델이 답을 못 줌 → {wait}초 뒤 다시 보냄")
+                getattr(recorder, "sleep", time.sleep)(wait)
         calls = recorder.calls_of(step)
         intensity, seed_used = _intensity_and_seed(calls[0]["system"]) if calls else (None, None)
         turn = {"line": line, "typed": typed, "out": out, "calls": calls,
-                "intensity": intensity, "seed": seed_used}
+                "intensity": intensity, "seed": seed_used, "retries": retries}
         turn["why_fallback"] = _why_fallback(turn)
         turns.append(turn)
-        label = "등장" if turn_number == 0 else f"답 {turn_number}/{session.total_turns}"
         progress(f"  [{name}] {label}: {_calls_brief(calls)}"
                  + (f" → 대체 대사({turn['why_fallback']})" if out["fallback"] else ""))
         return out
 
     out = run_step(0, None, None, session.start)
+    if out is None:
+        raise RuntimeError(f"{name}: 모델이 등장 답을 주지 못해 판을 시작하지 못했다")
+    stopped = None
     for number in range(1, session.total_turns + 1):
         if player is not None:
             typed = player(out, name)
@@ -337,6 +358,9 @@ def play_character(character_id, recorder_factory, *, seed=DEFAULT_SEED, progres
             if line["pick"] is not None and len(out["choices"]) >= line["pick"]:
                 typed = out["choices"][line["pick"] - 1]
         out = run_step(number, line, typed, lambda typed=typed: session.reply(typed))
+        if out is None:
+            stopped = number
+            break
 
     recorder.begin(("ending",))
     ending = session.finish()
@@ -355,6 +379,7 @@ def play_character(character_id, recorder_factory, *, seed=DEFAULT_SEED, progres
         "ending": ending,
         "ending_calls": ending_calls,
         "ending_fallback": not ending["epilogue"],
+        "stopped": stopped,   # 모델이 끝내 답을 못 줘서 멈춘 답의 번호. 끝까지 했으면 None
         "result": session.result(),
         "kinds_missing": [] if (natural or player is not None) else [
             k for k in REQUIRED_KINDS if not any(k in t["line"]["kinds"] for t in turns if t["line"])],
@@ -434,6 +459,8 @@ def _checks(game):
             spoken = (out["say"] or "") + " " + (out.get("inner") or "")
             for needle, label in actor.STOCK_PHRASES:
                 used[label] = used.get(label, 0) + spoken.count(needle)
+        if turn.get("retries"):
+            found.append(f"{where}: 모델이 답을 못 줘서 {turn['retries']}번 다시 보냄")
         if rewrite:
             found.append(f"{where}: 첫 답을 고쳐 쓰게 함 ({rewrite})")
         if out["fallback"]:
@@ -474,6 +501,8 @@ def _checks(game):
     for c in game["ending_calls"]:
         if c["sec"] >= SLOW_SEC:
             found.append(f"엔딩: 호출이 {c['sec']:.1f}초 걸림")
+    if game.get("stopped"):
+        found.append(f"답 {game['stopped']}: 모델이 다시 보내도 답을 못 줘서 판을 멈춤")
     if game["ending_fallback"]:
         found.append("엔딩: 모델 문구를 못 써서 기본 엔딩 이름만 나감")
     machine = _machine_words([game["ending"]["title"], game["ending"]["epilogue"], game["ending"]["nickname"]])
@@ -559,6 +588,7 @@ def game_numbers(game):
         "fallbacks": sum(1 for t in game["turns"] if t["out"]["fallback"]) + int(game["ending_fallback"]),
         "json_failures": sum(1 for c in calls if c["raw"] is not None and not c["readable"]),
         "no_answer": sum(1 for c in calls if c["raw"] is None),
+        "retries": sum(t.get("retries", 0) for t in game["turns"]),
         "banned": sum(1 for c in calls if c["banned"]),
         "providers": providers,
     }

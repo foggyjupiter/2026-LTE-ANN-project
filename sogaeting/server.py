@@ -21,12 +21,16 @@ import urllib.parse
 from . import content, ranking
 from . import llm as model  # 인자 이름 llm과 헷갈리지 않게 다른 이름으로 부른다
 from . import director
-from .director import Session, save_result
+from .director import ModelUnavailable, Session, save_result
 from .fake_llm import fake_llm
 
 WEB_DIR = pathlib.Path(__file__).resolve().parent / "web"
 MAX_BODY = 10 * 1024         # 요청 본문 한도 (바이트)
 DRAIN_LIMIT = 1024 * 1024    # 한도를 넘긴 본문도 이만큼까지는 읽어서 버린다
+# 모델이 답을 못 줬을 때(과부하 503, 한도, 시간 초과) 화면에 보일 안내. 판은 그 말을 받기 전으로 돌아가 있다.
+# 화면(Ren'Py)은 이 글과 함께 "다시 시도"를 띄우고, 누르면 같은 말을 다시 보낸다
+MSG_MODEL_BUSY_TURN = "캐릭터가 잠깐 대답을 못 했어요.\n다시 시도를 누르면 같은 말을 다시 보내요.\n계속 안 되면 부스 담당자에게 알려 주세요."
+MSG_MODEL_BUSY_START = "캐릭터를 부르지 못했어요.\n잠시 뒤에 다시 시도해 주세요.\n계속 안 되면 부스 담당자에게 알려 주세요."
 
 # 고르기 화면에 놓는 순서. 여기에 없는 캐릭터는 뒤에 id 순서로 붙는다
 CHARACTER_ORDER = ("astra", "gemma", "sora", "nova", "mistral", "haiku")
@@ -137,7 +141,11 @@ class _App:
             raise _ApiError(404, "모르는 캐릭터입니다.")
         # llm을 안 받았으면 인자를 아예 넘기지 않아서 엔진 기본값(실제 모델)을 쓴다
         session = Session(char_id) if self.llm is None else Session(char_id, llm=self.llm)
-        turn = session.start()  # 모델을 기다리는 동안에는 어떤 잠금도 잡지 않는다
+        try:
+            turn = session.start()  # 모델을 기다리는 동안에는 어떤 잠금도 잡지 않는다
+        except ModelUnavailable:
+            self._report_model_call()
+            raise _ApiError(503, MSG_MODEL_BUSY_START) from None
         self._report_model_call()
         entry = _Entry(session)
         with self._lock:
@@ -168,6 +176,10 @@ class _App:
                 raise _ApiError(400, "빈 글은 보낼 수 없습니다.") from None
             except RuntimeError:
                 raise _ApiError(409, "이 판은 더 답을 받지 않습니다. 엔딩을 보러 가세요.") from None
+            except ModelUnavailable:
+                # 판은 이 말을 받기 전으로 돌아가 있다. 화면의 "다시 시도"가 같은 말을 다시 보낸다
+                self._report_model_call()
+                raise _ApiError(503, MSG_MODEL_BUSY_TURN) from None
             entry.last_reply = (text, turn["turn"], turn)
         self._report_model_call()
         return turn

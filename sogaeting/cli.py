@@ -6,7 +6,7 @@ import argparse
 import os
 
 from . import content, llm
-from .director import Session, save_result
+from .director import ModelUnavailable, Session, save_result
 from .fake_llm import fake_llm
 
 LINE = "-" * 44
@@ -40,11 +40,16 @@ def _run(character_id, use_fake):
     if use_fake:
         print("가짜 모델로 진행합니다.")
     elif not any(os.environ.get(p["key_env"]) for p in llm.PROVIDERS):
-        print("API 키가 없어서 대체 대사만 나옵니다. 흐름만 보려면 --fake를 붙이세요.")
+        print("API 키가 없어서 캐릭터가 답하지 못합니다. 흐름만 보려면 --fake를 붙이세요.")
 
     session = Session(character_id, llm=fake_llm if use_fake else None)
     name = session.character["name"]
-    out = session.start()
+    try:
+        out = session.start()
+    except ModelUnavailable:
+        print("캐릭터를 부르지 못했어요. 잠시 뒤에 다시 실행해 주세요.")
+        print(llm.status_line())
+        return 1
     _print_turn(name, out)
     masked = "inner_masked" in out["extras"]
     while not out["finale"]:
@@ -55,6 +60,9 @@ def _run(character_id, use_fake):
             out = session.reply(text)
         except ValueError:
             print("빈 입력은 보낼 수 없어요.")
+            continue
+        except ModelUnavailable:
+            print("캐릭터가 잠깐 대답을 못 했어요. 같은 말을 다시 보내 주세요.")
             continue
         _print_turn(name, out)
         masked = masked or "inner_masked" in out["extras"]

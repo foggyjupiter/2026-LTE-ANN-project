@@ -289,33 +289,65 @@ class PlayTest(unittest.TestCase):
         self.assertIn("등장: 1번째 호출의 답을 JSON으로 못 읽어 다시 요청함", game["checks"])
 
     def test_fallback_reasons(self):
-        def silent(messages, trace):
-            trace.append({"provider": "p", "model": "m", "ok": False, "sec": 0.0, "error": "HTTP 503"})
-            raise llm.AllProvidersDown()
-
-        def garbage(messages, trace):
-            return "{ 깨진 JSON"
-
+        # 대체 대사는 금지어나 고쳐 써도 남은 말에만 나간다. 모델이 답을 못 주면 다시 보낸다(아래 시험)
         def rude(messages, trace):
             if "epilogue" in messages[0]["content"]:
                 return json.dumps({"title": "병신 엔딩", "epilogue": "후일담.", "nickname": "칭호"},
                                   ensure_ascii=False)
             return turn_json(say="야 이 병신아.")
 
-        for backend, why, key in ((silent, "모델 무응답", "no_answer"),
-                                  (garbage, "JSON 못 읽음", "json_failures"),
-                                  (rude, "금지어", "banned")):
-            with self.subTest(why):
-                game = play("haiku", backend)
-                self.assertTrue(all(t["out"]["fallback"] for t in game["turns"]))
-                self.assertEqual({t["why_fallback"] for t in game["turns"]}, {why})
-                self.assertTrue(game["ending_fallback"])
-                numbers = playtest.game_numbers(game)
-                self.assertEqual(numbers["fallbacks"], len(game["turns"]) + 1)
-                self.assertGreater(numbers[key], 0)
-                text = playtest.render_game(game, fake=True, when="시험")
-                self.assertIn(f"**대체 대사** (까닭: {why})", text)
-                self.assertIn("기본 엔딩 이름만", text)
+        game = play("haiku", rude)
+        self.assertTrue(all(t["out"]["fallback"] for t in game["turns"]))
+        self.assertEqual({t["why_fallback"] for t in game["turns"]}, {"금지어"})
+        self.assertTrue(game["ending_fallback"])
+        numbers = playtest.game_numbers(game)
+        self.assertEqual(numbers["fallbacks"], len(game["turns"]) + 1)
+        self.assertGreater(numbers["banned"], 0)
+        text = playtest.render_game(game, fake=True, when="시험")
+        self.assertIn("**대체 대사** (까닭: 금지어)", text)
+        self.assertIn("기본 엔딩 이름만", text)
+
+    def test_model_failure_is_sent_again(self):
+        failed = []
+
+        def flaky(messages, trace):
+            turn = sum(1 for m in messages if m["role"] == "assistant")
+            if turn == 2 and not failed:
+                failed.append(turn)
+                trace.append({"provider": "p", "model": "m", "ok": False, "sec": 0.0, "error": "HTTP 503"})
+                raise llm.AllProvidersDown()
+            return fake_backend(messages, trace)
+
+        waits = []
+        game = play("gemma", flaky, sleep=waits.append)
+        self.assertIsNone(game["stopped"])
+        self.assertEqual(len(game["turns"]), game["total_turns"] + 1)
+        self.assertFalse(any(t["out"]["fallback"] for t in game["turns"]))
+        self.assertEqual([t["retries"] for t in game["turns"]][2], 1)
+        self.assertIn(playtest.RETRY_WAITS[0], waits)
+        self.assertIn("답 2: 모델이 답을 못 줘서 1번 다시 보냄", game["checks"])
+        self.assertEqual(playtest.game_numbers(game)["retries"], 1)
+
+    def test_model_down_stops_the_game(self):
+        def silent_after_opening(messages, trace):
+            if sum(1 for m in messages if m["role"] == "assistant") >= 1 and "epilogue" not in messages[0]["content"]:
+                raise llm.AllProvidersDown()
+            return fake_backend(messages, trace)
+
+        waits = []
+        game = play("sora", silent_after_opening, sleep=waits.append)
+        self.assertEqual(game["stopped"], 1)
+        self.assertEqual(len(game["turns"]), 1)              # 등장만 남는다
+        self.assertEqual(waits, list(playtest.RETRY_WAITS))
+        self.assertTrue(game["ending"]["early"])
+        self.assertIn("답 1: 모델이 다시 보내도 답을 못 줘서 판을 멈춤", game["checks"])
+
+    def test_model_down_at_opening_is_an_error(self):
+        def silent(messages, trace):
+            raise llm.AllProvidersDown()
+
+        with self.assertRaises(RuntimeError):
+            play("nova", silent, sleep=lambda seconds: None)
 
     def test_checks_catch_reward_for_rule_breaking_input(self):
         def generous(messages, trace):

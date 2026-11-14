@@ -300,6 +300,44 @@ class RetryTest(ServerCase):
         self.assertEqual(self.send(sid, "둘", 1).json()["turn"], 2)
 
 
+class FailingOnce:
+    """fake_llm을 감싸서 정한 차례(등장이 0)에 정한 횟수만큼 AllProvidersDown을 던진다."""
+
+    def __init__(self, turn, times=1):
+        self.turn = turn
+        self.left = times
+
+    def __call__(self, messages):
+        if sum(1 for m in messages if m["role"] == "assistant") == self.turn and self.left > 0:
+            self.left -= 1
+            raise llm.AllProvidersDown()
+        return fake_llm(messages)
+
+
+class ModelBusyTest(ServerCase):
+    """모델이 답을 못 주면(503) 대체 대사로 넘기지 않고, 503으로 알려 같은 말을 다시 보내게 한다."""
+
+    def test_reply_gets_503_and_the_same_answer_can_be_sent_again(self):
+        srv = self.start(llm=FailingOnce(turn=1))
+        sid, _ = self.new_game(srv=srv)
+        body = {"text": "안녕, 반가워", "turn": 1}
+        busy = self.post(f"/api/session/{sid}/reply", body, srv=srv)
+        self.assertEqual(busy.status, 503)
+        self.assertEqual(busy.json()["error"], server.MSG_MODEL_BUSY_TURN)
+        again = self.post(f"/api/session/{sid}/reply", body, srv=srv)
+        self.assertEqual(again.status, 200)
+        self.assertEqual(again.json()["turn"], 1)
+        self.assertFalse(again.json()["fallback"])
+
+    def test_new_game_gets_503_and_can_be_tried_again(self):
+        srv = self.start(llm=FailingOnce(turn=0))
+        busy = self.post("/api/session", {"character": "astra"}, srv=srv)
+        self.assertEqual(busy.status, 503)
+        self.assertEqual(busy.json()["error"], server.MSG_MODEL_BUSY_START)
+        sid, created = self.new_game("astra", srv=srv)
+        self.assertEqual(created["turn"]["turn"], 0)
+
+
 class ErrorTest(ServerCase):
     def test_unknown_character_is_404(self):
         for name in ("nobody", "", "../banned", "HARU"):

@@ -106,6 +106,13 @@ def gain_for(score: float, points: float) -> float:
     return round(points * slowdown(score), SCORE_DIGITS)
 
 
+class ModelUnavailable(Exception):
+    """모델이 이번 답을 주지 못했다(과부하 503, 한도, 시간 초과, 못 읽는 답).
+
+    판의 상태는 그 말을 받기 전으로 되돌려 두었으니 다시 보내면 된다. 서버는 503으로 알리고
+    화면은 "다시 시도"를 띄운다."""
+
+
 class Session:
     """한 판. start() → reply() 여러 번 → finish() → result() 순서로 부른다."""
 
@@ -151,12 +158,17 @@ class Session:
     # ---- 바깥에서 부르는 것 ----
 
     def start(self) -> dict:
-        """등장. 한 번만 부른다."""
+        """등장. 한 번만 부른다. 모델이 답을 못 주면 ModelUnavailable이고, 그때는 다시 불러도 된다."""
         if self.started:
             raise RuntimeError("start()는 한 번만 부를 수 있다")
         self.started = True
         self.history = [{"role": "user", "content": actor.OPENING_CUE}]
-        return self._play(self.schedule["opening"], opening=True, heard=None)
+        try:
+            return self._play(self.schedule["opening"], opening=True, heard=None)
+        except ModelUnavailable:
+            self.started = False
+            self.history = []
+            raise
 
     def reply(self, user_text: str) -> dict:
         """참가자의 입력 하나에 캐릭터가 답한다."""
@@ -175,7 +187,14 @@ class Session:
         self.history.append({"role": "user", "content": sent})
         self.past_inputs.append(text)
         self.turn += 1
-        return self._play(self.schedule["replies"][self.turn - 1], opening=False, heard=heard)
+        try:
+            return self._play(self.schedule["replies"][self.turn - 1], opening=False, heard=heard)
+        except ModelUnavailable:
+            # 이번 말은 없던 일로 한다. 참가자가 같은 말이나 다른 말을 다시 보내면 같은 차례로 다시 한다
+            self.history.pop()
+            self.past_inputs.pop()
+            self.turn -= 1
+            raise
 
     def finish(self) -> dict:
         """엔딩 카드. 여러 번 불러도 같은 값을 돌려준다."""
@@ -279,10 +298,14 @@ class Session:
                                                                    previous=previous, stuck_wish=stuck_wish,
                                                                    touch_hint=seed_hint if must_touch else ""))
 
-        # 모델이 답을 못 줬거나, 금지어가 걸리거나, 고쳐 쓰게 했는데도 캐릭터가 모르는 말이
-        # 남았으면 대체 대사로 바꾼다
-        fallback = reply is None or safety.contains_banned(
-            actor.reply_texts(reply), self.banned) or actor.must_drop(reply)
+        # 모델이 답을 못 줬으면(과부하 503, 한도, 시간 초과, 못 읽는 답) 대체 대사로 넘기지 않고 참가자가
+        # 다시 보내게 한다(사용자, 2026-11-14: "넘어가는 건 금지어 걸릴 때만, 503은 다시 기회"). 뽑아 둔 씨앗은 돌려놓는다
+        if reply is None:
+            if seed is not None:
+                self._used_seeds.discard(seed)
+            raise ModelUnavailable()
+        # 금지어가 걸리거나, 고쳐 쓰게 했는데도 캐릭터가 모르는 말("AI" 같은 것)이 남았으면 대체 대사로 바꾼다
+        fallback = safety.contains_banned(actor.reply_texts(reply), self.banned) or actor.must_drop(reply)
         if fallback:
             reply = actor.Reply(say=self._next_fallback_line())
         elif actor.wish_hidden(reply, actor.name_words(self.character)):

@@ -124,6 +124,29 @@ class ScriptedLlm:
         raise AssertionError(f"{turn}번 차례의 호출이 없다")
 
 
+class Flaky:
+    """다른 가짜 모델을 감싸서, 정한 차례에 정한 횟수만큼 실패한다.
+
+    fail: {차례 번호: 실패할 횟수}. answer가 없으면 AllProvidersDown을 던지고, 있으면 그 글(못 읽는 답)을 낸다.
+    못 읽는 답은 배우가 한 번 더 묻기 때문에 호출 두 번이 한 번의 실패다."""
+
+    def __init__(self, inner, fail, answer=None):
+        self.inner = inner
+        self.left = dict(fail)
+        self.answer = answer
+
+    def __call__(self, messages):
+        turn = sum(1 for m in messages if m["role"] == "assistant")
+        if self.left.get(turn, 0) > 0 and "엔딩" not in messages[-1]["content"]:
+            if self.answer is None:
+                self.left[turn] -= 1
+                raise AllProvidersDown()
+            # 배우는 못 읽는 답에 한 번 더 묻는다. 두 번째 호출까지 못 읽어야 실패 한 번이다
+            self.left[turn] -= 0.5
+            return self.answer
+        return self.inner(messages)
+
+
 def play(session, count=None, text="좋은 말이네 진심으로 고마워"):
     """start()와 reply() count번(없으면 한 판 끝까지)을 하고 돌려받은 dict를 차례로 모은다."""
     count = TOTAL if count is None else count
@@ -621,44 +644,52 @@ class FxTest(unittest.TestCase):
 
 
 class FallbackTest(unittest.TestCase):
-    def test_all_providers_down_still_reaches_ending(self):
-        lines = content.load_character("astra")["fallback_lines"]
-        llm = ScriptedLlm(default=AllProvidersDown(), ending=AllProvidersDown())
+    def test_model_down_at_opening_can_start_again(self):
+        # 모델이 답을 못 주면 대체 대사로 넘기지 않는다. 판을 처음으로 돌려놓고 다시 부르게 한다(2026-11-14)
+        llm = Flaky(ScriptedLlm(), fail={0: 1})
         session = Session("astra", llm=llm)
-        outs = play(session)
+        with self.assertRaises(director.ModelUnavailable):
+            session.start()
+        self.assertFalse(session.started)
+        self.assertEqual((session.history, session._used_seeds, session.turn), ([], set(), 0))
+        out = session.start()
+        self.assertFalse(out["fallback"])
+        self.assertEqual(out["turn"], 0)
+        self.assertTrue(out["place"])
+
+    def test_model_down_on_a_reply_gives_the_turn_back(self):
+        llm = Flaky(ScriptedLlm(), fail={3: 2})        # 답 3을 두 번 못 준다(답 3은 사건이 있는 답이다)
+        session = Session("gemma", llm=llm)
+        play(session, count=2)
+        before = (json.dumps(session.history), list(session.past_inputs), session.turn, set(session._used_seeds),
+                  session.score)
+        for _ in range(2):
+            with self.assertRaises(director.ModelUnavailable):
+                session.reply("좋은 말이네 다시 보내는 말")
+            self.assertEqual((json.dumps(session.history), list(session.past_inputs), session.turn,
+                              set(session._used_seeds), session.score), before)
+        out = session.reply("좋은 말이네 다시 보내는 말")
+        self.assertFalse(out["fallback"])
+        self.assertEqual(out["turn"], 3)
+        self.assertEqual(session.past_inputs[-1], "좋은 말이네 다시 보내는 말")
+        self.assertEqual(sum(1 for m in session.history if m["role"] == "user"), 4)   # 등장 신호와 답 3개
+
+    def test_ending_still_has_a_default_when_the_model_is_down(self):
+        # 엔딩은 막지 않는다. 모델이 못 주면 등급 이름의 기본 엔딩이다
+        session = Session("astra", llm=ScriptedLlm(ending=AllProvidersDown()))
+        play(session, count=1)
         ending = session.finish()
-
-        self.assertTrue(all(o["fallback"] for o in outs))
-        self.assertEqual([o["say"] for o in outs], [lines[n % len(lines)] for n in range(TOTAL + 1)])
-        for out in outs:
-            self.assertEqual(out["score"], 50)
-            self.assertEqual((out["delta"], out["change"]), (0, 0))
-            self.assertEqual((out["narration"], out["inner"], out["reason"]), ("", "", ""))
-            self.assertEqual(out["face"], "neutral")
-            self.assertEqual(out["fx"], [])
-            self.assertIsNone(out["popup"])
-        # 대체 대사에도 고를 것이 있어야 한다. 결말만 선택지가 없다
-        for out in outs[:-1]:
-            self.assertEqual(out["choices"], DEFAULT_CHOICES)
-        self.assertEqual(outs[-1]["choices"], [])
-        self.assertTrue(outs[-1]["finale"])
-
-        self.assertEqual(ending["title"], "애매 엔딩")
         self.assertEqual((ending["epilogue"], ending["nickname"]), ("", ""))
-        self.assertEqual(ending["score"], 50)
-        self.assertEqual(ending["best_line"], "")
-        self.assertFalse(ending["early"])
-        self.assertTrue(session.done)
-        self.assertEqual(session.result()["ending_title"], "애매 엔딩")
-        self.assertEqual(len(llm.calls), TOTAL + 2)  # 등장 1, 답 10, 엔딩 1
+        self.assertTrue(ending["title"].endswith(" 엔딩"))
 
     def test_fallback_goes_into_history(self):
         lines = content.load_character("mistral")["fallback_lines"]
-        session = Session("mistral", llm=ScriptedLlm(default=AllProvidersDown()))
+        bad = {"say": f"그건 {content.load_banned()[0]} 같은 말이야."}
+        session = Session("mistral", llm=ScriptedLlm(turns={1: bad, 2: bad}))
         session.start()
         session.reply("안녕")
         self.assertEqual([m["role"] for m in session.history], ["user", "assistant", "user", "assistant"])
-        for message, line in zip(session.history[1::2], lines):
+        for message, line in zip(session.history[3::2], lines):
             saved = json.loads(message["content"])
             self.assertEqual(set(saved), HISTORY_KEYS)
             self.assertEqual(saved["wish"], "")
@@ -678,15 +709,16 @@ class FallbackTest(unittest.TestCase):
         self.assertEqual(out["say"], "다시 낸 답")
         self.assertEqual(len(calls), 2)
 
-    def test_unreadable_twice_becomes_fallback(self):
-        session = Session("mistral", llm=ScriptedLlm(turns={1: "읽을 수 없는 답"}))
+    def test_unreadable_twice_asks_again(self):
+        llm = Flaky(ScriptedLlm(), fail={1: 1}, answer="읽을 수 없는 답")
+        session = Session("mistral", llm=llm)
         session.start()
-        out = session.reply("안녕")
-        self.assertTrue(out["fallback"])
-        self.assertEqual(out["score"], 50)
-        out = session.reply("다시 안녕")  # 다음 답은 정상으로 돌아온다
+        with self.assertRaises(director.ModelUnavailable):
+            session.reply("안녕")
+        self.assertEqual(session.turn, 0)
+        out = session.reply("안녕")  # 다시 보내면 정상으로 돌아온다
         self.assertFalse(out["fallback"])
-        self.assertEqual(out["turn"], 2)
+        self.assertEqual(out["turn"], 1)
 
     def test_wrong_types_do_not_crash(self):
         wrapped = "물론이지!\n```json\n" + reply_json(delta="2", fx="꽃잎", choices=["가", "나"], face="angry") + "\n```"
@@ -778,8 +810,11 @@ class FaceTest(unittest.TestCase):
         self.assertEqual(outs[2]["narration"], "고개를 숙였다.")  # 지문 말투를 맞춘다
 
     def test_fallback_does_not_count(self):
-        llm = ScriptedLlm(turns={0: {"face": "blush"}, 1: {"face": "blush"}, 2: AllProvidersDown(), 3: {"face": "blush"}})
+        # 답 2는 금지어가 남아 대체 대사가 된다. 고쳐 쓰기 호출이 차례 하나를 더 쓰므로 답 3은 4번 차례다
+        bad = {"say": f"그건 {content.load_banned()[0]} 같은 말이야.", "face": "blush"}
+        llm = ScriptedLlm(turns={0: {"face": "blush"}, 1: {"face": "blush"}, 2: bad, 3: bad, 4: {"face": "blush"}})
         outs = play(Session("gemma", llm=llm), count=3)
+        self.assertTrue(outs[2]["fallback"])
         self.assertEqual(outs[3]["face"], "smile")  # 대체 대사를 건너뛰고 앞의 두 blush를 센다
 
     def test_extra_face_passes_with_its_base(self):
@@ -1103,7 +1138,9 @@ class EndingTest(unittest.TestCase):
         self.assertEqual(session.finish()["best_line"], "속마음 3")
 
     def test_best_line_skips_fallback_replies(self):
-        turns = {1: {"inner": "진짜 속마음", "delta": 0}, 2: AllProvidersDown()}
+        # 답 2는 금지어가 남아 대체 대사가 된다(고쳐 쓰기 호출은 다음 차례로 센다)
+        bad = {"say": f"그건 {content.load_banned()[0]} 같은 말이야.", "delta": 2}
+        turns = {1: {"inner": "진짜 속마음", "delta": 0}, 2: bad, 3: bad}
         session = Session("mistral", llm=ScriptedLlm(turns=turns))
         play(session, count=2)
         ending = session.finish()
