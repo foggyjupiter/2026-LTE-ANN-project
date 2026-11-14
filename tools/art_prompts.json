@@ -6,7 +6,7 @@
     "astra": {"do": "done", "note": "게임에 넣은 그림(기본 여섯 장, huff, denial)을 그대로 쓴다. 시트의 빨간 리본 그림은 쓰지 않는다."},
     "gemma": {"do": "redo", "note": "머리색을 연한 파랑에서 에메랄드 초록으로 바꿨다. 아스트라, 소라와 같은 파란 계열로 겹쳤다."},
     "sora": {"do": "keep", "note": "시트의 기본 여섯 장을 그대로 쓴다. yawn만 새로 뽑는다."},
-    "nova": {"do": "redo", "note": "머리와 후드를 주황에서 분홍으로 바꿨다. 미스트랄과 같은 금발, 주황으로 겹쳤다. 기본과 미소, 삐침, 음산이 비슷하게 나와서 표정 요청문도 고쳤다."},
+    "nova": {"do": "redo", "note": "머리와 후드를 주황에서 분홍으로 바꿨다. 미스트랄과 같은 금발, 주황으로 겹쳤다. 기본과 미소, 삐침, 음산이 비슷하게 나와서 표정 요청문도 고쳤다. 자세도 팔을 내린 평범한 자세에서 앞으로 기울이고 두 손을 뒤로 깍지 낀 자세로 바꿨다."},
     "mistral": {"do": "keep", "note": "시트의 기본 여섯 장을 그대로 쓴다. busted만 새로 뽑는다. 주황은 이제 미스트랄 혼자다."},
     "haiku": {"do": "keep", "note": "시트의 기본 여섯 장을 그대로 쓴다. flushed만 새로 뽑는다. 표정이 거의 같은 것은 무표정 설정대로다."}
   },
@@ -88,7 +88,7 @@
     "nova": {
       "name": "노바",
       "key": "green",
-      "look": "Bright rose-pink hair in a side ponytail. Warm amber eyes. A rose-pink zip-up hoodie with white stripes on the sleeves, worn over the white school shirt instead of a blazer. A small adhesive bandage on one cheek. Energetic posture, leaning slightly toward the viewer.",
+      "look": "Bright rose-pink hair in a side ponytail. Sparkling rose-pink eyes. A rose-pink zip-up hoodie with white stripes on the sleeves, worn over the white school shirt instead of a blazer. A small adhesive bandage on one cheek. She leans forward toward the viewer with both hands clasped behind her back, an energetic, playful posture.",
       "faces": {
         "neutral": "a cheerful smile with both eyes open and sparkling, mouth slightly open",
         "smile": "a huge laughing smile, eyes closed in happy arcs, mouth wide open",
@@ -97,7 +97,7 @@
         "excited": "fired up with excitement: sparkling star-shaped highlights in the eyes, mouth wide open in a happy cheer"
       },
       "poses": {
-        "excited": "She raises one clenched fist up near her shoulder."
+        "excited": "She brings one hand out from behind her back and raises a clenched fist up near her shoulder."
       }
     },
     "mistral": {

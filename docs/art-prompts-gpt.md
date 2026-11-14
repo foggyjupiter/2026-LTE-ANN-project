@@ -13,7 +13,7 @@ ChatGPT 같은 대화형 그림 도구에 붙여 넣을 요청문이다. 캐릭�
 | 아스트라 | 할 것 없음 | 없음 | 게임에 넣은 그림(기본 여섯 장, huff, denial)을 그대로 쓴다. 시트의 빨간 리본 그림은 쓰지 않는다. |
 | 젬마 | 전부 다시 뽑기 | neutral, smile, blush, pout, shock, dark, hide | 머리색을 연한 파랑에서 에메랄드 초록으로 바꿨다. 아스트라, 소라와 같은 파란 계열로 겹쳤다. |
 | 소라 | 캐릭터만의 표정만 새로 뽑기 | yawn | 시트의 기본 여섯 장을 그대로 쓴다. yawn만 새로 뽑는다. |
-| 노바 | 전부 다시 뽑기 | neutral, smile, blush, pout, shock, dark, excited | 머리와 후드를 주황에서 분홍으로 바꿨다. 미스트랄과 같은 금발, 주황으로 겹쳤다. 기본과 미소, 삐침, 음산이 비슷하게 나와서 표정 요청문도 고쳤다. |
+| 노바 | 전부 다시 뽑기 | neutral, smile, blush, pout, shock, dark, excited | 머리와 후드를 주황에서 분홍으로 바꿨다. 미스트랄과 같은 금발, 주황으로 겹쳤다. 기본과 미소, 삐침, 음산이 비슷하게 나와서 표정 요청문도 고쳤다. 자세도 팔을 내린 평범한 자세에서 앞으로 기울이고 두 손을 뒤로 깍지 낀 자세로 바꿨다. |
 | 미스트랄 | 캐릭터만의 표정만 새로 뽑기 | busted | 시트의 기본 여섯 장을 그대로 쓴다. busted만 새로 뽑는다. 주황은 이제 미스트랄 혼자다. |
 | 하이쿠 | 캐릭터만의 표정만 새로 뽑기 | flushed | 시트의 기본 여섯 장을 그대로 쓴다. flushed만 새로 뽑는다. 표정이 거의 같은 것은 무표정 설정대로다. |
 
@@ -206,7 +206,7 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 
 ### 노바 (nova)
 
-할 일: 전부 다시 뽑기. 머리와 후드를 주황에서 분홍으로 바꿨다. 미스트랄과 같은 금발, 주황으로 겹쳤다. 기본과 미소, 삐침, 음산이 비슷하게 나와서 표정 요청문도 고쳤다.
+할 일: 전부 다시 뽑기. 머리와 후드를 주황에서 분홍으로 바꿨다. 미스트랄과 같은 금발, 주황으로 겹쳤다. 기본과 미소, 삐침, 음산이 비슷하게 나와서 표정 요청문도 고쳤다. 자세도 팔을 내린 평범한 자세에서 앞으로 기울이고 두 손을 뒤로 깍지 낀 자세로 바꿨다.
 
 기준 그림 (새로 뽑기). 저장할 곳: `art/raw/nova/neutral.png`
 
@@ -214,7 +214,7 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 Draw one character sprite for a visual novel game.
 Art style: Japanese bishoujo game (galge) character art, like a heroine sprite from a moe visual novel. Large sparkling detailed eyes, small nose and mouth, glossy hair with sharp highlights, thin clean line art, soft cel shading with light gradients, bright pastel colors.
 Framing: One character only, waist-up portrait, centered, facing the viewer. The whole head and all of the hair are inside the frame, with empty space above the head.
-Character: Bright rose-pink hair in a side ponytail. Warm amber eyes. A rose-pink zip-up hoodie with white stripes on the sleeves, worn over the white school shirt instead of a blazer. A small adhesive bandage on one cheek. Energetic posture, leaning slightly toward the viewer. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
+Character: Bright rose-pink hair in a side ponytail. Sparkling rose-pink eyes. A rose-pink zip-up hoodie with white stripes on the sleeves, worn over the white school shirt instead of a blazer. A small adhesive bandage on one cheek. She leans forward toward the viewer with both hands clasped behind her back, an energetic, playful posture. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
 Expression: a cheerful smile with both eyes open and sparkling, mouth slightly open.
 Content: A high school student in a modest, fully covering school outfit. Wholesome, all-ages.
 Background: fully transparent (PNG with alpha). If a transparent background is not possible, fill the whole background with one flat pure bright green (#00FF00) chroma key color, with no gradient, shadow, floor or objects.
@@ -254,7 +254,7 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 캐릭터만의 표정 excited (새로 뽑기). 저장할 곳: `art/raw/nova/excited.png`
 
 ```
-Use the reference image. Keep the same character, hairstyle, outfit, colors, art style and framing exactly. Change the facial expression, and change the pose only as the new pose describes. New expression: fired up with excitement: sparkling star-shaped highlights in the eyes, mouth wide open in a happy cheer. New pose: She raises one clenched fist up near her shoulder. Keep the same background and the same image size.
+Use the reference image. Keep the same character, hairstyle, outfit, colors, art style and framing exactly. Change the facial expression, and change the pose only as the new pose describes. New expression: fired up with excitement: sparkling star-shaped highlights in the eyes, mouth wide open in a happy cheer. New pose: She brings one hand out from behind her back and raises a clenched fist up near her shoulder. Keep the same background and the same image size.
 ```
 
 ### 미스트랄 (mistral)

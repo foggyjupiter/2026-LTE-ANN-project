@@ -213,7 +213,7 @@ CHARACTERS = {
     # 소라: 구름처럼 부스스한 흰 단발에 끝이 옅은 하늘색, 하늘색 눈, 크림색 카디건
     "sora": {"hair": "#FBFDFF", "hair2": "#BFE4FA", "eye": "#3F9FE0", "top": "#F2E3BD"},
     # 노바: 밝은 황금빛 사이드 포니테일, 주황빛 눈, 주황색 후드 집업
-    "nova": {"hair": "#FF8DB8", "hair2": "#F0508A", "eye": "#E0A030", "top": "#F26A9C"},
+    "nova": {"hair": "#FF8DB8", "hair2": "#F0508A", "eye": "#E0508A", "top": "#F26A9C"},
     # 미스트랄: 위는 황금빛, 끝은 붉은 주황으로 번지는 긴 웨이브 머리, 남색 블레이저
     "mistral": {"hair": "#FFC93C", "hair2": "#EE5A2A", "eye": "#D9541E", "top": "#2B3A7A"},
     # 하이쿠: 먹빛 단발, 회색 눈, 크림색 후드
