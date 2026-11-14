@@ -176,6 +176,8 @@ class OtherDataTest(unittest.TestCase):
         for event, hint in seeds["event_hints"].items():
             self.assertIn(event, seeds["event"])
             self.assertTrue(hint.endswith("는"), hint)  # "...하는 순간의 계기"로 이어 붙는다
+            # 참가자의 행동을 정하지 않게, 힌트는 캐릭터가 하는 일로 쓴다
+            self.assertTrue(hint.startswith("캐릭터가"), hint)
         for place in seeds["entrance"]:
             close = [e for e in seeds["event_hints"]
                      if e not in seeds["event_places"] or place in seeds["event_places"][e]]

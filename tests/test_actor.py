@@ -961,6 +961,23 @@ class VarietyTest(unittest.TestCase):
         self.assertIn("화면 연출의 이름", actor.review_reply(reply, sample_character()))
         self.assertFalse(actor.must_drop(reply))
 
+    def test_narration_does_not_decide_what_the_player_does(self):
+        # 실전 기록: 아스트라의 지문 "전학생이 살짝 비틀거리며 어깨에 쿵 하고 기대었다"
+        acts = ["전학생이 살짝 비틀거리며 어깨에 쿵 하고 기대었다.", "전학생이 웃었다.",
+                "전학생이 책상 위 두꺼운 책을 밀어 넣으려다 손이 겹쳤다.", "전학생도 고개를 끄덕였다."]
+        for narration in acts:
+            reply = parse_reply(raw_reply(narration=narration, say="응.", inner="딴생각"), FX)
+            self.assertTrue(actor.protagonist_acts(reply), narration)
+        self.assertIn("지문이 전학생의 행동을 정했다", actor.review_reply(
+            parse_reply(raw_reply(narration=acts[0], say="응.", inner="딴생각"), FX), sample_character()))
+        # 참가자가 한 말을 가리키거나 캐릭터가 하는 일은 괜찮다
+        fine = ["전학생이 한 말에 아스트라가 고개를 홱 돌렸다.", "전학생이 묻자 젬마가 작게 웃었다.",
+                "전학생이 건넨 칭찬에 노바가 펄쩍 뛰었다.", "아스트라가 전학생 어깨에 살짝 기댔다.",
+                "소라가 전학생의 손을 살며시 잡았다.", "전학생의 말에 하이쿠가 헤드폰을 내렸다."]
+        for narration in fine:
+            reply = parse_reply(raw_reply(narration=narration, say="응.", inner="딴생각"), FX)
+            self.assertFalse(actor.protagonist_acts(reply), narration)
+
     def test_grabbing_the_protagonist_is_rewritten(self):
         # 2026-11-13에 풀었다: 손잡기, 기대기, 짧게 안기는 괜찮다. 억지로 끌어당기거나 붙드는 것만 고쳐 쓰게 한다
         allowed = ["소라가 전학생의 손목을 살짝 붙잡는다.", "노바가 전학생에게 살짝 기댄다.", "아스트라가 전학생을 짧게 안았다."]

@@ -628,6 +628,14 @@ class OffstageTest(unittest.TestCase):
         session.start()
         self.assertFalse(session.reply("심심한데 야한 얘기 할까?")["fallback"])
 
+    def test_sora_call_slip_is_fixed_only_in_narration(self):
+        llm = ScriptedLlm(turns={1: {"narration": "소라와 정학생만 남았다.", "say": "정학생, 같이 있자아."}})
+        session = Session("sora", llm=llm)
+        session.start()
+        out = session.reply("안녕, 반가워")
+        self.assertEqual(out["narration"], "소라와 전학생만 남았다.")
+        self.assertEqual(out["say"], "정학생, 같이 있자아.")  # 대사의 틀린 호칭은 소라의 말버릇이다
+
     def test_protagonist_word_becomes_transfer_student(self):
         llm = ScriptedLlm(turns={1: {"narration": "젬마가 주인공을 본다.", "inner": "주인공이 웃었다"}})
         session = Session("gemma", llm=llm)

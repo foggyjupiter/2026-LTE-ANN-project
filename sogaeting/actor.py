@@ -311,7 +311,9 @@ _OUTPUT_SECTION = [
     "- 칸은 아래 아홉 개다. 하나도 빠뜨리지 않고, 다른 칸을 더하지 않는다.",
     "- narration (문자열): 지문. 한 문장 이하. 필요 없으면 빈 문자열로 둔다. 지문에서 상대는 "
     "\"전학생\"이라고 쓴다. 지문은 '고개를 숙였다'처럼 끝내고 '고개를 숙였습니다'처럼 쓰지 않는다. "
-    "fx에 넣는 연출의 이름과 화면 이야기를 지문에 쓰지 않는다.",
+    "fx에 넣는 연출의 이름과 화면 이야기를 지문에 쓰지 않는다. 지문에는 캐릭터의 행동과 주변에서 일어나는 일만 "
+    "쓴다. 전학생이 무엇을 하는지, 느끼는지 지어내지 않는다(\"전학생이 어깨에 기댔다\", \"전학생이 웃었다\"처럼 "
+    "쓰지 않는다). 전학생이 한 일은 주인공이 방금 한 말뿐이다.",
     "- say (문자열): 겉으로 하는 말. 2-3문장. 캐릭터 설정에 다른 길이가 적혀 있으면 그쪽을 따른다. 비우지 않는다.",
     "- inner (문자열): 속마음. 쓰는 법은 말투 지침을 따른다. 띄어쓰기는 평소대로 한다. "
     "wish에 적은 바람이 속마음에 은근히 비치게 쓴다. 대놓고 \"물어봐 줘\"라고 쓰지 않고, "
@@ -926,6 +928,19 @@ def must_drop(reply: Reply) -> bool:
 _GRAB_RE = re.compile(r"전학생(의|에게|을|를)\s?(\S+\s){0,3}?\S*(끌어당|억지로|붙들|밀어붙|밀치)")
 
 
+# 지문에서 전학생이 행동의 주인이 된 것. 참가자가 하지 않은 행동을 지문이 정해 버린다.
+# 실전 기록: "전학생이 살짝 비틀거리며 어깨에 쿵 하고 기대었다"(아스트라). 참가자가 한 말을 가리키는
+# "전학생이 한 말", "전학생이 묻자", "전학생이 건넨 칭찬"은 괜찮다
+_PROTAGONIST_ACTS_RE = re.compile(
+    r"전학생(이|은|도)\s(?!(한|했던|하던|해\s준|건넨|건네|꺼낸|던진|고른|말|묻|물어|물은|부르|부른|대답|답한|"
+    r"농담|칭찬|이름|방금\s말|아까\s말)\S*)")
+
+
+def protagonist_acts(reply: Reply) -> bool:
+    """지문에서 전학생이 말 말고 다른 행동을 하면 참."""
+    return bool(_PROTAGONIST_ACTS_RE.search(reply.narration))
+
+
 def grabs_protagonist(reply: Reply) -> bool:
     """지문이나 겉말에서 주인공을 억지로 끌어당기거나 붙들면 참."""
     return bool(_GRAB_RE.search(reply.narration) or _GRAB_RE.search(reply.say))
@@ -1057,6 +1072,9 @@ def review_reply(reply: Reply, character: dict, *, banned=None, event_seed=None,
                         "그 자리의 구체적인 것으로 마음을 보여 준다.")
     if tomorrow >= TOMORROW_LIMIT and not finale and "내일" in reply.say + " " + reply.inner:
         problems.append("내일 이야기를 이미 " + str(tomorrow) + "번 했다. 이번 답에서는 내일 약속 없이 지금 이 자리의 이야기를 한다.")
+    if protagonist_acts(reply):
+        problems.append("지문이 전학생의 행동을 정했다. 참가자가 하지 않은 일이다. 지문에는 캐릭터의 행동만 쓰고, "
+                        "전학생은 캐릭터의 눈길이나 몸짓이 향하는 쪽으로만 나온다(\"아스트라가 전학생 쪽으로 기울었다\").")
     if grabs_protagonist(reply):
         problems.append("전학생을 억지로 끌어당기거나 붙드는 장면이 있다. 손을 잡거나 살짝 기대는 정도로 바꾼다.")
     words = meta_words(reply)

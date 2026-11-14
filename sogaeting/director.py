@@ -217,6 +217,9 @@ class Session:
             for name in ("narration", "say", "inner", "reason"):
                 setattr(reply, name, getattr(reply, name).replace("주인공", "전학생"))
             reply.narration = actor.plain_narration(reply.narration)
+            # 소라는 대사에서 호칭을 일부러 틀리게 부르는데(정학생, 전학새, 전화생), 지문에까지 옮겨 썼다
+            for slip in ("정학생", "전학새", "전화생"):
+                reply.narration = reply.narration.replace(slip, "전학생")
             reply.say = actor.fix_stretched_vowels(reply.say)
             reply.inner = actor.fix_stretched_vowels(reply.inner)
             # 붉어진 얼굴이 세 번 연달아 나오면 웃는 얼굴로 바꾼다. 실제 모델은 답의 3분의 2를 blush로 냈다

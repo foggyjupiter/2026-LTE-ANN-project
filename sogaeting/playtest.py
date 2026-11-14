@@ -500,6 +500,8 @@ def _rewrite_reason(calls, character, event_seed=None, banned=None, previous=Non
         reasons.append("바람이 화면에 안 보임")
     if used and actor.repeated_phrases(first, used):
         reasons.append("상투어 되풀이: " + ", ".join(actor.repeated_phrases(first, used)))
+    if actor.protagonist_acts(first):
+        reasons.append("지문이 전학생의 행동을 정함")
     if actor.grabs_protagonist(first):
         reasons.append("전학생을 잡음")
     if previous and actor.repeats_previous(first, previous):
