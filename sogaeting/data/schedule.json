@@ -1,14 +1,18 @@
 {
+  "note": "답 12번(2026-11-14에 10번에서 늘림: 사용자 \"이야기 모드는 너무 길어서 안 읽힌다, 차라리 대화 수를 늘리자\"). 사건은 4, 7, 10번째 답. 답이 늘어난 만큼 points_scale로 한 답의 점수 움직임을 줄인다.",
+  "points_scale": 0.83,
   "opening": {"intensity": 1, "seed": "entrance"},
   "replies": [
     {"intensity": 1, "seed": null},
     {"intensity": 2, "seed": null},
-    {"intensity": 2, "seed": "event"},
+    {"intensity": 2, "seed": null},
+    {"intensity": 3, "seed": "event"},
     {"intensity": 3, "seed": null},
     {"intensity": 3, "seed": null},
     {"intensity": 4, "seed": "event"},
     {"intensity": 4, "seed": null},
-    {"intensity": 4, "seed": "event"},
+    {"intensity": 4, "seed": null},
+    {"intensity": 5, "seed": "event"},
     {"intensity": 5, "seed": null},
     {"intensity": 5, "seed": null, "finale": true}
   ],

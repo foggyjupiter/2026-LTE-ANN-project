@@ -28,7 +28,7 @@ default sg_end_view = None        # 엔딩을 화면용으로 바꾼 값 (sg_bui
 default sg_place = ""             # 등장 장소. 첫 턴에만 온다
 default sg_progress = "등장"      # 진행 표시: "등장", "답 3/10"
 default sg_turn_no = 0
-default sg_total_turns = 10
+default sg_total_turns = 12
 default sg_score_shown = 50       # 게이지에 보이는 호감도
 default sg_finale = False         # 마지막 답까지 왔는가
 
@@ -407,7 +407,7 @@ init -5 python:
         fallback = bool(turn.get("fallback"))
         finale = bool(turn.get("finale"))
         turn_no = max(0, sg_int(turn.get("turn")))
-        total = max(1, sg_int(turn.get("total_turns"), 10))
+        total = max(1, sg_int(turn.get("total_turns"), 12))
 
         narration = sg_str(turn.get("narration")).strip()
         heard = sg_str(turn.get("heard")).strip()
@@ -530,10 +530,10 @@ init -5 python:
             "early": bool(ending.get("early")),
             "reveal": reveal,
             "curve": [ max(0.0, min(100.0, sg_num(s, 50.0))) for s in store.sg_score_log ],
-            "total": max(1, sg_int(store.sg_total_turns, 10)),
+            "total": max(1, sg_int(store.sg_total_turns, 12)),
             # 곡선 그림은 엔딩마다 한 번만 만든다. 화면이 다시 그려질 때마다 만들면 그리는 움직임이 처음부터 되풀이된다
             "curve_box": sg_curve([ max(0.0, min(100.0, sg_num(s, 50.0))) for s in store.sg_score_log ],
-                                  max(1, sg_int(store.sg_total_turns, 10)),
+                                  max(1, sg_int(store.sg_total_turns, 12)),
                                   height=sg_curve_height(
                                       epilogue, sg_fit_size(epilogue, "sg_end_text", 660, 112, (20, 18, 16, 14)),
                                       best, sg_fit_size(best, "sg_end_text", 620, 78, (18, 16, 14, 12)))),

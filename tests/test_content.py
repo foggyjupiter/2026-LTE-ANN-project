@@ -211,10 +211,12 @@ class OtherDataTest(unittest.TestCase):
         schedule = content.load_schedule()
         self.assertEqual(schedule["opening"], {"intensity": 1, "seed": "entrance"})
         replies = schedule["replies"]
-        self.assertEqual(len(replies), 10)
-        self.assertEqual([bool(r.get("finale")) for r in replies], [False] * 9 + [True])
+        self.assertEqual(len(replies), 12)
+        self.assertEqual([bool(r.get("finale")) for r in replies], [False] * 11 + [True])
         # 사건은 세 번, 강도는 줄지 않고, 마지막 두 답이 가장 세다
-        self.assertEqual([i for i, r in enumerate(replies, 1) if r["seed"] == "event"], [3, 6, 8])
+        self.assertEqual([i for i, r in enumerate(replies, 1) if r["seed"] == "event"], [4, 7, 10])
+        # 답이 10번일 때와 점수 범위가 비슷하게 한 답의 점수 움직임을 줄인다
+        self.assertAlmostEqual(schedule["points_scale"], 10 / 12, places=2)
         levels = [r["intensity"] for r in replies]
         self.assertEqual(levels, sorted(levels))
         self.assertEqual(levels[-2:], [5, 5])

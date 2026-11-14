@@ -83,7 +83,7 @@ class QuoteMemoryTest(unittest.TestCase):
         self.assertEqual(self.gimmick.extra_instruction([]), "")
 
     def test_instruction_lists_every_input_verbatim(self):
-        inputs = ["떡볶이 좋아해", "사실 떡볶이는 그냥 그래", "응"]
+        inputs = ["떡볶이 좋아해", "사실 떡볶이는 그냥 그래", "응", "비 온다"]   # 4번째 답은 인용하는 답이다
         text = self.gimmick.extra_instruction(inputs)
         for raw in inputs:
             self.assertIn(raw, text)
@@ -96,7 +96,7 @@ class QuoteMemoryTest(unittest.TestCase):
 
     def test_quotes_only_on_set_turns(self):
         inputs = ["떡볶이 좋아해", "사실 떡볶이는 그냥 그래", "응", "비 온다", "우산 있어?", "고마워",
-                  "매점 갈래?", "내일도 보자", "좋아", "갈게"]
+                  "매점 갈래?", "내일도 보자", "좋아", "그렇구나", "재밌었어", "갈게"]
         for count in range(1, len(inputs) + 1):
             text = self.gimmick.extra_instruction(inputs[:count])
             if count in gimmicks.QUOTE_TURNS:
@@ -106,7 +106,7 @@ class QuoteMemoryTest(unittest.TestCase):
                 # 인용하지 않는 답에서는 기록을 주지 않고, 되읽지 말라고 한다
                 self.assertNotIn("떡볶이", text)
                 self.assertIn("따옴표에 넣어 옮기지 않는다", text)
-        self.assertEqual(gimmicks.QUOTE_TURNS, (3, 6, 10))
+        self.assertEqual(gimmicks.QUOTE_TURNS, (4, 8, 12))
         # 마지막 인용은 헤어지는 답(진행표의 마지막 답)이다
         self.assertEqual(gimmicks.QUOTE_TURNS[-1], len(content.load_schedule()["replies"]))
 

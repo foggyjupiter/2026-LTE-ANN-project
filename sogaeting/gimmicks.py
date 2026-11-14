@@ -21,7 +21,7 @@ CITATION_TAG = " [출처 필요]"    # 앞에 공백 하나가 붙는다
 CITATION_LIMIT = 1               # 한 답에 붙이는 딱지의 최대 개수. 여러 개면 대사가 지저분해진다
 DROPOUT_RATE = 0.3
 MIN_QUOTE_LENGTH = 2             # 이보다 짧은 입력에는 형광펜을 칠하지 않는다
-QUOTE_TURNS = (3, 6, 10)         # quote_memory가 주인공의 말을 꺼내는 답 (몇 번째 답인지). 10은 헤어지는 답
+QUOTE_TURNS = (4, 8, 12)         # quote_memory가 주인공의 말을 꺼내는 답 (몇 번째 답인지). 12는 헤어지는 답
 EXPLODE_STEPS = 6                # exploding_popup이 10배씩 키우는 답의 수. 그 뒤 마지막 답에서 NaN
 
 # 숫자 덩어리(소수점과 천 단위 쉼표 포함)와 "연구" 같은 낱말을 찾는다.

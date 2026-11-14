@@ -149,8 +149,13 @@ class Session:
         hit = self.character.get("hit_points")
         if isinstance(hit, int) and not isinstance(hit, bool) and HIT_POINTS_RANGE[0] <= hit <= HIT_POINTS_RANGE[1]:
             self.points[2] = hit
-        if self.story:
-            self.points = {step: points * STORY_POINTS_SCALE for step, points in self.points.items()}
+        # 답이 10번보다 많은 진행표는 한 답의 점수 움직임을 줄여서 점수 범위를 맞춘다(진행표의 points_scale).
+        # 이야기 모드는 STORY_POINTS_SCALE을 쓴다
+        scale = STORY_POINTS_SCALE if self.story else self.schedule.get("points_scale", 1.0)
+        if not isinstance(scale, (int, float)) or isinstance(scale, bool) or not 0.3 <= scale <= 1.0:
+            scale = 1.0
+        if scale != 1.0:
+            self.points = {step: points * scale for step, points in self.points.items()}
         self._from_choice = False  # 이번 입력이 그 선택지 가운데 하나와 같은가
         self._ending = None
         self._finished_at = None
