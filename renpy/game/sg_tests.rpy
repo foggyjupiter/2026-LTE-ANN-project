@@ -509,8 +509,8 @@ testsuite sg_colors:
         python:
             for sg_test_card in sg_cards:
                 sg_test_card["color"] = {
-                    "astra": "#4050C8", "gemma": "#8C9BEA", "sora": "#7CCBF2",
-                    "nova": "#F5A623", "mistral": "#EE5A2A", "haiku": "#D97757",
+                    "astra": "#4050C8", "gemma": "#2EB88A", "sora": "#7CCBF2",
+                    "nova": "#F0508A", "mistral": "#F5A623", "haiku": "#D97757",
                 }.get(sg_test_card["id"], sg_test_card["color"])
             renpy.restart_interaction()
         pause 0.8

@@ -113,7 +113,39 @@ def load_config(path=PROMPTS_PATH):
         for face in char.get("poses", {}):
             if face not in faces_for(cfg, char_id) or face == BASE_FACE:
                 raise ValueError(f"{char_id}의 poses에 있는 {face}는 그 캐릭터의 표정이 아닙니다")
+    for char_id, entry in (cfg.get("plan") or {}).items():
+        if char_id.startswith("_"):
+            continue
+        if char_id not in cfg["characters"]:
+            raise ValueError(f"plan에 모르는 캐릭터 {char_id}가 있습니다")
+        if not isinstance(entry, dict) or entry.get("do") not in PLAN_DOS:
+            raise ValueError(f"plan.{char_id}.do는 {', '.join(PLAN_DOS)} 가운데 하나여야 합니다")
     return cfg
+
+
+PLAN_DOS = ("done", "keep", "redo")
+PLAN_WORDS = {
+    "done": "할 것 없음",
+    "keep": "캐릭터만의 표정만 새로 뽑기",
+    "redo": "전부 다시 뽑기",
+}
+
+
+def plan_of(cfg, char_id):
+    """그 캐릭터의 할 일 {"do", "note"}. 적어 두지 않았으면 None."""
+    plan = cfg.get("plan") or {}
+    entry = plan.get(char_id)
+    return entry if isinstance(entry, dict) else None
+
+
+def to_draw(cfg, char_id, face):
+    """그 그림을 이번에 뽑아야 하는가. 할 일이 적혀 있지 않으면 뽑는다."""
+    entry = plan_of(cfg, char_id)
+    if entry is None or entry["do"] == "redo":
+        return True
+    if entry["do"] == "keep":
+        return face not in FACES
+    return False
 
 
 def faces_for(cfg, char_id):
@@ -670,12 +702,37 @@ def gpt_doc(cfg):
         "",
         "## 캐릭터별 요청문",
     ]
+    if any(plan_of(cfg, c) for c in cfg["characters"]):
+        # 이번에 뽑을 것만 모은 표. 요청문 머리에도 "새로 뽑기", "그대로 두기"를 붙인다
+        count = sum(1 for c in cfg["characters"] for f in faces_for(cfg, c) if to_draw(cfg, c, f))
+        plan_lines = [
+            "## 지금 할 일",
+            "",
+            f"이번에 뽑을 그림은 {count}장이다. \"그대로 두기\"라고 적힌 그림은 이미 뽑은 것을 쓰고 다시 뽑지 않는다.",
+            "",
+            "| 캐릭터 | 할 일 | 이번에 뽑을 것 | 까닭 |",
+            "|---|---|---|---|",
+        ]
+        for char_id, char in cfg["characters"].items():
+            entry = plan_of(cfg, char_id) or {"do": "redo", "note": ""}
+            faces = [f for f in faces_for(cfg, char_id) if to_draw(cfg, char_id, f)]
+            plan_lines.append(f"| {char['name']} | {PLAN_WORDS[entry['do']]} | "
+                              f"{', '.join(faces) if faces else '없음'} | {entry.get('note', '')} |")
+        plan_lines += [
+            "",
+            "- 그대로 두는 캐릭터의 캐릭터만의 표정은, 그 캐릭터의 이미 뽑은 기본(neutral) 그림을 첨부하고 요청문을 보낸다.",
+            "- 전부 다시 뽑는 캐릭터는 기준 그림부터 새 대화에서 뽑는다. 예전 그림을 첨부하지 않는다(예전 색이 따라온다).",
+            "",
+        ]
+        at = lines.index("## 순서")
+        lines[at:at] = plan_lines
     for char_id, char in cfg["characters"].items():
+        entry = plan_of(cfg, char_id)
+        lines += ["", f"### {char['name']} ({char_id})", ""]
+        if entry:
+            lines += [f"할 일: {PLAN_WORDS[entry['do']]}. {entry.get('note', '')}".rstrip(), ""]
         lines += [
-            "",
-            f"### {char['name']} ({char_id})",
-            "",
-            f"기준 그림. 저장할 곳: `art/raw/{char_id}/neutral.png`",
+            f"기준 그림{_draw_tag(cfg, char_id, 'neutral')}. 저장할 곳: `art/raw/{char_id}/neutral.png`",
             "",
             "```",
             gpt_sprite_prompt(cfg, char_id),
@@ -687,13 +744,20 @@ def gpt_doc(cfg):
             label = "표정" if face in FACES else "캐릭터만의 표정"
             lines += [
                 "",
-                f"{label} {face}. 저장할 곳: `art/raw/{char_id}/{face}.png`",
+                f"{label} {face}{_draw_tag(cfg, char_id, face)}. 저장할 곳: `art/raw/{char_id}/{face}.png`",
                 "",
                 "```",
                 gpt_variant_prompt(cfg, char_id, face),
                 "```",
             ]
     return "\n".join(lines) + "\n"
+
+
+def _draw_tag(cfg, char_id, face):
+    """요청문 머리에 붙일 말: 이번에 뽑을 것인지, 이미 있는 것을 그대로 둘 것인지."""
+    if plan_of(cfg, char_id) is None:
+        return ""
+    return " (새로 뽑기)" if to_draw(cfg, char_id, face) else " (그대로 두기, 다시 뽑지 않는다)"
 
 
 def bg_prompt(cfg, place):

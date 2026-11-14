@@ -4,6 +4,22 @@ ChatGPT 같은 대화형 그림 도구에 붙여 넣을 요청문이다. 캐릭�
 
 이 글은 `python tools/make_art.py --gpt-doc` 이 만든다. 직접 고치지 말고 `tools/art_prompts.json`을 고친 뒤 같은 명령으로 다시 만든다.
 
+## 지금 할 일
+
+이번에 뽑을 그림은 17장이다. "그대로 두기"라고 적힌 그림은 이미 뽑은 것을 쓰고 다시 뽑지 않는다.
+
+| 캐릭터 | 할 일 | 이번에 뽑을 것 | 까닭 |
+|---|---|---|---|
+| 아스트라 | 할 것 없음 | 없음 | 게임에 넣은 그림(기본 여섯 장, huff, denial)을 그대로 쓴다. 시트의 빨간 리본 그림은 쓰지 않는다. |
+| 젬마 | 전부 다시 뽑기 | neutral, smile, blush, pout, shock, dark, hide | 머리색을 연한 파랑에서 에메랄드 초록으로 바꿨다. 아스트라, 소라와 같은 파란 계열로 겹쳤다. |
+| 소라 | 캐릭터만의 표정만 새로 뽑기 | yawn | 시트의 기본 여섯 장을 그대로 쓴다. yawn만 새로 뽑는다. |
+| 노바 | 전부 다시 뽑기 | neutral, smile, blush, pout, shock, dark, excited | 머리와 후드를 주황에서 분홍으로 바꿨다. 미스트랄과 같은 금발, 주황으로 겹쳤다. 기본과 미소, 삐침, 음산이 비슷하게 나와서 표정 요청문도 고쳤다. |
+| 미스트랄 | 캐릭터만의 표정만 새로 뽑기 | busted | 시트의 기본 여섯 장을 그대로 쓴다. busted만 새로 뽑는다. 주황은 이제 미스트랄 혼자다. |
+| 하이쿠 | 캐릭터만의 표정만 새로 뽑기 | flushed | 시트의 기본 여섯 장을 그대로 쓴다. flushed만 새로 뽑는다. 표정이 거의 같은 것은 무표정 설정대로다. |
+
+- 그대로 두는 캐릭터의 캐릭터만의 표정은, 그 캐릭터의 이미 뽑은 기본(neutral) 그림을 첨부하고 요청문을 보낸다.
+- 전부 다시 뽑는 캐릭터는 기준 그림부터 새 대화에서 뽑는다. 예전 그림을 첨부하지 않는다(예전 색이 따라온다).
+
 ## 순서
 
 1. 캐릭터마다 새 대화를 연다. "기준 그림" 요청문을 붙여 넣어 한 장을 받는다. 마음에 들 때까지 다시 뽑는다.
@@ -25,7 +41,9 @@ ChatGPT 같은 대화형 그림 도구에 붙여 넣을 요청문이다. 캐릭�
 
 ### 아스트라 (astra)
 
-기준 그림. 저장할 곳: `art/raw/astra/neutral.png`
+할 일: 할 것 없음. 게임에 넣은 그림(기본 여섯 장, huff, denial)을 그대로 쓴다. 시트의 빨간 리본 그림은 쓰지 않는다.
+
+기준 그림 (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/astra/neutral.png`
 
 ```
 Draw one character sprite for a visual novel game.
@@ -38,43 +56,43 @@ Background: fully transparent (PNG with alpha). If a transparent background is n
 No text, no watermark, no border. Portrait image, aspect ratio 2:3.
 ```
 
-표정 smile. 저장할 곳: `art/raw/astra/smile.png`
+표정 smile (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/astra/smile.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: a bright, genuine smile with gently curved eyes. Keep the same background and the same image size.
 ```
 
-표정 blush. 저장할 곳: `art/raw/astra/blush.png`
+표정 blush (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/astra/blush.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: flustered and embarrassed, cheeks clearly blushing red, eyes looking away, small wavering mouth. Keep the same background and the same image size.
 ```
 
-표정 pout. 저장할 곳: `art/raw/astra/pout.png`
+표정 pout (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/astra/pout.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: sulking, cheeks puffed out, eyebrows drawn together, mouth in a small frown. Keep the same background and the same image size.
 ```
 
-표정 shock. 저장할 곳: `art/raw/astra/shock.png`
+표정 shock (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/astra/shock.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: comically shocked, eyes wide open, mouth open in surprise. Keep the same background and the same image size.
 ```
 
-표정 dark. 저장할 곳: `art/raw/astra/dark.png`
+표정 dark (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/astra/dark.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: comically ominous: the upper half of the face is in shadow, dull eyes without highlights, a thin fixed smile. Keep the same background and the same image size.
 ```
 
-캐릭터만의 표정 huff. 저장할 곳: `art/raw/astra/huff.png`
+캐릭터만의 표정 huff (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/astra/huff.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style and framing exactly. Change the facial expression, and change the pose only as the new pose describes. New expression: a tsundere 'hmph' face: eyes closed, chin raised, a small pouting mouth, a faint blush on the cheeks. New pose: She turns her head further away to the side, arms still crossed. Keep the same background and the same image size.
 ```
 
-캐릭터만의 표정 denial. 저장할 곳: `art/raw/astra/denial.png`
+캐릭터만의 표정 denial (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/astra/denial.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: flustered angry denial: face bright red up to the ears, eyes squeezed shut, mouth wide open as if shouting, eyebrows angled sharply, a small sweat drop. Keep the same background and the same image size.
@@ -82,50 +100,52 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 
 ### 젬마 (gemma)
 
-기준 그림. 저장할 곳: `art/raw/gemma/neutral.png`
+할 일: 전부 다시 뽑기. 머리색을 연한 파랑에서 에메랄드 초록으로 바꿨다. 아스트라, 소라와 같은 파란 계열로 겹쳤다.
+
+기준 그림 (새로 뽑기). 저장할 곳: `art/raw/gemma/neutral.png`
 
 ```
 Draw one character sprite for a visual novel game.
 Art style: Japanese bishoujo game (galge) character art, like a heroine sprite from a moe visual novel. Large sparkling detailed eyes, small nose and mouth, glossy hair with sharp highlights, thin clean line art, soft cel shading with light gradients, bright pastel colors.
 Framing: One character only, waist-up portrait, centered, facing the viewer. The whole head and all of the hair are inside the frame, with empty space above the head.
-Character: Soft periwinkle-blue hair in two neat, loose braids. Round glasses. A navy school blazer worn neatly. A small gem-shaped hairpin. She holds a small notebook against her chest with both hands. Shoulders slightly drawn in, a shy posture. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
+Character: Soft emerald-green hair in two neat, loose braids. Gentle jade-green eyes. Round glasses. A navy school blazer worn neatly. A small emerald gem-shaped hairpin. She holds a small notebook against her chest with both hands. Shoulders slightly drawn in, a shy posture. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
 Expression: shy, gentle look with eyes slightly lowered and a small soft smile.
 Content: A high school student in a modest, fully covering school outfit. Wholesome, all-ages.
-Background: fully transparent (PNG with alpha). If a transparent background is not possible, fill the whole background with one flat pure bright green (#00FF00) chroma key color, with no gradient, shadow, floor or objects.
+Background: fully transparent (PNG with alpha). If a transparent background is not possible, fill the whole background with one flat pure bright magenta (#FF00FF) chroma key color, with no gradient, shadow, floor or objects.
 No text, no watermark, no border. Portrait image, aspect ratio 2:3.
 ```
 
-표정 smile. 저장할 곳: `art/raw/gemma/smile.png`
+표정 smile (새로 뽑기). 저장할 곳: `art/raw/gemma/smile.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: a bright, genuine smile with gently curved eyes. Keep the same background and the same image size.
 ```
 
-표정 blush. 저장할 곳: `art/raw/gemma/blush.png`
+표정 blush (새로 뽑기). 저장할 곳: `art/raw/gemma/blush.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: flustered and embarrassed, cheeks clearly blushing red, eyes looking away, small wavering mouth. Keep the same background and the same image size.
 ```
 
-표정 pout. 저장할 곳: `art/raw/gemma/pout.png`
+표정 pout (새로 뽑기). 저장할 곳: `art/raw/gemma/pout.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: sulking, cheeks puffed out, eyebrows drawn together, mouth in a small frown. Keep the same background and the same image size.
 ```
 
-표정 shock. 저장할 곳: `art/raw/gemma/shock.png`
+표정 shock (새로 뽑기). 저장할 곳: `art/raw/gemma/shock.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: comically shocked, eyes wide open, mouth open in surprise. Keep the same background and the same image size.
 ```
 
-표정 dark. 저장할 곳: `art/raw/gemma/dark.png`
+표정 dark (새로 뽑기). 저장할 곳: `art/raw/gemma/dark.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: comically ominous: the upper half of the face is in shadow, dull eyes without highlights, a thin fixed smile. Keep the same background and the same image size.
 ```
 
-캐릭터만의 표정 hide. 저장할 곳: `art/raw/gemma/hide.png`
+캐릭터만의 표정 hide (새로 뽑기). 저장할 곳: `art/raw/gemma/hide.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style and framing exactly. Change the facial expression, and change the pose only as the new pose describes. New expression: deeply embarrassed: cheeks bright red, eyes looking up shyly. New pose: She lifts the notebook with both hands to cover the lower half of her face, so only her eyes and glasses show above it. Keep the same background and the same image size.
@@ -133,7 +153,9 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 
 ### 소라 (sora)
 
-기준 그림. 저장할 곳: `art/raw/sora/neutral.png`
+할 일: 캐릭터만의 표정만 새로 뽑기. 시트의 기본 여섯 장을 그대로 쓴다. yawn만 새로 뽑는다.
+
+기준 그림 (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/sora/neutral.png`
 
 ```
 Draw one character sprite for a visual novel game.
@@ -146,37 +168,37 @@ Background: fully transparent (PNG with alpha). If a transparent background is n
 No text, no watermark, no border. Portrait image, aspect ratio 2:3.
 ```
 
-표정 smile. 저장할 곳: `art/raw/sora/smile.png`
+표정 smile (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/sora/smile.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: a bright, genuine smile with gently curved eyes. Keep the same background and the same image size.
 ```
 
-표정 blush. 저장할 곳: `art/raw/sora/blush.png`
+표정 blush (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/sora/blush.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: flustered and embarrassed, cheeks clearly blushing red, eyes looking away, small wavering mouth. Keep the same background and the same image size.
 ```
 
-표정 pout. 저장할 곳: `art/raw/sora/pout.png`
+표정 pout (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/sora/pout.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: sulking, cheeks puffed out, eyebrows drawn together, mouth in a small frown. Keep the same background and the same image size.
 ```
 
-표정 shock. 저장할 곳: `art/raw/sora/shock.png`
+표정 shock (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/sora/shock.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: comically shocked, eyes wide open, mouth open in surprise. Keep the same background and the same image size.
 ```
 
-표정 dark. 저장할 곳: `art/raw/sora/dark.png`
+표정 dark (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/sora/dark.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: comically ominous: the upper half of the face is in shadow, dull eyes without highlights, a thin fixed smile. Keep the same background and the same image size.
 ```
 
-캐릭터만의 표정 yawn. 저장할 곳: `art/raw/sora/yawn.png`
+캐릭터만의 표정 yawn (새로 뽑기). 저장할 곳: `art/raw/sora/yawn.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: mid-yawn: eyes squeezed shut with a small tear at the corner of one eye, mouth open wide in a big relaxed yawn. Keep the same background and the same image size.
@@ -184,50 +206,52 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 
 ### 노바 (nova)
 
-기준 그림. 저장할 곳: `art/raw/nova/neutral.png`
+할 일: 전부 다시 뽑기. 머리와 후드를 주황에서 분홍으로 바꿨다. 미스트랄과 같은 금발, 주황으로 겹쳤다. 기본과 미소, 삐침, 음산이 비슷하게 나와서 표정 요청문도 고쳤다.
+
+기준 그림 (새로 뽑기). 저장할 곳: `art/raw/nova/neutral.png`
 
 ```
 Draw one character sprite for a visual novel game.
 Art style: Japanese bishoujo game (galge) character art, like a heroine sprite from a moe visual novel. Large sparkling detailed eyes, small nose and mouth, glossy hair with sharp highlights, thin clean line art, soft cel shading with light gradients, bright pastel colors.
 Framing: One character only, waist-up portrait, centered, facing the viewer. The whole head and all of the hair are inside the frame, with empty space above the head.
-Character: Bright golden-yellow hair in a side ponytail. Warm orange eyes. A sunny orange zip-up hoodie worn over the white school shirt instead of a blazer. A small adhesive bandage on one cheek. Energetic posture, leaning slightly toward the viewer. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
-Expression: cheerful wide grin, eyes curved from smiling.
+Character: Bright rose-pink hair in a side ponytail. Warm amber eyes. A rose-pink zip-up hoodie with white stripes on the sleeves, worn over the white school shirt instead of a blazer. A small adhesive bandage on one cheek. Energetic posture, leaning slightly toward the viewer. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
+Expression: a cheerful smile with both eyes open and sparkling, mouth slightly open.
 Content: A high school student in a modest, fully covering school outfit. Wholesome, all-ages.
-Background: fully transparent (PNG with alpha). If a transparent background is not possible, fill the whole background with one flat pure bright magenta (#FF00FF) chroma key color, with no gradient, shadow, floor or objects.
+Background: fully transparent (PNG with alpha). If a transparent background is not possible, fill the whole background with one flat pure bright green (#00FF00) chroma key color, with no gradient, shadow, floor or objects.
 No text, no watermark, no border. Portrait image, aspect ratio 2:3.
 ```
 
-표정 smile. 저장할 곳: `art/raw/nova/smile.png`
+표정 smile (새로 뽑기). 저장할 곳: `art/raw/nova/smile.png`
 
 ```
-Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: an even bigger beaming smile, eyes closed in happy arcs. Keep the same background and the same image size.
+Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: a huge laughing smile, eyes closed in happy arcs, mouth wide open. Keep the same background and the same image size.
 ```
 
-표정 blush. 저장할 곳: `art/raw/nova/blush.png`
+표정 blush (새로 뽑기). 저장할 곳: `art/raw/nova/blush.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: flustered and embarrassed, cheeks clearly blushing red, eyes looking away, small wavering mouth. Keep the same background and the same image size.
 ```
 
-표정 pout. 저장할 곳: `art/raw/nova/pout.png`
+표정 pout (새로 뽑기). 저장할 곳: `art/raw/nova/pout.png`
 
 ```
-Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: sulking, cheeks puffed out, eyebrows drawn together, mouth in a small frown. Keep the same background and the same image size.
+Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: sulking with puffed-out cheeks and a pouting mouth, both eyes open, eyebrows drawn together. Keep the same background and the same image size.
 ```
 
-표정 shock. 저장할 곳: `art/raw/nova/shock.png`
+표정 shock (새로 뽑기). 저장할 곳: `art/raw/nova/shock.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: comically shocked, eyes wide open, mouth open in surprise. Keep the same background and the same image size.
 ```
 
-표정 dark. 저장할 곳: `art/raw/nova/dark.png`
+표정 dark (새로 뽑기). 저장할 곳: `art/raw/nova/dark.png`
 
 ```
-Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: still smiling brightly, but the eyes are blank and without highlights, a small sweat drop on the temple. Keep the same background and the same image size.
+Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: a stiff frozen smile, the upper half of the face in shadow, eyes blank and dull without highlights, a sweat drop on the temple. Keep the same background and the same image size.
 ```
 
-캐릭터만의 표정 excited. 저장할 곳: `art/raw/nova/excited.png`
+캐릭터만의 표정 excited (새로 뽑기). 저장할 곳: `art/raw/nova/excited.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style and framing exactly. Change the facial expression, and change the pose only as the new pose describes. New expression: fired up with excitement: sparkling star-shaped highlights in the eyes, mouth wide open in a happy cheer. New pose: She raises one clenched fist up near her shoulder. Keep the same background and the same image size.
@@ -235,7 +259,9 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 
 ### 미스트랄 (mistral)
 
-기준 그림. 저장할 곳: `art/raw/mistral/neutral.png`
+할 일: 캐릭터만의 표정만 새로 뽑기. 시트의 기본 여섯 장을 그대로 쓴다. busted만 새로 뽑는다. 주황은 이제 미스트랄 혼자다.
+
+기준 그림 (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/mistral/neutral.png`
 
 ```
 Draw one character sprite for a visual novel game.
@@ -248,37 +274,37 @@ Background: fully transparent (PNG with alpha). If a transparent background is n
 No text, no watermark, no border. Portrait image, aspect ratio 2:3.
 ```
 
-표정 smile. 저장할 곳: `art/raw/mistral/smile.png`
+표정 smile (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/mistral/smile.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: a triumphant, self-satisfied grin. Keep the same background and the same image size.
 ```
 
-표정 blush. 저장할 곳: `art/raw/mistral/blush.png`
+표정 blush (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/mistral/blush.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: flustered and embarrassed, cheeks clearly blushing red, eyes looking away, small wavering mouth. Keep the same background and the same image size.
 ```
 
-표정 pout. 저장할 곳: `art/raw/mistral/pout.png`
+표정 pout (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/mistral/pout.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: sulking, cheeks puffed out, eyebrows drawn together, mouth in a small frown. Keep the same background and the same image size.
 ```
 
-표정 shock. 저장할 곳: `art/raw/mistral/shock.png`
+표정 shock (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/mistral/shock.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: comically shocked, eyes wide open, mouth open in surprise. Keep the same background and the same image size.
 ```
 
-표정 dark. 저장할 곳: `art/raw/mistral/dark.png`
+표정 dark (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/mistral/dark.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: comically ominous: the upper half of the face is in shadow, dull eyes without highlights, a thin fixed smile. Keep the same background and the same image size.
 ```
 
-캐릭터만의 표정 busted. 저장할 곳: `art/raw/mistral/busted.png`
+캐릭터만의 표정 busted (새로 뽑기). 저장할 곳: `art/raw/mistral/busted.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: caught bluffing and panicking: eyes darting to the side, a stiff nervous smile, several sweat drops on the face, eyebrows raised. Keep the same background and the same image size.
@@ -286,7 +312,9 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 
 ### 하이쿠 (haiku)
 
-기준 그림. 저장할 곳: `art/raw/haiku/neutral.png`
+할 일: 캐릭터만의 표정만 새로 뽑기. 시트의 기본 여섯 장을 그대로 쓴다. flushed만 새로 뽑는다. 표정이 거의 같은 것은 무표정 설정대로다.
+
+기준 그림 (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/haiku/neutral.png`
 
 ```
 Draw one character sprite for a visual novel game.
@@ -299,37 +327,37 @@ Background: fully transparent (PNG with alpha). If a transparent background is n
 No text, no watermark, no border. Portrait image, aspect ratio 2:3.
 ```
 
-표정 smile. 저장할 곳: `art/raw/haiku/smile.png`
+표정 smile (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/haiku/smile.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: almost the same deadpan face, only the corners of the mouth raised very slightly. Keep the same background and the same image size.
 ```
 
-표정 blush. 저장할 곳: `art/raw/haiku/blush.png`
+표정 blush (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/haiku/blush.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: almost the same deadpan face, eyes looking away, a faint blush on the cheeks. Keep the same background and the same image size.
 ```
 
-표정 pout. 저장할 곳: `art/raw/haiku/pout.png`
+표정 pout (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/haiku/pout.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: almost the same deadpan face, eyebrows lowered slightly, eyes narrowed a little. Keep the same background and the same image size.
 ```
 
-표정 shock. 저장할 곳: `art/raw/haiku/shock.png`
+표정 shock (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/haiku/shock.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: almost the same deadpan face, eyebrows raised and the visible eye opened a little wider. Keep the same background and the same image size.
 ```
 
-표정 dark. 저장할 곳: `art/raw/haiku/dark.png`
+표정 dark (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/haiku/dark.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: the same deadpan face with the upper half in shadow, the visible eye dull and without highlights. Keep the same background and the same image size.
 ```
 
-캐릭터만의 표정 flushed. 저장할 곳: `art/raw/haiku/flushed.png`
+캐릭터만의 표정 flushed (새로 뽑기). 저장할 곳: `art/raw/haiku/flushed.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: the same deadpan, expressionless face and closed mouth, eyes looking away, but the whole face and ears are bright red. Keep the same background and the same image size.

@@ -1,6 +1,16 @@
 {
   "_설명": "make_art.py가 읽는 그림 요청문. 그림이 마음에 안 들면 이 파일의 글만 고치고 다시 실행한다. 요청문은 영어로 쓴다.",
 
+  "plan": {
+    "_설명": "2026-11-14 GPT로 뽑은 표정 시트를 보고 정한 할 일. keep은 이미 뽑은 기본 여섯 장을 그대로 쓰고 캐릭터만의 표정만 새로 뽑는다. redo는 전부 다시 뽑는다. done은 할 것이 없다.",
+    "astra": {"do": "done", "note": "게임에 넣은 그림(기본 여섯 장, huff, denial)을 그대로 쓴다. 시트의 빨간 리본 그림은 쓰지 않는다."},
+    "gemma": {"do": "redo", "note": "머리색을 연한 파랑에서 에메랄드 초록으로 바꿨다. 아스트라, 소라와 같은 파란 계열로 겹쳤다."},
+    "sora": {"do": "keep", "note": "시트의 기본 여섯 장을 그대로 쓴다. yawn만 새로 뽑는다."},
+    "nova": {"do": "redo", "note": "머리와 후드를 주황에서 분홍으로 바꿨다. 미스트랄과 같은 금발, 주황으로 겹쳤다. 기본과 미소, 삐침, 음산이 비슷하게 나와서 표정 요청문도 고쳤다."},
+    "mistral": {"do": "keep", "note": "시트의 기본 여섯 장을 그대로 쓴다. busted만 새로 뽑는다. 주황은 이제 미스트랄 혼자다."},
+    "haiku": {"do": "keep", "note": "시트의 기본 여섯 장을 그대로 쓴다. flushed만 새로 뽑는다. 표정이 거의 같은 것은 무표정 설정대로다."}
+  },
+
   "sprite": {
     "width": 768,
     "height": 1152,
@@ -56,8 +66,8 @@
     },
     "gemma": {
       "name": "젬마",
-      "key": "green",
-      "look": "Soft periwinkle-blue hair in two neat, loose braids. Round glasses. A navy school blazer worn neatly. A small gem-shaped hairpin. She holds a small notebook against her chest with both hands. Shoulders slightly drawn in, a shy posture.",
+      "key": "magenta",
+      "look": "Soft emerald-green hair in two neat, loose braids. Gentle jade-green eyes. Round glasses. A navy school blazer worn neatly. A small emerald gem-shaped hairpin. She holds a small notebook against her chest with both hands. Shoulders slightly drawn in, a shy posture.",
       "faces": {
         "neutral": "shy, gentle look with eyes slightly lowered and a small soft smile",
         "hide": "deeply embarrassed: cheeks bright red, eyes looking up shyly"
@@ -77,12 +87,13 @@
     },
     "nova": {
       "name": "노바",
-      "key": "magenta",
-      "look": "Bright golden-yellow hair in a side ponytail. Warm orange eyes. A sunny orange zip-up hoodie worn over the white school shirt instead of a blazer. A small adhesive bandage on one cheek. Energetic posture, leaning slightly toward the viewer.",
+      "key": "green",
+      "look": "Bright rose-pink hair in a side ponytail. Warm amber eyes. A rose-pink zip-up hoodie with white stripes on the sleeves, worn over the white school shirt instead of a blazer. A small adhesive bandage on one cheek. Energetic posture, leaning slightly toward the viewer.",
       "faces": {
-        "neutral": "cheerful wide grin, eyes curved from smiling",
-        "smile": "an even bigger beaming smile, eyes closed in happy arcs",
-        "dark": "still smiling brightly, but the eyes are blank and without highlights, a small sweat drop on the temple",
+        "neutral": "a cheerful smile with both eyes open and sparkling, mouth slightly open",
+        "smile": "a huge laughing smile, eyes closed in happy arcs, mouth wide open",
+        "pout": "sulking with puffed-out cheeks and a pouting mouth, both eyes open, eyebrows drawn together",
+        "dark": "a stiff frozen smile, the upper half of the face in shadow, eyes blank and dull without highlights, a sweat drop on the temple",
         "excited": "fired up with excitement: sparkling star-shaped highlights in the eyes, mouth wide open in a happy cheer"
       },
       "poses": {

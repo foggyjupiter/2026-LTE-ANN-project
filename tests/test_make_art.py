@@ -407,6 +407,36 @@ class Unit(unittest.TestCase):
                     make_art.load_config(path)
             self.assertIn(word, str(caught.exception))
 
+    def test_plan_marks_what_to_draw(self):
+        # 할 일(plan): done은 하나도, keep은 캐릭터만의 표정만, redo는 전부 뽑는다
+        for char_id in self.cfg["characters"]:
+            entry = make_art.plan_of(self.cfg, char_id)
+            self.assertIn(entry["do"], make_art.PLAN_DOS, char_id)
+            faces = make_art.faces_for(self.cfg, char_id)
+            drawn = [f for f in faces if make_art.to_draw(self.cfg, char_id, f)]
+            expected = {"done": [], "keep": [f for f in faces if f not in make_art.FACES], "redo": list(faces)}
+            self.assertEqual(drawn, expected[entry["do"]], char_id)
+        doc = make_art.gpt_doc(self.cfg)
+        self.assertIn("## 지금 할 일", doc)
+        self.assertIn("기준 그림 (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/sora/neutral.png`", doc)
+        self.assertIn("캐릭터만의 표정 yawn (새로 뽑기)", doc)
+        self.assertIn("기준 그림 (새로 뽑기). 저장할 곳: `art/raw/gemma/neutral.png`", doc)
+
+    def test_bad_plan_is_rejected(self):
+        for plan in ({"nobody": {"do": "keep"}}, {"astra": {"do": "maybe"}}, {"astra": "keep"}):
+            cfg = json.loads((ROOT / "tools" / "art_prompts.json").read_text(encoding="utf-8"))
+            cfg["plan"] = plan
+            with tempfile.TemporaryDirectory() as tmp:
+                path = pathlib.Path(tmp) / "prompts.json"
+                path.write_text(json.dumps(cfg), encoding="utf-8")
+                with self.assertRaises(ValueError):
+                    make_art.load_config(path)
+
+    def test_chroma_key_is_not_the_hair_color(self):
+        # 머리가 초록이면 magenta, 분홍이면 green 배경으로 받아야 지울 때 머리가 같이 지워지지 않는다
+        self.assertEqual(self.cfg["characters"]["gemma"]["key"], "magenta")
+        self.assertEqual(self.cfg["characters"]["nova"]["key"], "green")
+
     def test_faces_match_the_engine(self):
         from sogaeting import actor, content
         self.assertEqual(make_art.FACES, actor.FACES)
