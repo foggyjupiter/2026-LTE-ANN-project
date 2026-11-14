@@ -2,11 +2,11 @@
 #
 # PowerShell 창에 아래 한 줄을 붙여 넣고 Enter:
 #
-#   irm https://raw.githubusercontent.com/foggyjupiter/2026-LTE-ANN-project/refs/heads/feat/sogaeting-renpy/booth.ps1 | iex
+#   irm https://raw.githubusercontent.com/foggyjupiter/2026-LTE-ANN-project/refs/heads/main/booth.ps1 | iex
 #
 # 하는 일 (내 사용자 폴더의 sogaeting-booth 폴더 하나만 쓴다):
 #   1. Python 3.10 이상이 없으면 winget 으로 설치한다.
-#   2. 게임 코드(feat/sogaeting-renpy 브랜치)를 받는다. 켤 때마다 새로 받는다. .env 와 results 는 남긴다.
+#   2. 게임 코드(main 브랜치)를 받는다. 켤 때마다 새로 받는다. .env 와 results 는 남긴다.
 #   3. Ren'Py SDK 8.5.3 이 없으면 받는다 (약 160MB, 처음 한 번만).
 #   4. Gemini 키를 처음 한 번 묻고 sogaeting-booth\.env 에 적는다. 그냥 Enter 를 누르면 가짜 모델로 켠다.
 #      키가 있으면 모델마다 짧게 불러 점검하고(python -m sogaeting.check), 답한 곳이 없으면 새 키를 묻는다.
@@ -20,7 +20,7 @@
     $ProgressPreference = 'SilentlyContinue'   # 진행 막대를 그리면 내려받기가 몇 배 느려진다
 
     $Repo = 'foggyjupiter/2026-LTE-ANN-project'
-    $Branch = 'feat/sogaeting-renpy'
+    $Branch = 'main'
     $SdkVersion = '8.5.3'
     $Base = Join-Path $HOME 'sogaeting-booth'
     $Game = Join-Path $Base 'game'

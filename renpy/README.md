@@ -7,7 +7,7 @@
 PowerShell 창에 아래 한 줄을 붙여 넣고 Enter를 누른다. Python이 없으면 winget으로 설치하고, 게임 코드와 Ren'Py SDK를 내 사용자 폴더의 `sogaeting-booth` 폴더에 받은 뒤 켠다. 처음 한 번 Gemini 키를 묻는다(그냥 Enter면 가짜 모델). 켤 때마다 게임 코드를 새로 받는다. 하는 일은 레포 맨 위의 `booth.ps1`에 적혀 있다.
 
 ```
-irm https://raw.githubusercontent.com/foggyjupiter/2026-LTE-ANN-project/refs/heads/feat/sogaeting-renpy/booth.ps1 | iex
+irm https://raw.githubusercontent.com/foggyjupiter/2026-LTE-ANN-project/refs/heads/main/booth.ps1 | iex
 ```
 
 키를 다시 넣으려면 `sogaeting-booth\.env`를 지우고 다시 실행한다. 아래의 준비는 이 방법을 쓰지 않을 때만 한다.
