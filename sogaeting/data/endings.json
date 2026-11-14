@@ -1,5 +1,5 @@
 [
-  {"min": 85, "id": "great", "name": "대성공"},
+  {"min": 80, "id": "great", "name": "대성공"},
   {"min": 65, "id": "good", "name": "성공"},
   {"min": 40, "id": "soso", "name": "애매"},
   {"min": 20, "id": "bad", "name": "실패"},

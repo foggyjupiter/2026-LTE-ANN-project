@@ -9,7 +9,7 @@ define sg_curve_size = (660, 120)
 ## 곡선 상자 안의 여백: 왼쪽, 위, 오른쪽, 아래. 위는 마지막 점의 점수 글자가 들어갈 자리다
 define sg_curve_pad = (56, 22, 30, 10)
 ## 이 점수부터 대성공이다(sogaeting/data/endings.json). 곡선 뒤에 연한 띠로 칠한다
-define sg_curve_great = 85
+define sg_curve_great = 80
 
 transform sg_curve_in(delay=0.0):
     alpha 0.0

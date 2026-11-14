@@ -28,6 +28,7 @@ ENDING_KEYS = {
 DEFAULT_CHOICES = content.load_schedule()["default_choices"]
 TOTAL = len(content.load_schedule()["replies"])  # 한 판의 답 수
 POINTS = director.POINTS                          # delta 한 칸이 움직이는 점수 (기본값)
+GREAT = content.load_endings()[0]["min"]           # 대성공 커트 (data/endings.json)
 
 
 def points_of(character_id):
@@ -479,8 +480,8 @@ class ScoreTest(unittest.TestCase):
         for c in hits:
             self.assertEqual(points_of(c)[1], POINTS[1])  # 다정한 말은 모두 같다
             # 다정한 말만으로는 누구도 대성공이 안 되고, 바라던 말을 매번 세게 짚으면 누구나 대성공에 닿는다
-            self.assertLess(clamped_scores(1, points=points_of(c), strength=100)[-1], 85)
-            self.assertGreaterEqual(clamped_scores(2, points=points_of(c), strength=100)[-1], 85)
+            self.assertLess(clamped_scores(1, points=points_of(c), strength=100)[-1], GREAT)
+            self.assertGreaterEqual(clamped_scores(2, points=points_of(c), strength=100)[-1], GREAT)
 
     def test_points_go_up_slowly_and_down_fast(self):
         # 다정한 말(+1)만으로는 대성공이 안 된다. 60점을 넘으면 덜 오른다
@@ -1045,7 +1046,7 @@ class EndingTest(unittest.TestCase):
         self.assertEqual(ending["inners"][2], "")
 
     def test_grade_follows_final_score(self):
-        cases = [(100, "대성공"), (85, "대성공"), (84, "성공"), (65, "성공"), (64, "애매"),
+        cases = [(100, "대성공"), (80, "대성공"), (79.9, "성공"), (65, "성공"), (64, "애매"),
                  (40, "애매"), (39, "실패"), (20, "실패"), (19, "대실패"), (0, "대실패")]
         for score, name in cases:
             with self.subTest(score=score):
