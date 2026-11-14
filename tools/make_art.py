@@ -943,15 +943,17 @@ def make_preview(out, cfg, note=""):
         for column, face in enumerate(faces_for(cfg, char_id)):
             left = label_w + column * (cell_w + pad)
             sheet.paste(board, (left, top))
-            if face not in FACES:      # 캐릭터만의 표정은 칸 위에 이름을 적는다
-                draw.text((left + 8, top + cell_h - 20), face, fill=ink, font=small)
             path = final_path(out, f"{char_id}:{face}")
-            if not path.is_file():
+            if path.is_file():
+                with Image.open(path) as source:
+                    sprite = _fit(source.convert("RGBA"), (cell_w, cell_h))
+                sheet.paste(sprite, (left + (cell_w - sprite.width) // 2, top + cell_h - sprite.height), sprite)
+            else:
                 draw.text((left + 8, top + 8), "missing", fill=faint, font=small)
-                continue
-            with Image.open(path) as source:
-                sprite = _fit(source.convert("RGBA"), (cell_w, cell_h))
-            sheet.paste(sprite, (left + (cell_w - sprite.width) // 2, top + cell_h - sprite.height), sprite)
+            if face not in FACES:      # 캐릭터만의 표정은 칸 아래에 이름을 적는다. 그림 위에 쓰므로 바탕을 깐다
+                box = draw.textbbox((left + 6, top + cell_h - 22), face, font=small)
+                draw.rectangle((box[0] - 3, box[1] - 2, box[2] + 3, box[3] + 2), fill=(255, 255, 255))
+                draw.text((left + 6, top + cell_h - 22), face, fill=ink, font=small)
 
     # 배경 위에 세워 본 모습
     draw.text((pad, scenes_top - line_h), "scene check (sprite on background, with a dialogue box)",
