@@ -436,8 +436,9 @@ class Unit(unittest.TestCase):
                     make_art.load_config(path)
 
     def test_chroma_key_is_not_the_hair_color(self):
-        # 머리가 초록이면 magenta, 분홍이면 green 배경으로 받아야 지울 때 머리가 같이 지워지지 않는다
-        self.assertEqual(self.cfg["characters"]["gemma"]["key"], "magenta")
+        # 머리나 소품이 분홍, 보라 계열이면 green, 초록 계열이면 magenta 배경으로 받아야 지울 때 같이 지워지지 않는다.
+        # 젬마는 밤색 머리에 보라 머리핀과 눈, 노바는 분홍 머리다
+        self.assertEqual(self.cfg["characters"]["gemma"]["key"], "green")
         self.assertEqual(self.cfg["characters"]["nova"]["key"], "green")
 
     def test_faces_match_the_engine(self):

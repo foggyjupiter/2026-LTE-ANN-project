@@ -10,8 +10,8 @@ ChatGPT 같은 대화형 그림 도구에 붙여 넣을 요청문이다. 캐릭�
 
 | 캐릭터 | 할 일 | 이번에 뽑을 것 | 까닭 |
 |---|---|---|---|
-| 아스트라 | 할 것 없음 | 없음 | 게임에 넣은 그림(기본 여섯 장, huff, denial)을 그대로 쓴다. 시트의 빨간 리본 그림은 쓰지 않는다. |
-| 젬마 | 전부 다시 뽑기 | neutral, smile, blush, pout, shock, dark, hide | 머리색을 연한 파랑에서 에메랄드 초록으로 바꿨다. 아스트라, 소라와 같은 파란 계열로 겹쳤다. |
+| 아스트라 | 할 것 없음 | 없음 | 게임에 넣은 그림(남색 리본, 기본 여섯 장, huff, denial)을 그대로 쓴다. 2026-11-14에 받은 빨간 리본 세트는 쓰지 않기로 했다(사용자). |
+| 젬마 | 전부 다시 뽑기 | neutral, smile, blush, pout, shock, dark, hide | 머리를 밤색으로, 머리핀과 눈을 보라로 바꿨다. 처음의 연한 파랑은 아스트라, 소라와 겹쳤고, 다음의 초록은 사용자가 별로라고 했다(2026-11-14). |
 | 소라 | 할 것 없음 | 없음 | 2026-11-14에 받은 일곱 장을 넣었다. |
 | 노바 | 할 것 없음 | 없음 | 2026-11-14에 받은 분홍 일곱 장을 넣었다. |
 | 미스트랄 | 할 것 없음 | 없음 | 2026-11-14에 받은 일곱 장을 넣었다. dark는 받은 그림의 배경이 불투명해서 사용자가 다듬은 그림을 썼다. |
@@ -41,7 +41,7 @@ ChatGPT 같은 대화형 그림 도구에 붙여 넣을 요청문이다. 캐릭�
 
 ### 아스트라 (astra)
 
-할 일: 할 것 없음. 게임에 넣은 그림(기본 여섯 장, huff, denial)을 그대로 쓴다. 시트의 빨간 리본 그림은 쓰지 않는다.
+할 일: 할 것 없음. 게임에 넣은 그림(남색 리본, 기본 여섯 장, huff, denial)을 그대로 쓴다. 2026-11-14에 받은 빨간 리본 세트는 쓰지 않기로 했다(사용자).
 
 기준 그림 (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/astra/neutral.png`
 
@@ -100,7 +100,7 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 
 ### 젬마 (gemma)
 
-할 일: 전부 다시 뽑기. 머리색을 연한 파랑에서 에메랄드 초록으로 바꿨다. 아스트라, 소라와 같은 파란 계열로 겹쳤다.
+할 일: 전부 다시 뽑기. 머리를 밤색으로, 머리핀과 눈을 보라로 바꿨다. 처음의 연한 파랑은 아스트라, 소라와 겹쳤고, 다음의 초록은 사용자가 별로라고 했다(2026-11-14).
 
 기준 그림 (새로 뽑기). 저장할 곳: `art/raw/gemma/neutral.png`
 
@@ -108,10 +108,10 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 Draw one character sprite for a visual novel game.
 Art style: Japanese bishoujo game (galge) character art, like a heroine sprite from a moe visual novel. Large sparkling detailed eyes, small nose and mouth, glossy hair with sharp highlights, thin clean line art, soft cel shading with light gradients, bright pastel colors.
 Framing: One character only, waist-up portrait, centered, facing the viewer. The whole head and all of the hair are inside the frame, with empty space above the head.
-Character: Soft emerald-green hair in two neat, loose braids. Gentle jade-green eyes. Round glasses. A navy school blazer worn neatly. A small emerald gem-shaped hairpin. She holds a small notebook against her chest with both hands. Shoulders slightly drawn in, a shy posture. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
+Character: Soft chestnut-brown hair in two neat, loose braids. Gentle violet eyes. Round glasses. A navy school blazer worn neatly. A small amethyst-purple gem-shaped hairpin. She holds a small notebook against her chest with both hands. Shoulders slightly drawn in, a shy posture. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
 Expression: shy, gentle look with eyes slightly lowered and a small soft smile.
 Content: A high school student in a modest, fully covering school outfit. Wholesome, all-ages.
-Background: fully transparent (PNG with alpha). If a transparent background is not possible, fill the whole background with one flat pure bright magenta (#FF00FF) chroma key color, with no gradient, shadow, floor or objects.
+Background: fully transparent (PNG with alpha). If a transparent background is not possible, fill the whole background with one flat pure bright green (#00FF00) chroma key color, with no gradient, shadow, floor or objects.
 No text, no watermark, no border. Portrait image, aspect ratio 2:3.
 ```
 
