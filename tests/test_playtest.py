@@ -327,6 +327,12 @@ class PlayTest(unittest.TestCase):
         self.assertIn(playtest.RETRY_WAITS[0], waits)
         self.assertIn("답 2: 모델이 답을 못 줘서 1번 다시 보냄", game["checks"])
         self.assertEqual(playtest.game_numbers(game)["retries"], 1)
+        # 기록 파일(calls.json)에도 다시 보낸 횟수와 멈춘 답이 남는다
+        with tempfile.TemporaryDirectory() as tmp:
+            playtest.write_results([game], pathlib.Path(tmp), fake=True, when="시험", pace=0, seed=1)
+            saved = json.loads((pathlib.Path(tmp) / "calls.json").read_text(encoding="utf-8"))["games"][0]
+        self.assertEqual([t["retries"] for t in saved["turns"]][2], 1)
+        self.assertIsNone(saved["stopped"])
 
     def test_model_down_stops_the_game(self):
         def silent_after_opening(messages, trace):

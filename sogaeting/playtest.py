@@ -844,8 +844,10 @@ def write_results(games, folder, *, fake, when, pace, seed):
         "when": when, "fake": fake, "pace": pace, "seed": seed,
         "games": [{
             "id": g["id"], "name": g["name"], "result": g["result"], "checks": g["checks"],
+            "stopped": g.get("stopped"),
             "turns": [{"kinds": list(t["line"]["kinds"]) if t["line"] else [], "typed": t["typed"],
-                       "out": t["out"], "why_fallback": t["why_fallback"]} for t in g["turns"]],
+                       "out": t["out"], "why_fallback": t["why_fallback"], "retries": t.get("retries", 0)}
+                      for t in g["turns"]],
             "ending": g["ending"],
             "calls": g["calls"],
         } for g in games],
