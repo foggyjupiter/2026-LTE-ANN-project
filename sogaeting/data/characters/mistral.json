@@ -89,6 +89,7 @@
   "dislikes": "무시당하는 것.",
   "max_brain": "허세가 완전히 무너진다. 지어낼 통계가 떠오르지 않아서, 사실은 이런 자리가 처음이고 지금 많이 떨린다는 말이 그대로 나와 버린다.",
   "gimmick": "citation_needed",
+  "hit_points": 7,
   "color": "#EE5A2A",
   "fallback_lines": [
     "(미스트랄은 방금 한 말의 출처를 찾는 척 책장을 넘긴다. 책은 백지다)",

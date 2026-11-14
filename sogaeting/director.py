@@ -18,6 +18,9 @@ START_SCORE = 50
 # 지금은 다정한 말(+1)만 열 번 해도 70점(성공)에서 멈춘다. +2는 캐릭터가 속마음에 흘린 바람을 짚은 말에만
 # 나오고(actor의 [주인공이 짚으면 크게 설레는 것]), 대성공(85)에는 그런 말이 서너 번 있어야 한다.
 POINTS = {2: 8, 1: 2, 0: 0, -1: -5, -2: -10}
+# 캐릭터 데이터의 hit_points가 있으면 바라던 말(+2)의 점수를 그 값으로 바꾼다. 속마음 힌트가 잘 보이는
+# 캐릭터일수록 낮다. 실전 기록(Claude가 직접 해 본 6판): +8일 때 넷이 100점, 미스트랄 98, 하이쿠 90점이었다
+HIT_POINTS_RANGE = (3, 10)
 # 글자(한글, 영문, 숫자)가 이만큼 이하인 말("응", "별로", "ㅋㅋ")은 호감도를 올리지 않는다
 SHORT_INPUT = 2
 # 점수 사유에서 바람(wish)을 가리키는 말. 날씨의 바람("바람이 불어서")은 건드리지 않는다
@@ -75,6 +78,10 @@ class Session:
         self._events = []        # 지금까지 일어난 사건 ("답 3 소나기와 우산 하나")
         self._best = None        # (delta 절댓값, 속마음)
         self._last_choices = []  # 바로 앞 답에서 화면에 보인 선택지
+        self.points = dict(POINTS)
+        hit = self.character.get("hit_points")
+        if isinstance(hit, int) and not isinstance(hit, bool) and HIT_POINTS_RANGE[0] <= hit <= HIT_POINTS_RANGE[1]:
+            self.points[2] = hit
         self._from_choice = False  # 이번 입력이 그 선택지 가운데 하나와 같은가
         self._ending = None
         self._finished_at = None
@@ -261,7 +268,7 @@ class Session:
             if note:
                 notes.append(note)
         old_score = self.score
-        self.score = max(0, min(100, old_score + POINTS[max(-2, min(2, delta))]))
+        self.score = max(0, min(100, old_score + self.points[max(-2, min(2, delta))]))
         change = self.score - old_score
 
         eight = {

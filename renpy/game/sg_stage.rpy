@@ -57,9 +57,11 @@ define sg_stage_emote_art = {
     "gloom": ("images/emote/gloom.png", 0.78),
 }
 
-## 호감도가 이만큼 움직이면 크게 움직인 것으로 본다. 서버(sogaeting/director.py의 POINTS)는 +2에 7점, -2에 10점을 움직인다.
-## POINTS를 바꾸면 이 값을 +2의 점수에 맞춘다.
-define sg_stage_big_change = 7
+## 호감도가 이만큼 움직이면 크게 움직인 것으로 본다. 서버(sogaeting/director.py의 POINTS)는 바라던 말(+2)에
+## 캐릭터마다 5-8점(hit_points), 다정한 말(+1)에 2점, -1에 5점, -2에 10점을 움직인다.
+## 오를 때는 바라던 말의 가장 작은 점수, 내릴 때는 -2의 점수에 맞춘다.
+define sg_stage_big_up = 5
+define sg_stage_big_down = 10
 
 ## 한 번에 띄우는 기호의 수.
 define sg_stage_emote_max = 5
@@ -381,7 +383,6 @@ init -4 python:
             # 대체 대사: 점수도 표정도 없는 지문 한 줄이다
             return [ ("dots", "right", "pop") ], [ ]
 
-        big = sg_stage_big_change
         up, down = change > 0, change < 0
         out = [ ]
 
@@ -391,7 +392,7 @@ init -4 python:
                 out.append(("sparkle", "left", "twinkle"))
         elif face == "blush":
             out.append(("steam", "top", "puff"))
-            if change < big:
+            if change < sg_stage_big_up:
                 out.append(("heart", "right", "pop"))
         elif face == "pout":
             out.append(("vein", "right", "throb"))
@@ -415,12 +416,12 @@ init -4 python:
                 out.append(("dots", "right", "pop"))
 
         more = [ ]
-        if change >= big:
+        if change >= sg_stage_big_up:
             # 크게 올랐다: 하트 여러 개가 떠오른다
             more.append(("heart", "right_far", "float"))
             more.append(("heart", "left_far", "float"))
             more.append(("heart", "left", "float") if face in ("smile", "pout") else ("heart", "right", "float"))
-        elif change <= -big:
+        elif change <= -sg_stage_big_down:
             # 크게 내렸다: 땀방울, 그리고 아직 없으면 세로줄
             if not any(e[0] == "sweat" for e in out):
                 more.append(("sweat", "right_low", "drop"))

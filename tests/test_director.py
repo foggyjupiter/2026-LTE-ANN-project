@@ -27,14 +27,23 @@ ENDING_KEYS = {
 }
 DEFAULT_CHOICES = content.load_schedule()["default_choices"]
 TOTAL = len(content.load_schedule()["replies"])  # 한 판의 답 수
-POINTS = director.POINTS                          # delta 한 칸이 움직이는 점수
+POINTS = director.POINTS                          # delta 한 칸이 움직이는 점수 (기본값)
 
 
-def clamped_scores(delta, count=TOTAL):
-    """모델이 delta를 count번 냈을 때의 점수: 시작 점수와 답마다의 점수."""
+def points_of(character_id):
+    """그 캐릭터의 점수표. 바라던 말(+2)의 점수가 캐릭터마다 다르다(hit_points)."""
+    return Session(character_id, llm=lambda m: "").points
+
+
+MISTRAL = points_of("mistral")
+
+
+def clamped_scores(delta, count=TOTAL, points=None):
+    """모델이 delta를 count번 냈을 때의 점수: 시작 점수와 답마다의 점수. points가 없으면 미스트랄의 점수표."""
+    points = points or MISTRAL
     scores = [director.START_SCORE]
     for _ in range(count):
-        scores.append(max(0, min(100, scores[-1] + POINTS[delta])))
+        scores.append(max(0, min(100, scores[-1] + points[delta])))
     return scores
 RESULT_KEYS = {
     "character_id", "character_name", "affinity", "band", "ending_title", "nickname", "finished_at",
@@ -229,7 +238,7 @@ class ScoreTest(unittest.TestCase):
         self.assertEqual(scores[-1], 100)
         self.assertEqual([o["change"] for o in outs], [0] + [b - a for a, b in zip(scores, scores[1:])])
         self.assertEqual([o["delta"] for o in outs[1:]], [2] * TOTAL)
-        self.assertEqual(outs[1]["popup"], f"+{POINTS[2]}")
+        self.assertEqual(outs[1]["popup"], f"+{MISTRAL[2]}")
         self.assertEqual(outs[-1]["popup"], director._signed(scores[-1] - scores[-2]))
 
     def test_delta_minus_two_stops_at_0(self):
@@ -290,6 +299,16 @@ class ScoreTest(unittest.TestCase):
         out = session.reply("그 리본 예쁘다")  # 볼 수 없던 바람이라 짚어도 +2가 아니다
         self.assertLessEqual(out["delta"], 1)
 
+    def test_hit_points_differ_by_character(self):
+        # 속마음 힌트가 잘 보이는 캐릭터일수록 바라던 말의 점수가 낮다. 하이쿠는 기본값(8)
+        hits = {c: points_of(c)[2] for c in ("gemma", "sora", "astra", "nova", "mistral", "haiku")}
+        self.assertEqual(hits, {"gemma": 5, "sora": 5, "astra": 6, "nova": 6, "mistral": 7, "haiku": 8})
+        for c in hits:
+            self.assertEqual(points_of(c)[1], POINTS[1])  # 다정한 말은 모두 같다
+            # 다정한 말만으로는 누구도 대성공이 안 되고, 바라던 말을 짚으면 누구나 대성공에 닿는다
+            self.assertLess(clamped_scores(1, points=points_of(c))[-1], 85)
+            self.assertGreaterEqual(clamped_scores(2, points=points_of(c))[-1], 85)
+
     def test_points_go_up_slowly_and_down_fast(self):
         self.assertEqual(clamped_scores(1)[-1], 50 + TOTAL * POINTS[1])
         self.assertLess(clamped_scores(1)[-1], 85)  # 다정한 말(+1)만으로는 대성공이 안 된다
@@ -297,19 +316,19 @@ class ScoreTest(unittest.TestCase):
         self.assertGreater(-POINTS[-1], POINTS[1])
 
     def test_band_follows_score_after_reply(self):
-        outs = play(Session("mistral", llm=ScriptedLlm(default={"delta": 2})), count=2)  # 50, 58, 66
-        self.assertEqual([o["band"] for o in outs], ["mid", "mid", "high"])
+        outs = play(Session("mistral", llm=ScriptedLlm(default={"delta": 2})), count=3)  # 50, 57, 64, 71
+        self.assertEqual([o["band"] for o in outs], ["mid", "mid", "mid", "high"])
 
     def test_system_gets_band_before_this_reply(self):
         character = content.load_character("mistral")
         by = character["by_affinity"]
         llm = ScriptedLlm(default={"delta": 2})
-        play(Session("mistral", llm=llm), count=3)  # 답을 반영하기 전 점수: 50, 50, 58, 66
-        for turn in (0, 1, 2):
+        play(Session("mistral", llm=llm), count=4)  # 답을 반영하기 전 점수: 50, 50, 57, 64, 71
+        for turn in (0, 1, 2, 3):
             self.assertIn(by["mid"], llm.system_of(turn))
             self.assertNotIn(by["high"], llm.system_of(turn))
-        self.assertIn(by["high"], llm.system_of(3))
-        self.assertNotIn(by["mid"], llm.system_of(3))
+        self.assertIn(by["high"], llm.system_of(4))
+        self.assertNotIn(by["mid"], llm.system_of(4))
 
         llm = ScriptedLlm(default={"delta": -2})
         play(Session("mistral", llm=llm), count=3)  # 50, 50, 40, 30 (-2 한 번에 10점)
@@ -502,7 +521,7 @@ class FallbackTest(unittest.TestCase):
         out = session.reply("좋은 말이네, 반가워")
         self.assertFalse(out["fallback"])
         self.assertEqual(out["delta"], 2)
-        self.assertEqual(out["score"], 50 + POINTS[2])
+        self.assertEqual(out["score"], 50 + MISTRAL[2])
         self.assertEqual(out["fx"], [])
         self.assertEqual(out["choices"], DEFAULT_CHOICES)  # 선택지가 두 개뿐이라 기본 선택지로 바뀐다
         self.assertEqual(out["face"], "neutral")
@@ -714,7 +733,7 @@ class GimmickTest(unittest.TestCase):
         self.assertEqual(out["popup"], "±0")
         self.assertEqual(json.loads(session.history[-1]["content"])["delta"], 0)
         out = session.reply("좋은 말이네, 너 웃는 거 좋아")
-        self.assertEqual((out["delta"], out["score"], out["notes"]), (2, 50 + POINTS[2], []))  # 문턱 0: 그대로 지나간다
+        self.assertEqual((out["delta"], out["score"], out["notes"]), (2, 50 + points_of("nova")[2], []))  # 문턱 0
 
     def test_sora_hears_every_word(self):
         # 2026-11-13에 소라의 들린 말 가리기(■■)를 뺐다. 참가자의 말이 그대로 간다
@@ -830,7 +849,7 @@ class EndingTest(unittest.TestCase):
         self.assertEqual(ending["best_line"], "넷")  # 절댓값 2가 둘이면 뒤쪽
         self.assertEqual(ending["inners"], ["등장", "하나", "둘", "셋, 좋은 말이네", "넷", "다섯"])
         self.assertTrue(ending["early"])
-        self.assertEqual(ending["score"], 50 + POINTS[1] + POINTS[-2] + POINTS[0] + POINTS[2] + POINTS[1])
+        self.assertEqual(ending["score"], 50 + MISTRAL[1] + MISTRAL[-2] + MISTRAL[0] + MISTRAL[2] + MISTRAL[1])
 
     def test_best_line_when_all_deltas_tie(self):
         turns = {n: {"inner": f"속마음 {n}", "delta": 0} for n in range(4)}
