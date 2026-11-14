@@ -177,7 +177,8 @@ class TouchTest(unittest.TestCase):
 
     def test_has_touch(self):
         touching = ("노바가 전학생의 손을 꼭 잡았다.", "젬마가 어깨에 살짝 기댔다.", "소매를 붙잡았다가 놓았다.",
-                    "손끝이 스쳤다.", "머리에 붙은 꽃잎을 떼어 주었다.", "어깨가 쾅 부딪혔다.")
+                    "손끝이 스쳤다.", "머리에 붙은 꽃잎을 떼어 주었다.", "어깨가 쾅 부딪혔다.",
+                    "전학생과 어깨를 맞대어 우산을 펴 들었다.")
         for text in touching:
             self.assertTrue(actor.has_touch(Reply(narration=text, say="응.")), text)
         for text in ("젬마가 고개를 숙였다.", "비가 그쳤다.", ""):
