@@ -156,7 +156,11 @@ xvfb-run -a python3 run_booth.py --fake --windowed
 ## 소리
 
 - 효과음 20개는 코드로 합성해서 만든 것이다(`game/audio/*.ogg`). 다시 만들려면 `python3 renpy/dev/make_sfx.py` (numpy와 ffmpeg가 있어야 한다).
-- 배경음은 들어 있지 않다. 음악 파일을 `renpy/game/audio/bgm.ogg`(또는 `bgm.mp3`)로 넣으면 고르기 화면부터 낮은 음량으로 되풀이해서 나온다. 저작권 문제가 없는 음악만 넣는다.
+- 배경음 `game/audio/bgm.ogg`(약 3분 6초, 뮤직박스, 첼레스타, 글로켄슈필, 현악 패드)는 고르기 화면부터 낮은 음량으로 되풀이해서 나온다. 다른 곡으로 바꾸려면 이 파일만 바꾼다(`bgm.mp3`도 된다). 저작권 문제가 없는 음악만 넣는다.
+  - 만든 방법: 사용자의 작곡 도구 레포 `foggyjupiter/fl-studio-plugin`(커밋 a1b87a1)의 arranger로 `python -m arranger.cli song --key C --seed 21 --mood musicbox --template loop_long --progressions manual` 을 돌리고, `python -m tools.render_audio out/<번호>/song.mid --soundfont sgm -o bgm.ogg` 로 렌더링했다(2026-11-14).
+  - 코드 진행은 기존 곡의 채보에서 가져오지 않도록 손 진행만 썼다(`--progressions manual`). 멜로디와 편곡은 도구가 새로 만들었다.
+  - 소리는 SGM-V2.01 사운드폰트와 그 레포에 들어 있는 자체 칩 사운드폰트(`soundfonts/chip_leads.sf2`)만 썼다. 원곡 게임 사운드폰트는 라이선스 때문에 받지 않았다.
+  - 곡의 MIDI와 구성은 `dev/music/bgm.mid`, `dev/music/bgm_structure.json` 에 둔다. 같은 명령과 seed로 다시 만들 수 있다.
 - 음량은 `game/sg_audio.rpy` 맨 위의 `sg_sfx_volume`, `sg_bgm_volume` 으로 맞춘다.
 - 소리를 전부 끄려면 환경변수 `SOGAETING_MUTE=1` 을 주고 켠다.
 - 이 소리들은 만든 환경에서 귀로 들어 보지 못했다. 부스 PC에서 처음 켤 때 작은 음량으로 들어 보고 맞춘다.

@@ -19,8 +19,11 @@
 define sg_sfx_volume = 0.8
 define sg_bgm_volume = 0.2
 
-## 호감도가 이만큼 넘게 한 번에 움직이면 큰 변화의 소리를 낸다. 서버는 7 또는 14씩 움직인다.
-define sg_score_big = 14
+## 호감도가 한 번에 이만큼 움직이면 큰 변화의 소리를 낸다. 서버는 바라던 말에 캐릭터마다 5-8점,
+## 다정한 말에 2점을 올리고, -1에 5점, -2에 10점을 내린다(sogaeting/director.py의 POINTS, hit_points).
+## sg_stage.rpy 의 큰 변화 연출(sg_stage_big_up, sg_stage_big_down)과 같은 기준이다.
+define sg_score_big_up = 5
+define sg_score_big_down = 10
 
 ## 소리 이름과 파일. 파일을 더하거나 빼면 dev/make_sfx.py 의 SOUNDS 도 고친다.
 ## 어긋나면 tests/test_renpy_audio.py 가 실패한다.
@@ -133,7 +136,7 @@ init 900 python:
         if change is None or isinstance(change, bool):
             return None
         if isinstance(change, str):
-            text = change.strip().replace("−", "-")     # 빼기 기호로 온 것도 받는다
+            text = change.strip().replace("−", "-").replace(",", "")   # 빼기 기호, 천 단위 쉼표("+60,000")도 받는다
             if not text or text.startswith("±"):             # 변화 없음
                 return None
             try:
@@ -146,13 +149,12 @@ init 900 python:
             return "odd"
         if change == 0:
             return None
-        big = abs(change) >= sg_score_big
         if change > 0:
-            return "big_up" if big else "up"
-        return "big_down" if big else "down"
+            return "big_up" if change >= sg_score_big_up else "up"
+        return "big_down" if -change >= sg_score_big_down else "down"
 
     def sg_sfx_score(change):
-        """호감도가 움직일 때의 소리. change 는 숫자나 팝업 글("+7", "-14", "±0", "NaN")."""
+        """호감도가 움직일 때의 소리. change 는 숫자나 팝업 글("+8", "-10", "±0", "+60,000", "NaN")."""
         try:
             sg_sfx(sg_score_sound(change))
         except Exception:

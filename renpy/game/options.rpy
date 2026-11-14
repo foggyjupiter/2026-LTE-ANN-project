@@ -21,7 +21,7 @@ define build.name = "sogaeting"
 
 ## 소리 ##########################################################################
 
-## 효과음은 sg_audio.rpy 가 audio 채널로 직접 낸다. 배경음은 audio/bgm.ogg 를 넣으면 나온다.
+## 효과음은 sg_audio.rpy 가 audio 채널로 직접 낸다. 배경음은 audio/bgm.ogg 다(만든 방법은 renpy/README.md).
 ## 아래 두 값은 환경설정 화면의 음량 막대를 숨기는 용도로만 남아 있다.
 define config.has_sound = False
 define config.has_music = False
