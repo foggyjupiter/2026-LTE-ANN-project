@@ -836,6 +836,14 @@ class FaceTest(unittest.TestCase):
         self.assertEqual(faces[:limit], ["huff"] * limit)
         self.assertEqual(set(faces[limit:]), {"pout"})
 
+    def test_extra_face_can_have_its_own_limit(self):
+        # 하이쿠의 flushed는 한 판에 한 번(설정의 limit). 실제 모델이 판마다 세 번씩 냈다
+        self.assertEqual(actor.extra_face_limit(content.load_character("haiku"), "flushed"), 1)
+        llm = ScriptedLlm(turns={1: {"face": "flushed"}, 2: {"face": "flushed"}})
+        outs = play(Session("haiku", llm=llm), count=2)
+        self.assertEqual((outs[1]["face"], outs[2]["face"]), ("flushed", "blush"))   # 두 번째는 그 자리의 blush로
+        self.assertIn("한 판에 1번까지만.", llm.system_of(1))
+
     def test_blush_like_extra_face_counts_as_blush(self):
         llm = ScriptedLlm(turns={0: {"face": "blush"}, 1: {"face": "denial"}, 2: {"face": "blush"}})
         outs = play(Session("astra", llm=llm), count=2)

@@ -146,6 +146,15 @@ def extra_faces(character: dict) -> dict:
     return faces
 
 
+def extra_face_limit(character: dict, face: str) -> int:
+    """캐릭터만의 표정 하나를 한 판에 낼 수 있는 횟수. 설정의 limit(1 이상)이 있으면 그것, 없으면 EXTRA_FACE_LIMIT."""
+    info = extra_faces(character).get(face) or {}
+    limit = info.get("limit")
+    if isinstance(limit, int) and not isinstance(limit, bool) and 1 <= limit <= EXTRA_FACE_LIMIT:
+        return limit
+    return EXTRA_FACE_LIMIT
+
+
 def faces_for(character: dict) -> tuple:
     """그 캐릭터가 쓸 수 있는 표정: 기본 여섯 가지와 캐릭터만의 표정."""
     return FACES + tuple(extra_faces(character))
@@ -167,7 +176,9 @@ def _extra_face_lines(character: dict) -> list[str]:
              "먼저 고른다. 같은 표정은 한 판에 " + str(EXTRA_FACE_LIMIT) + "번까지만 쓴다."]
     for face, info in faces.items():
         name = info.get("name") if isinstance(info.get("name"), str) else face
-        lines.append("  " + face + "(" + name + ". " + info["base"] + " 자리에 쓴다): " + info["when"])
+        limit = extra_face_limit(character, face)
+        once = "" if limit == EXTRA_FACE_LIMIT else " 한 판에 " + str(limit) + "번까지만."
+        lines.append("  " + face + "(" + name + ". " + info["base"] + " 자리에 쓴다): " + info["when"] + once)
     return lines
 
 

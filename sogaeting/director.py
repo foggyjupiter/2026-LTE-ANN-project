@@ -443,8 +443,9 @@ class Session:
         평소 얼굴(neutral)의 그림은 캐릭터마다 그 캐릭터다운 얼굴이다(아스트라는 시큰둥, 노바는 활짝 웃음,
         미스트랄은 의기양양). 그래서 바꿀 곳은 평소 얼굴로 한다."""
         face = reply.face
-        # 캐릭터만의 표정은 하나를 한 판에 EXTRA_FACE_LIMIT번까지 낸다. 넘으면 그 자리의 기본 표정으로 바꾼다
-        if face not in actor.FACES and self._faces.count(face) >= actor.EXTRA_FACE_LIMIT:
+        # 캐릭터만의 표정은 하나를 한 판에 EXTRA_FACE_LIMIT번(설정에 limit이 있으면 그만큼)까지 낸다.
+        # 넘으면 그 자리의 기본 표정으로 바꾼다. 실제 모델 기록: 하이쿠가 flushed를 판마다 세 번씩 냈다
+        if face not in actor.FACES and self._faces.count(face) >= actor.extra_face_limit(self.character, face):
             face = actor.face_base(self.character, face)
         bases = [actor.face_base(self.character, f) for f in self._faces]
         base = actor.face_base(self.character, face)
