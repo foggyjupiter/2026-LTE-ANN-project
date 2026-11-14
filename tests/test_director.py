@@ -277,7 +277,8 @@ class StrengthScoreTest(unittest.TestCase):
 
     def test_strength_multiplies_each_step(self):
         cases = [(1, 5, director.points_for(MISTRAL[1], 5)), (1, 1, director.points_for(MISTRAL[1], 1)),
-                 (2, 1, director.points_for(MISTRAL[2], 1)), (-1, 4, director.points_for(MISTRAL[-1], 4))]
+                 (2, 1, director.points_for(MISTRAL[2], 1, hit=True)), (2, 5, float(MISTRAL[2])),
+                 (-1, 4, director.points_for(MISTRAL[-1], 4))]
         for delta, strength, points in cases:
             session = Session("mistral", llm=ScriptedLlm(default={"delta": delta, "strength": strength}))
             session.start()
@@ -287,6 +288,10 @@ class StrengthScoreTest(unittest.TestCase):
         self.assertEqual(director.points_for(2, 5), 2.8)
         self.assertEqual(director.points_for(2, 1), 1.2)
         self.assertEqual(director.points_for(-5, 4), -6.0)
+        # 바라던 말은 세기 3 이상이 hit_points 그대로다. 모델이 거의 늘 5를 줘서 위로는 키우지 않는다
+        self.assertEqual(director.points_for(8, 5, hit=True), 8.0)
+        self.assertEqual(director.points_for(5, 1, hit=True), 3.0)
+        self.assertEqual(max(director.HIT_STRENGTH_SCALE.values()), 1.0)
 
     def test_scores_stay_at_one_decimal(self):
         session = Session("mistral", llm=ScriptedLlm(default={"delta": 1, "strength": 5}))

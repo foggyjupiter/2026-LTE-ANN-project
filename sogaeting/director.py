@@ -26,6 +26,11 @@ HIT_POINTS_RANGE = (3, 10)
 # 순위 경쟁에서 같은 점수가 덜 나오게 하려고 더했다(사용자, 2026-11-14). 칸만으로 움직이면 다정하게 한
 # 실전 시험 6판 가운데 3판이 똑같이 66점이었다. 점수는 소수 한 자리까지 쓴다
 STRENGTH_SCALE = {1: 0.6, 2: 0.8, 3: 1.0, 4: 1.2, 5: 1.4}
+# 바라던 말(+2)의 세기 배수. 보통(3) 이상은 hit_points 그대로이고 약할 때(1-2)만 줄인다. 세기를 못 읽었을 때(3)도
+# 그대로다. 실전 시험(2026-11-14, 실제 모델): 모델은 바라던 말
+# 23번 가운데 22번에 세기 5를 줬다. 위 표를 그대로 쓰면 속마음을 읽는 참가자가 평균 83.3점에서 91.7점으로 올라서
+# 이 표로 바꿨다(같은 대화를 다시 매기면 86.0점). 다정한 참가자(68.3 → 69.6)와 각본(51.0 → 48.9)은 거의 그대로다
+HIT_STRENGTH_SCALE = {1: 0.6, 2: 0.8, 3: 1.0, 4: 1.0, 5: 1.0}
 # 선택지를 고른 말의 세기 상한. 직접 쓴 말이 더 높게 나올 수 있게 한다
 CHOICE_STRENGTH_MAX = 3
 SCORE_DIGITS = 1
@@ -62,10 +67,10 @@ def _signed(n: float) -> str:
     return "±0" if round(n, SCORE_DIGITS) == 0 else f"{n:+.{SCORE_DIGITS}f}"
 
 
-def points_for(step: float, strength: int) -> float:
-    """칸의 점수(step)에 세기를 곱한 점수. 소수 한 자리로 반올림한다."""
-    scale = STRENGTH_SCALE.get(strength, 1.0)
-    return round(step * scale, SCORE_DIGITS)
+def points_for(step: float, strength: int, hit: bool = False) -> float:
+    """칸의 점수(step)에 세기를 곱한 점수. 소수 한 자리로 반올림한다. hit이면 바라던 말(+2)의 표를 쓴다."""
+    table = HIT_STRENGTH_SCALE if hit else STRENGTH_SCALE
+    return round(step * table.get(strength, 1.0), SCORE_DIGITS)
 
 
 class Session:
@@ -296,7 +301,8 @@ class Session:
         old_score = self.score
         step = self.points[max(-2, min(2, delta))]
         strength = reply.strength if step else actor.STRENGTH_DEFAULT
-        self.score = round(max(0.0, min(100.0, old_score + points_for(step, strength))), SCORE_DIGITS)
+        hit = max(-2, min(2, delta)) == 2
+        self.score = round(max(0.0, min(100.0, old_score + points_for(step, strength, hit))), SCORE_DIGITS)
         change = round(self.score - old_score, SCORE_DIGITS)
 
         eight = {

@@ -160,7 +160,7 @@ testsuite sg_stage_demo:
 
     ## 크게 올랐다: 김과 떠오르는 하트 여러 개
     testcase blush:
-        $ sg_stage_demo_go("blush", 8.4)
+        $ sg_stage_demo_go("blush", 6.0)
         pause 0.2
         screenshot "stage_06_blush_flinch.png"
         pause 0.75
@@ -203,7 +203,7 @@ testsuite sg_stage_demo:
 
     ## 같은 표정이 이어지면 동작(sg_stage_act_smile)을 되풀이하지 않는다
     testcase same_face:
-        $ sg_stage_demo_go("smile", 8.4)
+        $ sg_stage_demo_go("smile", 6.0)
         pause 0.75
         screenshot "stage_15_smile_big.png"
         pause 1.6
