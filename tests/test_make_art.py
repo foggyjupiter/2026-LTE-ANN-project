@@ -414,16 +414,19 @@ class Unit(unittest.TestCase):
             self.assertIn(entry["do"], make_art.PLAN_DOS, char_id)
             faces = make_art.faces_for(self.cfg, char_id)
             drawn = [f for f in faces if make_art.to_draw(self.cfg, char_id, f)]
-            expected = {"done": [], "keep": [f for f in faces if f not in make_art.FACES], "redo": list(faces)}
+            expected = {"done": [], "keep": [f for f in faces if f not in make_art.FACES], "redo": list(faces),
+                        "some": [f for f in faces if f in entry.get("faces", [])]}
             self.assertEqual(drawn, expected[entry["do"]], char_id)
         doc = make_art.gpt_doc(self.cfg)
         self.assertIn("## 지금 할 일", doc)
-        self.assertIn("기준 그림 (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/sora/neutral.png`", doc)
-        self.assertIn("캐릭터만의 표정 yawn (새로 뽑기)", doc)
+        self.assertIn("기준 그림 (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/haiku/neutral.png`", doc)
+        self.assertIn("표정 smile (새로 뽑기). 저장할 곳: `art/raw/haiku/smile.png`", doc)
+        self.assertIn("캐릭터만의 표정 flushed (그대로 두기", doc)
         self.assertIn("기준 그림 (새로 뽑기). 저장할 곳: `art/raw/gemma/neutral.png`", doc)
 
     def test_bad_plan_is_rejected(self):
-        for plan in ({"nobody": {"do": "keep"}}, {"astra": {"do": "maybe"}}, {"astra": "keep"}):
+        for plan in ({"nobody": {"do": "keep"}}, {"astra": {"do": "maybe"}}, {"astra": "keep"},
+                     {"astra": {"do": "some", "faces": ["yawn"]}}):
             cfg = json.loads((ROOT / "tools" / "art_prompts.json").read_text(encoding="utf-8"))
             cfg["plan"] = plan
             with tempfile.TemporaryDirectory() as tmp:
@@ -470,7 +473,7 @@ class Unit(unittest.TestCase):
                 self.assertNotIn(EM_DASH, prompt)
                 self.assertNotIn("{", prompt)
         smile = make_art.sprite_prompt(self.cfg, "haiku", "smile", variant=True)
-        self.assertIn("deadpan", smile)   # 캐릭터가 따로 정한 표정이 공통 표정보다 먼저다
+        self.assertIn("clearly visible soft smile", smile)   # 캐릭터가 따로 정한 표정이 공통 표정보다 먼저다
 
     def test_seed_is_stable(self):
         self.assertEqual(make_art.seed_for("astra"), make_art.seed_for("astra"))

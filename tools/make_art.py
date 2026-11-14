@@ -120,14 +120,17 @@ def load_config(path=PROMPTS_PATH):
             raise ValueError(f"plan에 모르는 캐릭터 {char_id}가 있습니다")
         if not isinstance(entry, dict) or entry.get("do") not in PLAN_DOS:
             raise ValueError(f"plan.{char_id}.do는 {', '.join(PLAN_DOS)} 가운데 하나여야 합니다")
+        if entry["do"] == "some" and not set(entry.get("faces") or []) <= set(faces_for(cfg, char_id)):
+            raise ValueError(f"plan.{char_id}.faces에 그 캐릭터의 표정이 아닌 것이 있습니다")
     return cfg
 
 
-PLAN_DOS = ("done", "keep", "redo")
+PLAN_DOS = ("done", "keep", "redo", "some")
 PLAN_WORDS = {
     "done": "할 것 없음",
     "keep": "캐릭터만의 표정만 새로 뽑기",
     "redo": "전부 다시 뽑기",
+    "some": "적힌 표정만 다시 뽑기",
 }
 
 
@@ -145,6 +148,8 @@ def to_draw(cfg, char_id, face):
         return True
     if entry["do"] == "keep":
         return face not in FACES
+    if entry["do"] == "some":
+        return face in entry.get("faces", [])
     return False
 
 

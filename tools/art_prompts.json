@@ -5,10 +5,10 @@
     "_설명": "2026-11-14 GPT로 뽑은 표정 시트를 보고 정한 할 일. keep은 이미 뽑은 기본 여섯 장을 그대로 쓰고 캐릭터만의 표정만 새로 뽑는다. redo는 전부 다시 뽑는다. done은 할 것이 없다.",
     "astra": {"do": "done", "note": "게임에 넣은 그림(기본 여섯 장, huff, denial)을 그대로 쓴다. 시트의 빨간 리본 그림은 쓰지 않는다."},
     "gemma": {"do": "redo", "note": "머리색을 연한 파랑에서 에메랄드 초록으로 바꿨다. 아스트라, 소라와 같은 파란 계열로 겹쳤다."},
-    "sora": {"do": "keep", "note": "시트의 기본 여섯 장을 그대로 쓴다. yawn만 새로 뽑는다."},
-    "nova": {"do": "redo", "note": "머리와 후드를 주황에서 분홍으로 바꿨다. 미스트랄과 같은 금발, 주황으로 겹쳤다. 기본과 미소, 삐침, 음산이 비슷하게 나와서 표정 요청문도 고쳤다. 자세도 팔을 내린 평범한 자세에서 앞으로 기울이고 두 손을 뒤로 깍지 낀 자세로 바꿨다."},
-    "mistral": {"do": "keep", "note": "시트의 기본 여섯 장을 그대로 쓴다. busted만 새로 뽑는다. 주황은 이제 미스트랄 혼자다."},
-    "haiku": {"do": "keep", "note": "시트의 기본 여섯 장을 그대로 쓴다. flushed만 새로 뽑는다. 표정이 거의 같은 것은 무표정 설정대로다."}
+    "sora": {"do": "done", "note": "2026-11-14에 받은 일곱 장을 넣었다."},
+    "nova": {"do": "done", "note": "2026-11-14에 받은 분홍 일곱 장을 넣었다."},
+    "mistral": {"do": "done", "note": "2026-11-14에 받은 일곱 장을 넣었다. dark는 받은 그림의 배경이 불투명해서 사용자가 다듬은 그림을 썼다."},
+    "haiku": {"do": "some", "faces": ["smile", "blush", "pout", "shock", "dark"], "note": "받은 일곱 장을 일단 넣었지만 flushed 말고는 표정이 거의 같다(사용자). 표정 요청문에서 \"거의 같은 무표정\"을 빼고 작게 봐도 보이게 고쳤다. neutral과 flushed는 그대로 쓰고, 그 neutral을 첨부해 다섯 장을 다시 뽑는다."}
   },
 
   "sprite": {
@@ -116,11 +116,11 @@
       "look": "Ink-black bob cut with long bangs covering one eye. Gray eyes. A cream-colored hoodie with terracotta-orange drawstrings worn over the school uniform. Headphones resting around her neck. A small coral-orange starburst pin on the hoodie. Still, upright posture.",
       "faces": {
         "neutral": "completely deadpan, expressionless face, mouth closed",
-        "smile": "almost the same deadpan face, only the corners of the mouth raised very slightly",
-        "blush": "almost the same deadpan face, eyes looking away, a faint blush on the cheeks",
-        "pout": "almost the same deadpan face, eyebrows lowered slightly, eyes narrowed a little",
-        "shock": "almost the same deadpan face, eyebrows raised and the visible eye opened a little wider",
-        "dark": "the same deadpan face with the upper half in shadow, the visible eye dull and without highlights",
+        "smile": "a small but clearly visible soft smile, the visible eye gently narrowed and curved, a faint warmth on the cheeks. The change must be easy to see even at a small size",
+        "blush": "the visible eye looking away to the side, a clear pink blush across both cheeks, lips pressed into a small tight line. The change must be easy to see even at a small size",
+        "pout": "a flat, unamused half-lidded stare, one cheek slightly puffed, mouth turned down in a small frown. The change must be easy to see even at a small size",
+        "shock": "the visible eye wide open with a small pupil, eyebrows raised high, mouth a small open circle, a sweat drop on the temple. The change must be easy to see even at a small size",
+        "dark": "the upper half of the face in heavy shadow, the visible eye dull and without highlights, a flat stare and a thin closed mouth",
         "flushed": "the same deadpan, expressionless face and closed mouth, eyes looking away, but the whole face and ears are bright red"
       }
     }
