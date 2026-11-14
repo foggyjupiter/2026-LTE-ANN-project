@@ -45,7 +45,11 @@ _EVENT_RE = re.compile(r'사건 씨앗: "([^"]+)"')
 def _event_note(system: str) -> str:
     """사건 씨앗이 있는 답이면 지문에 그 사건을 적는다. 진짜 모델에게 시키는 것과 같다."""
     match = _EVENT_RE.search(system)
-    return f" 그때 {match.group(1)}." if match else ""
+    if not match:
+        return ""
+    # 한 판의 마지막 사건은 둘이 실제로 닿는 장면까지 쓰게 한다(actor._seed_section)
+    touch = " 가짜 모델이 전학생의 소매를 살짝 붙잡았다." if "실제로 닿는 순간" in system else ""
+    return f" 그때 {match.group(1)}." + touch
 
 
 def _hide_offstage(text: str) -> str:

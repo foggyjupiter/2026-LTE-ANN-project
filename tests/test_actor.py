@@ -172,6 +172,35 @@ class StrengthTest(unittest.TestCase):
         self.assertIn("열 칸", actor.REWRITE_TAIL)
 
 
+class TouchTest(unittest.TestCase):
+    """마지막 사건의 닿는 장면: 지시문과 고쳐 쓰기."""
+
+    def test_has_touch(self):
+        touching = ("노바가 전학생의 손을 꼭 잡았다.", "젬마가 어깨에 살짝 기댔다.", "소매를 붙잡았다가 놓았다.",
+                    "손끝이 스쳤다.", "머리에 붙은 꽃잎을 떼어 주었다.", "어깨가 쾅 부딪혔다.")
+        for text in touching:
+            self.assertTrue(actor.has_touch(Reply(narration=text, say="응.")), text)
+        for text in ("젬마가 고개를 숙였다.", "비가 그쳤다.", ""):
+            self.assertFalse(actor.has_touch(Reply(narration=text, say="그렇구나.")), text)
+
+    def test_seed_section_must_touch(self):
+        hint = "캐릭터가 우산을 기울이다 어깨가 닿는"
+        must = "\n".join(actor._seed_section("소나기와 우산 하나", "event", hint, must_touch=True))
+        soft = "\n".join(actor._seed_section("소나기와 우산 하나", "event", hint))
+        self.assertIn("실제로 닿는 순간이 온다: " + hint + " 장면을 지문에 쓴다", must)
+        self.assertIn("입맞춤", must)
+        self.assertNotIn("실제로 닿는 순간", soft)
+        self.assertIn("계기가 될 수 있다", soft)
+
+    def test_review_asks_for_the_touch(self):
+        hint = "캐릭터가 졸다가 전학생 어깨에 살짝 기대는"
+        plain = Reply(narration="오후 햇살이 들어왔다.", say="졸려.", inner="자고 싶다", wish="")
+        touched = Reply(narration="오후 햇살 속에서 노바가 어깨에 살짝 기댔다.", say="졸려.", inner="자고 싶다", wish="")
+        self.assertIn("닿는 순간이 지문에 없다", actor.review_reply(plain, sample_character(), touch_hint=hint) or "")
+        self.assertNotIn("닿는 순간", actor.review_reply(touched, sample_character(), touch_hint=hint) or "")
+        self.assertNotIn("닿는 순간", actor.review_reply(plain, sample_character()) or "")
+
+
 class StoryModeTest(unittest.TestCase):
     """이야기 모드(실험): 답을 길게 쓰고 캐릭터가 이야기를 끌고 간다."""
 
@@ -615,7 +644,7 @@ class BuildTurnMessagesTest(unittest.TestCase):
                 "실제 사람에 대한 비방",
                 "진짜로 해치겠다는 위협",
                 "자해나 자살을 암시하는 말",
-                "입맞춤, 스킨십, 야한 이야기는 하지도 않고",
+                "입맞춤, 그보다 진한 스킨십, 야한 이야기는 하지도 않고",
                 "주인공의 외모와 몸과 연애 경험을 놀리지 않는다",
                 "실제로 있는 기관과 사람의 이름을 쓰지 않는다",
             ):
@@ -1144,7 +1173,7 @@ class EndingTest(unittest.TestCase):
             "실제 사람에 대한 비방",
             "진짜로 해치겠다는 위협",
             "자해나 자살을 암시하는 말",
-            "입맞춤, 스킨십, 야한 이야기는 하지도 않고",
+            "입맞춤, 그보다 진한 스킨십, 야한 이야기는 하지도 않고",
             "주인공의 외모와 몸과 연애 경험을 놀리지 않는다",
             "실제로 있는 기관과 사람의 이름을 쓰지 않는다",
         ):
@@ -1295,7 +1324,7 @@ class ToneAndSafetyPromptTest(unittest.TestCase):
         ending = build_ending_messages(sample_character(), sample_history(),
                                        band_name="성공", score=70)[0]["content"]
         for text in (system_of(), ending):
-            self.assertIn("입맞춤, 스킨십, 야한 이야기는", text)
+            self.assertIn("입맞춤, 그보다 진한 스킨십, 야한 이야기는", text)
             self.assertIn("손잡기, 어깨에 기대기, 머리 쓰다듬기, 짧게 안기까지", text)
             self.assertIn("실제 죽음, 장례, 큰 병은 농담으로 쓰지 않는다", text)
             self.assertIn("정부 부처, 공공 기관, 국제기구", text)

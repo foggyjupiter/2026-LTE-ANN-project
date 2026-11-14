@@ -208,11 +208,14 @@ class Session:
         intensity = slot["intensity"]
         finale = (not opening) and self.turn == self.total_turns
         seed_kind = slot.get("seed")
-        # 한 판의 마지막 사건은 손잡기나 기대기 같은 순간의 계기가 되는 사건(event_hints)에서 고른다
-        last_event = (seed_kind == "event" and not opening
-                      and not any(r.get("seed") == "event" for r in self.schedule["replies"][self.turn:]))
-        seed = self._pick_seed(seed_kind, close=last_event)
+        # 한 판의 마지막 두 사건은 손잡기나 기대기 같은 순간의 계기가 되는 사건(event_hints)에서 고르고,
+        # 마지막 사건에서는 실제로 닿는 장면까지 쓰게 한다(없으면 한 번 고쳐 쓰게 한다). 사용자가 그런 순간이
+        # 거의 늘 나오기를 바랐다(2026-11-14)
+        later_events = sum(1 for r in self.schedule["replies"][self.turn:] if r.get("seed") == "event")
+        is_event = seed_kind == "event" and not opening
+        seed = self._pick_seed(seed_kind, close=is_event and later_events <= 1)
         seed_hint = (self.seeds.get("event_hints") or {}).get(seed, "") if seed_kind == "event" else ""
+        must_touch = is_event and later_events == 0 and bool(seed_hint)
         fx_allowed = list(self.fx["light"])
         if intensity > 2:
             fx_allowed += self.fx["heavy"]
@@ -233,6 +236,7 @@ class Session:
             seed_hint=seed_hint,
             story=self.story,
             beat=str(slot.get("beat") or "") if self.story else "",
+            must_touch=must_touch,
         )
         fx_names = set(self.fx["light"]) | set(self.fx["heavy"])
         event_seed = seed if seed_kind == "event" else None
@@ -244,7 +248,8 @@ class Session:
                                review=lambda r: actor.review_reply(r, self.character, banned=self.banned,
                                                                    event_seed=event_seed, used_phrases=used,
                                                                    tomorrow=tomorrow, finale=finale,
-                                                                   previous=previous, stuck_wish=stuck_wish))
+                                                                   previous=previous, stuck_wish=stuck_wish,
+                                                                   touch_hint=seed_hint if must_touch else ""))
 
         # 모델이 답을 못 줬거나, 금지어가 걸리거나, 고쳐 쓰게 했는데도 캐릭터가 모르는 말이
         # 남았으면 대체 대사로 바꾼다

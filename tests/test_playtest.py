@@ -41,7 +41,11 @@ def play(character_id, backend=fake_backend, **options):
 def scene(messages):
     """사건 씨앗이 있는 답이면 진짜 모델처럼 지문에 그 사건을 넣는다."""
     match = re.search(r'사건 씨앗: "([^"]+)"', messages[0]["content"])
-    return "그때 " + match.group(1) + "." if match else ""
+    if not match:
+        return ""
+    # 마지막 사건은 둘이 닿는 장면까지 쓰라고 시킨다. 진짜 모델처럼 그 장면을 넣는다
+    touch = " 손끝이 살짝 닿았다." if "실제로 닿는 순간" in messages[0]["content"] else ""
+    return "그때 " + match.group(1) + "." + touch
 
 
 def turn_json(**changes):

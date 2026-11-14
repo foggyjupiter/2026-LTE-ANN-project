@@ -89,7 +89,7 @@ _SAFETY_LINES = [
     "- 또래끼리 쓰는 가벼운 말투(\"미쳤다\", \"개귀엽다\", \"킹받네\", 장난으로 하는 \"죽을래?\")는 캐릭터에 "
     "맞으면 써도 된다. 거친 욕은 쓰지 않는다.",
     "- 연애 감정은 설렘, 고백, 데이트 약속까지 표현한다. 닿는 것은 손잡기, 어깨에 기대기, 머리 쓰다듬기, "
-    "짧게 안기까지다. 입맞춤, 스킨십, 야한 이야기는 하지도 않고 하자는 말을 받아 주지도 않는다.",
+    "짧게 안기까지다. 입맞춤, 그보다 진한 스킨십, 야한 이야기는 하지도 않고 하자는 말을 받아 주지도 않는다.",
     "- \"배고파 죽겠다\", \"죽을 뻔했다\" 같은 말버릇은 괜찮다. 실제 죽음, 장례, 큰 병은 농담으로 쓰지 않는다.",
     "- 주인공의 외모와 몸과 연애 경험을 놀리지 않는다. 놀릴 때는 주인공의 상식과 실력만 놀린다.",
     "- 실제로 있는 기관과 사람의 이름을 쓰지 않는다. 정부 부처, 공공 기관, 국제기구, 실제 학교와 "
@@ -195,7 +195,7 @@ def _intensity_section(character: dict, intensity: int, meaning: str) -> list[st
     return lines
 
 
-def _seed_section(seed: str, kind: str, hint: str = "") -> list[str]:
+def _seed_section(seed: str, kind: str, hint: str = "", must_touch: bool = False) -> list[str]:
     if kind == "entrance":
         return [
             "[이번 답의 씨앗]",
@@ -214,6 +214,13 @@ def _seed_section(seed: str, kind: str, hint: str = "") -> list[str]:
         "- 사건이 지금 있는 장소와 맞지 않으면 장소를 옮기지 않는다. 그 자리에서 이야기나 물건으로 꺼낸다"
         "(급식실이라면 하굣길 이야기를 한다, 우산을 들고 있다 같은 식).",
     ] + ([
+        # 2026-11-14: 사용자가 손잡기 같은 순간이 거의 늘 나오기를 바랐다. 한 판의 마지막 사건은 실제로 닿는
+        # 장면까지 쓰게 한다. 실전 기록 24판에서 "계기가 될 수 있다"로만 적었을 때는 그런 사건 답의 6할 남짓에서만 닿았다
+        "- 이 사건으로 이번 답의 지문에서 둘이 실제로 닿는 순간이 온다: " + hint + " 장면을 지문에 쓴다. "
+        "닿는 것은 캐릭터가 하는 일로 쓰고 전학생이 무엇을 했는지는 지어내지 않는다. 캐릭터의 버릇대로 허둥대거나 "
+        "머뭇거리며 하고, 억지로 하지 않는다. 호감도가 낮으면 우연히 닿았다가 놀라서 떨어지는 정도로 쓴다. "
+        "손잡기, 어깨에 기대기, 머리 쓰다듬기, 짧게 안기까지이고 입맞춤 같은 그 이상으로는 가지 않는다.",
+    ] if hint and must_touch else [
         # 2026-11-13: 손잡기, 기대기, 짧게 안기를 허용하면서 그런 순간이 나올 사건을 넣었다
         "- 이 사건은 " + hint + " 순간의 계기가 될 수 있다. 캐릭터의 버릇대로 허둥대거나 머뭇거리며 하고, "
         "억지로 하지 않는다. 그 이상(입맞춤 같은 것)으로는 가지 않는다.",
@@ -412,7 +419,8 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
                  opening: bool, finale: bool, extra: str, previous_first: str = "",
                  previous_faces: tuple = (), used_phrases: tuple = (), tomorrow: int = 0,
                  place: str = "", events_so_far: tuple = (), wishes: tuple = (),
-                 wish_streak: int = 0, seed_hint: str = "", story: bool = False, beat: str = "") -> str:
+                 wish_streak: int = 0, seed_hint: str = "", story: bool = False, beat: str = "",
+                 must_touch: bool = False) -> str:
     if band not in _BAND_LABELS:
         raise ValueError("band는 low, mid, high 중 하나여야 한다: " + repr(band))
 
@@ -442,7 +450,7 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
         if kind not in ("entrance", "event"):
             # 종류가 안 왔으면 등장 장면에서는 등장 씨앗, 그 밖에는 사건 씨앗으로 본다
             kind = "entrance" if opening else "event"
-        sections.append(_seed_section(str(seed), kind, seed_hint))
+        sections.append(_seed_section(str(seed), kind, seed_hint, must_touch))
 
     # 이야기 모드에서는 둘이 함께 장소를 옮겨 갈 수 있다. 장소를 묶어 두는 연기 규칙 10을 바꾼다
     sections.append([_STORY_RULE_10 if story and line.startswith("10. ") else line for line in _RULES_SECTION])
@@ -732,7 +740,7 @@ def build_turn_messages(character: dict, history: list[dict], *, band: str, inte
                         seed_kind: str | None = None, opening: bool = False,
                         finale: bool = False, extra: str = "", place: str = "",
                         events_so_far: tuple = (), seed_hint: str = "", story: bool = False,
-                        beat: str = "") -> list[dict]:
+                        beat: str = "", must_touch: bool = False) -> list[dict]:
     """배우에게 보낼 메시지 목록을 만든다. `[system] + history`이고 `history`는 고치지 않는다."""
     system = _turn_system(
         character, band=band, intensity=intensity, intensity_meaning=intensity_meaning,
@@ -742,6 +750,7 @@ def build_turn_messages(character: dict, history: list[dict], *, band: str, inte
         used_phrases=_used_phrases(history)[0], tomorrow=_used_phrases(history)[1],
         place=place, events_so_far=tuple(events_so_far), wishes=_recent_wishes(history),
         wish_streak=_wish_streak(history), seed_hint=seed_hint, story=story, beat=beat,
+        must_touch=must_touch,
     )
     return [{"role": "system", "content": system}] + [dict(m) for m in history]
 
@@ -1053,6 +1062,18 @@ def event_happened(reply: Reply, seed: str) -> bool:
     return not keys or any(key in text for key in keys)
 
 
+# 지문이나 겉말에서 둘이 닿는 장면을 찾는 말. 넉넉히 잡는다: 놓치면 쓸데없이 고쳐 쓰게 하고, 잘못 잡으면 한 번 덜 고칠 뿐이다
+_TOUCH_RE = re.compile(
+    r"잡(았|아|고|으|는|힌|혀)|붙잡|맞잡|닿(았|아|는|을|자|으)|겹(쳤|쳐|치|친)|기대(었|어|며|는|고|듯|자)|기댔|기댄"
+    r"|쓰다듬|부딪|스(쳤|치|친)|쥐(었|어|고|여|자)|쥔|안(겼|기|아)|매달|팔짱|떼어 ?주|감싸|기울(였|여|이|인)|품에"
+)
+
+
+def has_touch(reply: Reply) -> bool:
+    """지문이나 겉말에 둘이 닿는 장면(손을 잡다, 어깨에 기대다, 소매를 붙잡다 같은 것)이 있으면 참."""
+    return bool(_TOUCH_RE.search(reply.narration + " " + reply.say))
+
+
 def event_read_aloud(reply: Reply, seed: str) -> bool:
     """두 낱말 넘는 사건 씨앗의 이름을 겉말에서 그대로 읽었으면 참.
 
@@ -1096,7 +1117,8 @@ def repeated_phrases(reply: Reply, used: dict) -> list[str]:
 
 
 def review_reply(reply: Reply, character: dict, *, banned=None, event_seed=None,
-                 used_phrases=None, tomorrow=0, finale=False, previous=None, stuck_wish="") -> str | None:
+                 used_phrases=None, tomorrow=0, finale=False, previous=None, stuck_wish="",
+                 touch_hint="") -> str | None:
     """다시 쓰게 할 점들을 이어 붙인 글. 고칠 것이 없으면 None. 여러 개면 한 번에 다 고치게 한다."""
     problems = []
     texts = reply_texts(reply)
@@ -1122,6 +1144,9 @@ def review_reply(reply: Reply, character: dict, *, banned=None, event_seed=None,
         problems.append('이번 답의 사건 "' + str(event_seed) + '"이 지문이나 겉말에서 실제로 벌어지지 않았다. '
                         "그 일이 지금 이 자리에서 일어나는 장면을 지문에 쓴다. 사건의 낱말만 대사에 끼워 넣지 않는다. "
                         "주인공이 방금 한 말에 대한 반응은 지우지 말고 사건과 함께 남긴다.")
+    if touch_hint and not has_touch(reply):
+        problems.append("이번 사건에서 둘이 닿는 순간이 지문에 없다. " + touch_hint + " 장면을 지문에 실제로 쓴다. "
+                        "캐릭터가 하는 일로 쓰고, 주인공이 방금 한 말에 대한 반응은 지우지 않는다.")
     if looks_like_fallback(reply):
         # 실전 기록: 소라가 결말에서 "(소라는 하품을 길게 하다가 마지막 단어만 겨우 붙잡았다)"만 냈다.
         # 대화 기록 속의 대체 대사 모양을 따라 한 것이다

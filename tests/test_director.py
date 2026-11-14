@@ -97,7 +97,9 @@ class ScriptedLlm:
         # 사건 씨앗이 있는 답이면 진짜 모델처럼 지문에 그 사건을 넣는다. 정해 둔 지문이 있으면 그대로 둔다
         event = re.search(r'사건 씨앗: "([^"]+)"', messages[0]["content"])
         if event and "narration" not in answer:
-            answer = dict(answer, narration="지문이다. 그때 " + event.group(1) + ".")
+            # 마지막 사건은 둘이 닿는 장면까지 쓰라고 시킨다. 진짜 모델처럼 그 장면을 넣는다
+            touch = " 손끝이 살짝 닿았다." if "실제로 닿는 순간" in messages[0]["content"] else ""
+            answer = dict(answer, narration="지문이다. 그때 " + event.group(1) + "." + touch)
         # 기본 바람("좋은 말이네 N번")은 기본 속마음에만 비친다. 시험이 화면 글을 바꿔서 바람이 안 보이게 되면
         # 진짜 모델이 고쳐 쓴 것처럼 바람을 비운다. 그래야 고쳐 쓰기 호출이 끼어들지 않는다.
         # 같은 바람을 세 번 적으면 고쳐 쓰게 하므로 차례마다 번호를 붙여 바꾼다
@@ -228,6 +230,37 @@ class FlowTest(unittest.TestCase):
         self.assertEqual(session.history[2]["content"], "안녕")
         for message in session.history[1::2]:
             self.assertEqual(set(json.loads(message["content"])), HISTORY_KEYS)
+
+
+class CloseEventTest(unittest.TestCase):
+    """한 판의 마지막 두 사건은 가까워지는 사건이고, 마지막 사건은 실제로 닿는 장면까지 쓰게 한다."""
+
+    def event_turns(self, llm):
+        turns = []
+        for index, call in enumerate(llm.calls):
+            m = re.search(r'사건 씨앗: "([^"]+)"', call[0]["content"])
+            if m:
+                turns.append((index, m.group(1), "실제로 닿는 순간" in call[0]["content"]))
+        return turns
+
+    def test_last_two_events_are_close_and_the_last_must_touch(self):
+        hints = content.load_seeds()["event_hints"]
+        for seed in range(5):
+            llm = ScriptedLlm()
+            play(Session("mistral", llm=llm, rng=random.Random(seed)))
+            turns = self.event_turns(llm)
+            self.assertEqual(len(turns), 3)
+            self.assertTrue(all(name in hints for _, name, _ in turns[1:]), turns)
+            self.assertEqual([must for _, _, must in turns], [False, False, True])
+
+    def test_missing_touch_is_rewritten_once(self):
+        # 마지막 사건 답(8번째)에서 닿는 장면이 없으면 한 번 고쳐 쓰게 한다
+        no_touch = {"narration": "지문이다. 그때 비가 왔다. 둘은 가만히 서 있었다."}
+        llm = ScriptedLlm(turns={8: no_touch})
+        session = Session("mistral", llm=llm, rng=random.Random(1))
+        play(session, count=8)
+        cues = [c[-1]["content"] for c in llm.calls if c[-1]["role"] == "user" and c[-1]["content"].startswith(director.actor.REWRITE_CUE)]
+        self.assertTrue(any("닿는 순간이 지문에 없다" in cue for cue in cues), cues)
 
 
 class StoryModeTest(unittest.TestCase):
@@ -455,7 +488,7 @@ class SeedTest(unittest.TestCase):
             system = llm.system_of(last)
             event = re.search(r'사건 씨앗: "([^"]+)"', system).group(1)
             self.assertIn(event, hints)
-            self.assertIn("순간의 계기가 될 수 있다", system)
+            self.assertIn("실제로 닿는 순간이 온다", system)
 
     def test_entrance_and_event_seeds(self):
         seeds = content.load_seeds()
