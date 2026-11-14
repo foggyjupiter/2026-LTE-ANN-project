@@ -486,22 +486,24 @@ init -4 python:
         except Exception:
             sg_stage_oops("sg_stage_show_emotes")
 
-    def sg_stage_char_at(face, place):
+    def sg_stage_char_at(face, place, sprite=None):
         """스탠딩에 걸 transform 목록: 자리, 숨쉬기, 동작.
 
         무대에 처음 서면 등장, 표정이 바뀌면 그 표정의 동작, 같은 표정이면 큰 동작 없이 머문다.
+        sprite 는 캐릭터만의 표정 이름이다. 같은 표정인지는 그것으로 보고, 동작은 기본 표정(face)의 것을 쓴다.
         """
         try:
             if face not in sg_faces:
                 face = "neutral"
+            shown = sprite if sprite else face
             if not renpy.showing("sg_char", layer="master"):
                 act = store.sg_stage_act_enter
-            elif face == store.sg_stage_face:
+            elif shown == store.sg_stage_face:
                 r, y, z = sg_stage_rest.get(face, (0.0, 0, 1.0))
                 act = store.sg_stage_act_keep(r=r, y=y, z=z)
             else:
                 act = getattr(store, "sg_stage_act_" + face)
-            store.sg_stage_face = face
+            store.sg_stage_face = shown
             return [ place, store.sg_stage_breathe, act ]
         except Exception:
             sg_stage_oops("sg_stage_char_at")

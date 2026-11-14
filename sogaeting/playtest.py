@@ -681,7 +681,9 @@ def _render_turn(game, turn, score_before):
         lines += ["**형광펜(글자 그대로 인용한 말):** "
                   + " / ".join(_one_line(h) for h in extras["highlights"]), ""]
 
-    facts = [f"표정 {out['face']}({FACE_NAMES.get(out['face'], '?')})",
+    # 캐릭터만의 표정(huff 같은 것)은 그 자리의 기본 표정 이름을 붙인다: "huff(삐침 자리)"
+    face_name = FACE_NAMES.get(out["face"]) or FACE_NAMES.get(out.get("face_base"), "?") + " 자리"
+    facts = [f"표정 {out['face']}({face_name})",
              "연출 " + (", ".join(out["fx"]) if out["fx"] else "없음")]
     if opening or score_before is None:
         facts.append(f"호감도 {out['score']} ({BAND_NAMES[out['band']]})")

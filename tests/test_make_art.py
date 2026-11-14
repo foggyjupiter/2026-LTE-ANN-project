@@ -374,25 +374,48 @@ class Unit(unittest.TestCase):
 
     def test_only_names(self):
         everything = make_art.all_keys(self.cfg)
-        self.assertEqual(len(everything), 6 * 6 + 8)
+        extra = sum(len(make_art.faces_for(self.cfg, c)) - 6 for c in self.cfg["characters"])
+        self.assertEqual(len(everything), 6 * 6 + extra + 8)
         self.assertEqual(make_art.parse_only([], self.cfg), everything)
         self.assertEqual(
-            make_art.parse_only(["astra"], self.cfg), [f"astra:{face}" for face in make_art.FACES]
+            make_art.parse_only(["astra"], self.cfg),
+            [f"astra:{face}" for face in make_art.FACES] + ["astra:huff", "astra:denial"],
         )
         self.assertEqual(
             make_art.parse_only(["library,sora:smile", "bg:rooftop"], self.cfg),
             ["sora:smile", "bg:library", "bg:rooftop"],
         )
         self.assertEqual(len(make_art.parse_only(["bg"], self.cfg)), 8)
-        self.assertEqual(len(make_art.parse_only(["sprites"], self.cfg)), 36)
+        self.assertEqual(len(make_art.parse_only(["sprites"], self.cfg)), 36 + extra)
+        self.assertEqual(make_art.parse_only(["astra:huff"], self.cfg), ["astra:huff"])
         with self.assertRaises(ValueError) as caught:
             make_art.parse_only(["giulhe"], self.cfg)
         self.assertIn("astra", str(caught.exception))
+
+    def test_extra_face_names_and_poses_are_checked(self):
+        for change, word in (
+            (lambda c: c["characters"]["astra"]["faces"].update({"Bad-Name": "x"}), "Bad-Name"),
+            (lambda c: c["characters"]["astra"].update({"poses": {"nobody": "x"}}), "nobody"),
+            (lambda c: c["characters"]["astra"].update({"poses": {"neutral": "x"}}), "neutral"),
+        ):
+            cfg = json.loads((ROOT / "tools" / "art_prompts.json").read_text(encoding="utf-8"))
+            change(cfg)
+            with tempfile.TemporaryDirectory() as tmp:
+                path = pathlib.Path(tmp) / "prompts.json"
+                path.write_text(json.dumps(cfg), encoding="utf-8")
+                with self.assertRaises(ValueError) as caught:
+                    make_art.load_config(path)
+            self.assertIn(word, str(caught.exception))
 
     def test_faces_match_the_engine(self):
         from sogaeting import actor, content
         self.assertEqual(make_art.FACES, actor.FACES)
         self.assertEqual(sorted(self.cfg["characters"]), sorted(content.list_character_ids()))
+        # 캐릭터만의 표정: 그림 요청문과 게임의 캐릭터 설정(extra_faces)이 같은 이름을 갖는다
+        for char_id in self.cfg["characters"]:
+            with self.subTest(character=char_id):
+                self.assertEqual(make_art.faces_for(self.cfg, char_id),
+                                 actor.faces_for(content.load_character(char_id)))
         seeds = json.loads((ROOT / "sogaeting" / "data" / "seeds.json").read_text(encoding="utf-8"))
         self.assertEqual([b["seed"] for b in self.cfg["backgrounds"].values()], seeds["entrance"])
 
@@ -466,7 +489,7 @@ class GptDoc(unittest.TestCase):
         for char_id, char in self.cfg["characters"].items():
             self.assertIn(f"### {char['name']} ({char_id})", self.doc)
             self.assertIn(char["look"], self.doc)
-            for face in make_art.FACES:
+            for face in make_art.faces_for(self.cfg, char_id):
                 self.assertIn(f"`art/raw/{char_id}/{face}.png`", self.doc)
 
     def test_prompts_keep_the_all_ages_line_and_style(self):
@@ -586,17 +609,19 @@ class EndToEnd(unittest.TestCase):
         return code, screen.getvalue()
 
     def test_one_character_and_one_background(self):
+        faces = make_art.faces_for(make_art.load_config(), "astra")
+        n = len(faces)      # 기준 그림 한 장과 표정 n-1장
         code, screen = self.run_tool("--only", "astra", "library")
         self.assertEqual(code, 0, screen)
         log = self.api.log
-        self.assertEqual(len(log), 7)
+        self.assertEqual(len(log), n + 1)
         self.assertTrue(all(e["path"].endswith("/accounts/acct123/ai/run/" + make_art.CF_KLEIN) for e in log))
         self.assertTrue(all(e["type"] == "multipart/form-data" for e in log))
         self.assertTrue(all(e["agent"] == make_art.USER_AGENT for e in log))
-        # 기준 그림은 글만, 표정 다섯 장은 기준 그림을 참고로 붙여 보낸다
+        # 기준 그림은 글만, 나머지 표정은 기준 그림을 참고로 붙여 보낸다
         self.assertEqual(log[0]["files"], {})
         self.assertIn("Expression:", log[0]["fields"]["prompt"])
-        for entry in log[1:6]:
+        for entry in log[1:n]:
             self.assertEqual(list(entry["files"]), ["input_image_0"])
             self.assertEqual(make_art.sniff_image(entry["files"]["input_image_0"]), "jpg")
             with Image.open(io.BytesIO(entry["files"]["input_image_0"])) as ref:
@@ -604,10 +629,15 @@ class EndToEnd(unittest.TestCase):
             self.assertIn("reference image", entry["fields"]["prompt"])
             self.assertEqual(entry["fields"]["seed"], log[0]["fields"]["seed"])
             self.assertEqual((entry["fields"]["width"], entry["fields"]["height"]), ("768", "1152"))
-        self.assertEqual(log[6]["files"], {})
-        self.assertEqual((log[6]["fields"]["width"], log[6]["fields"]["height"]), ("1280", "720"))
+        # 몸짓도 바꾸는 표정(poses)은 몸짓을 함께 적는다
+        huff = log[faces.index("huff")]["fields"]["prompt"]
+        self.assertIn("New pose: She turns her head further away", huff)
+        self.assertIn("New pose:", huff)
+        self.assertNotIn("New pose:", log[1]["fields"]["prompt"])
+        self.assertEqual(log[n]["files"], {})
+        self.assertEqual((log[n]["fields"]["width"], log[n]["fields"]["height"]), ("1280", "720"))
 
-        for face in make_art.FACES:
+        for face in faces:
             self.assertIsNotNone(make_art.find_raw(self.out, f"astra:{face}"))
             with Image.open(self.out / "sprites" / "astra" / f"{face}.png") as sprite:
                 self.assertEqual((sprite.mode, sprite.size), ("RGBA", (768, 1152)))
@@ -617,7 +647,7 @@ class EndToEnd(unittest.TestCase):
             self.assertEqual(scene.size, (1280, 720))
         self.assertTrue((self.out / "preview.png").is_file())
         manifest = json.loads((self.out / "manifest.json").read_text(encoding="utf-8"))
-        self.assertEqual(len(manifest), 7)
+        self.assertEqual(len(manifest), n + 1)
         self.assertEqual(manifest["astra:smile"]["model"], make_art.CF_KLEIN)
         self.assertNotIn("good-token", json.dumps(manifest))
         self.assertNotIn("good-token", screen)
@@ -625,20 +655,20 @@ class EndToEnd(unittest.TestCase):
         # 다시 실행하면 이미 받은 것은 건너뛴다
         code, screen = self.run_tool("--only", "astra", "library")
         self.assertEqual(code, 0)
-        self.assertEqual(len(self.api.log), 7)
+        self.assertEqual(len(self.api.log), n + 1)
         self.assertIn("새로 0장", screen)
 
         # 한 장만 다시 뽑기
         code, _ = self.run_tool("--only", "astra:pout", "--force", "--seed", "5")
         self.assertEqual(code, 0)
-        self.assertEqual(len(self.api.log), 8)
-        self.assertEqual(list(self.api.log[7]["files"]), ["input_image_0"])
-        self.assertEqual(int(self.api.log[7]["fields"]["seed"]), int(log[0]["fields"]["seed"]) + 5)
+        self.assertEqual(len(self.api.log), n + 2)
+        self.assertEqual(list(self.api.log[n + 1]["files"]), ["input_image_0"])
+        self.assertEqual(int(self.api.log[n + 1]["fields"]["seed"]), int(log[0]["fields"]["seed"]) + 5)
 
         # 기준 그림만 다시 뽑으면 예전 표정과 어긋난다고 알려 준다
         code, screen = self.run_tool("--only", "astra:neutral", "--force")
         self.assertEqual(code, 0)
-        self.assertEqual(len(self.api.log), 9)
+        self.assertEqual(len(self.api.log), n + 3)
         self.assertIn("--only astra --force", screen)
 
     def test_variant_alone_makes_the_base_first(self):
@@ -674,7 +704,8 @@ class EndToEnd(unittest.TestCase):
         self.api.quota_after = None
         code, _ = self.run_tool("--only", "nova")
         self.assertEqual(code, 0)
-        self.assertEqual(len(self.api.log), 3 + 4)
+        nova = len(make_art.faces_for(make_art.load_config(), "nova"))
+        self.assertEqual(len(self.api.log), 3 + nova - 2)   # 앞에서 받은 두 장은 건너뛴다
 
     def test_timeout_is_tried_again(self):
         self.api.timeout_first = True
@@ -773,7 +804,8 @@ class EndToEnd(unittest.TestCase):
     def test_dry_run_and_list_need_no_keys(self):
         code, screen = self.run_tool("--dry-run", env={})
         self.assertEqual(code, 0)
-        self.assertIn("모두 44장", screen)
+        cfg = make_art.load_config()
+        self.assertIn(f"모두 {len(make_art.all_keys(cfg))}장", screen)
         code, screen = self.run_tool("--list", env={})
         self.assertEqual(code, 0)
         self.assertIn("astra", screen)

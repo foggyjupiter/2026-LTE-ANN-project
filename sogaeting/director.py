@@ -269,7 +269,7 @@ class Session:
         wishes = actor._recent_wishes(self.history)  # 앞 답들이 속마음에 흘린 바람 (이번 답의 +2를 가른다)
         stuck_wish = wishes[0] if wishes and actor._wish_streak(self.history) >= 2 else ""
         previous = actor._previous_lines(self.history)
-        reply = actor.ask_turn(self.llm, messages, fx_names,
+        reply = actor.ask_turn(self.llm, messages, fx_names, faces=actor.faces_for(self.character),
                                review=lambda r: actor.review_reply(r, self.character, banned=self.banned,
                                                                    event_seed=event_seed, used_phrases=used,
                                                                    tomorrow=tomorrow, finale=finale,
@@ -301,9 +301,14 @@ class Session:
                 reply.narration = reply.narration.replace(slip, "전학생")
             reply.say = actor.fix_stretched_vowels(reply.say)
             reply.inner = actor.fix_stretched_vowels(reply.inner)
-            # 붉어진 얼굴이 세 번 연달아 나오면 웃는 얼굴로 바꾼다. 실제 모델은 답의 3분의 2를 blush로 냈다
-            if reply.face == "blush" and (self._faces[-2:] == ["blush", "blush"]
-                                          or self._faces.count("blush") >= BLUSH_LIMIT):
+            # 캐릭터만의 표정은 하나를 한 판에 EXTRA_FACE_LIMIT번까지 낸다. 넘으면 그 자리의 기본 표정으로 바꾼다
+            if reply.face not in actor.FACES and self._faces.count(reply.face) >= actor.EXTRA_FACE_LIMIT:
+                reply.face = actor.face_base(self.character, reply.face)
+            # 붉어진 얼굴이 세 번 연달아 나오면 웃는 얼굴로 바꾼다. 실제 모델은 답의 3분의 2를 blush로 냈다.
+            # blush 자리에 쓰는 캐릭터만의 표정(아스트라의 denial 같은 것)도 blush로 센다
+            bases = [actor.face_base(self.character, f) for f in self._faces]
+            if actor.face_base(self.character, reply.face) == "blush" and (
+                    bases[-2:] == ["blush", "blush"] or bases.count("blush") >= BLUSH_LIMIT):
                 reply.face = "smile"
             self._faces.append(reply.face)
             # 설정을 버리라는 입력에는 점수를 올리지 않는다 (연기 규칙 7). 모델이 올려도 여기서 내린다
@@ -407,6 +412,9 @@ class Session:
             "finale": finale,
             # 등장 장소. 화면이 배경을 고를 때 쓴다. 등장이 아닌 답에서는 None이다
             "place": seed if opening and seed_kind == "entrance" else None,
+            # 표정(face)이 기본 여섯 가지 가운데 어느 자리인지. 화면은 캐릭터만의 표정 그림이 없으면 이 그림을 쓰고,
+            # 연출(기호, 움직임)도 이것으로 고른다
+            "face_base": actor.face_base(self.character, reply.face),
         }
 
     def _pick_seed(self, kind, close=False):

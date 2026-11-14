@@ -89,6 +89,7 @@ art/bg/<장소>.jpg                   ->   renpy/game/images/bg/<장소>.jpg
 ```
 
 - 캐릭터 id: `astra`, `gemma`, `sora`, `nova`, `mistral`, `haiku`. 표정: `neutral`, `smile`, `blush`, `pout`, `shock`, `dark`.
+- 캐릭터만의 표정(2026-11-14): 아스트라 `huff`(흥), `denial`(버럭), 젬마 `hide`(수첩 가림), 소라 `yawn`(하품), 노바 `excited`(신남), 미스트랄 `busted`(들통), 하이쿠 `flushed`(새빨개짐). 같은 폴더에 `<표정>.png` 로 넣는다. 서버가 그 표정이 기본 여섯 가운데 어느 자리인지(`face_base`)를 같이 보내고, 그림이 없으면 그 자리의 그림을 쓴다(예: `huff.png` 가 없으면 `pout.png`). 움직임과 만화 기호도 그 자리의 것을 쓴다. 요청문은 `docs/art-prompts-gpt.md` 에 있다.
 - `art/raw/`, `art/preview.png`, `art/manifest.json` 은 복사하지 않는다.
 - 그림을 고칠 때는 `art/` 쪽을 고친다. `renpy/game/images/` 쪽을 직접 고치면 다음에 켤 때 `art/` 의 그림으로 덮인다.
 - `art/` 에서 지운 그림은 게임 폴더에서 저절로 지워지지 않는다. 직접 지운다.
@@ -145,6 +146,7 @@ RENPY_SDK=/path/to/renpy-8.5.3-sdk renpy/dev/rtest.sh sg_flow 8101
 - 첫째 값은 시험 이름이다. `renpy/game/` 의 `.rpy` 파일에 `testcase <이름>:` 으로 적은 것이다.
   - `sg_flow`: 고르기부터 엔딩까지 한 판 (`game/sg_tests.rpy`)
   - `sg_story_pages`: 이야기 모드(실험)의 긴 대사가 여러 쪽으로 나뉘는지. 서버를 `--fake --story` 로 켠다 (`game/sg_tests.rpy`)
+  - `sg_extra_face`: 캐릭터만의 표정(아스트라의 `huff`)이 오면 그 그림을, 없으면 `pout` 그림을 쓰는지 (`game/sg_tests.rpy`)
   - `sg_gimmicks`: 캐릭터 여섯 명의 고유 장치 표시 (`game/sg_tests.rpy`)
   - `sg_fx_demo`: 연출 15가지. 서버가 필요 없다 (`game/sg_fx_demo.rpy`)
   - `sg_stage_demo`: 표정별 동작과 만화 기호. 서버가 필요 없다 (`game/sg_stage_demo.rpy`)

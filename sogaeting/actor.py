@@ -11,6 +11,11 @@ from sogaeting.llm import AllProvidersDown
 from sogaeting.safety import contains_banned as safety_contains
 
 FACES = ("neutral", "smile", "blush", "pout", "shock", "dark")
+# 캐릭터마다 더 있는 표정(캐릭터 설정의 extra_faces, 2026-11-14 사용자: "캐릭터별로 성격에 맞춰서 표정 몇 개 추가").
+# 이름은 영문 소문자와 밑줄이다. base는 기본 여섯 표정 가운데 어느 자리에 쓰는 표정인지다.
+# 화면은 그 그림이 없으면 base의 그림을 쓰고, 연출(기호, 움직임)과 붉어짐 횟수 제한도 base로 따진다
+EXTRA_FACE_RE = re.compile(r"[a-z][a-z_]{1,23}")
+EXTRA_FACE_LIMIT = 3   # 캐릭터만의 표정 하나를 한 판에 이만큼까지 낸다. 넘으면 base로 바꾼다
 OPENING_CUE = "(장면 시작. 주인공이 소개팅 자리에 도착했다. 등장해서 첫마디를 해라.)"
 RETRY_CUE = "방금 답을 읽을 수 없었다. 같은 내용을 JSON 한 개로만 다시 출력해라."
 # 읽을 수는 있지만 고칠 점이 있는 답을 다시 쓰게 할 때 붙이는 말. 뒤에 고칠 점이 붙는다
@@ -126,6 +131,46 @@ def _bullets(items) -> list[str]:
     return ["- " + str(item) for item in items]
 
 
+def extra_faces(character: dict) -> dict:
+    """캐릭터만의 표정 {이름: {"base", "name", "when"}}. 모양이 틀린 것은 뺀다."""
+    raw = character.get("extra_faces") if isinstance(character, dict) else None
+    if not isinstance(raw, dict):
+        return {}
+    faces = {}
+    for face, info in raw.items():
+        if not (isinstance(face, str) and EXTRA_FACE_RE.fullmatch(face) and face not in FACES):
+            continue
+        if not (isinstance(info, dict) and info.get("base") in FACES and isinstance(info.get("when"), str)):
+            continue
+        faces[face] = info
+    return faces
+
+
+def faces_for(character: dict) -> tuple:
+    """그 캐릭터가 쓸 수 있는 표정: 기본 여섯 가지와 캐릭터만의 표정."""
+    return FACES + tuple(extra_faces(character))
+
+
+def face_base(character: dict, face: str) -> str:
+    """표정이 기본 여섯 가지 가운데 어느 자리인지. 기본 표정은 그대로, 모르는 표정은 neutral."""
+    if face in FACES:
+        return face
+    info = extra_faces(character).get(face)
+    return info["base"] if info else "neutral"
+
+
+def _extra_face_lines(character: dict) -> list[str]:
+    faces = extra_faces(character)
+    if not faces:
+        return []
+    lines = ["- 이 캐릭터만의 표정: face에 아래 이름도 쓸 수 있다. 어울리는 순간이 오면 기본 표정보다 이쪽을 "
+             "먼저 고른다. 같은 표정은 한 판에 " + str(EXTRA_FACE_LIMIT) + "번까지만 쓴다."]
+    for face, info in faces.items():
+        name = info.get("name") if isinstance(info.get("name"), str) else face
+        lines.append("  " + face + "(" + name + ". " + info["base"] + " 자리에 쓴다): " + info["when"])
+    return lines
+
+
 def _character_section(character: dict) -> list[str]:
     motif = character["motif"]
     lines = [
@@ -135,6 +180,7 @@ def _character_section(character: dict) -> list[str]:
         "- 주인공을 부르는 말: " + character["call"],
         "- 주인공을 대하는 태도: " + character["attitude"],
         *(["- 표정: " + character["face_note"]] if isinstance(character.get("face_note"), str) else []),
+        *_extra_face_lines(character),
         "- 좋아하는 것: " + character["likes"],
         "- 싫어하는 것: " + character["dislikes"],
         "",
@@ -338,7 +384,8 @@ _OUTPUT_SECTION = [
     "- face (문자열): 표정. neutral(평소), smile(웃음), blush(붉어짐), pout(삐침), shock(놀람), dark(어두움) 중 하나. "
     "이번 답의 say에 어울리는 것을 고른다. 평소 대답은 캐릭터 설정에 적힌 평소 표정, 기분이 좋으면 smile, "
     "토라지거나 놀림받으면 pout, 놀라면 shock을 고른다. blush는 마음을 들켜 얼굴이 빨개진 순간에만 고르고 "
-    "한 판에 서너 번이면 많다. 같은 표정을 세 답 연달아 고르지 않는다. dark는 캐릭터가 정말로 가라앉았을 때만 쓴다.",
+    "한 판에 서너 번이면 많다. 같은 표정을 세 답 연달아 고르지 않는다. dark는 캐릭터가 정말로 가라앉았을 때만 쓴다. "
+    "[캐릭터 설정]에 이 캐릭터만의 표정이 있으면 그 이름도 된다.",
     "- fx (문자열 배열): 화면 연출. [화면 연출]의 목록에서 0-2개.",
     "- delta (정수): 주인공의 이번 말 하나만 보고 매기는 호감도 변화. -2에서 2 사이의 정수. "
     "이번 답에서 캐릭터가 한 일, 사건, 분위기, 지금까지 쌓인 마음은 점수에 넣지 않는다. "
@@ -522,7 +569,8 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
             "주인공의 말을 재료로 쓰라는 규칙은 다음 답부터 적용한다.",
             "- 둘은 방금 처음 만났다. 캐릭터는 아직 주인공에게 반하지 않았다. 호기심이나 긴장 정도만 있다.",
             "- delta는 0으로, strength는 50으로, reason은 빈 문자열로 둔다.",
-            "- face는 neutral, smile, pout 중에서 고른다. blush와 shock은 주인공의 말을 들은 뒤에 쓴다.",
+            "- face는 neutral, smile, pout 중에서 고른다. 이 캐릭터만의 표정 가운데 그 셋의 자리에 쓰는 것도 된다. "
+            "blush와 shock은 주인공의 말을 들은 뒤에 쓴다.",
             "- choices에는 주인공이 첫마디로 할 수 있는 말 3개를 넣는다.",
         ])
     if finale:
@@ -596,20 +644,20 @@ def _used_phrases(history: list[dict]) -> tuple:
     return tuple(counts.items()), tomorrow
 
 
-def _recent_faces(history: list[dict], count: int = 2) -> tuple:
+def _recent_faces(history: list[dict], count: int = 2, faces: tuple = FACES) -> tuple:
     """앞 답들의 표정(오래된 것부터, count개까지). 등장도 센다. 대체 대사와 못 읽은 답은 건너뛴다."""
-    faces = []
+    found = []
     for message in reversed(history):
         if message.get("role") != "assistant":
             continue
         data = _read_json_object(message.get("content"))
         face = data.get("face") if data else None
         say = _text(data.get("say")) if data else ""
-        if face in FACES and say and not say.startswith("("):
-            faces.append(face)
-            if len(faces) == count:
+        if face in faces and say and not say.startswith("("):
+            found.append(face)
+            if len(found) == count:
                 break
-    return tuple(reversed(faces))
+    return tuple(reversed(found))
 
 
 # 바람을 짚었는지 볼 때 세지 않는 낱말. 어느 말에나 나오는 말이라 겹쳐도 짚은 것이 아니다
@@ -749,7 +797,7 @@ def build_turn_messages(character: dict, history: list[dict], *, band: str, inte
         character, band=band, intensity=intensity, intensity_meaning=intensity_meaning,
         fx_allowed=fx_allowed, seed=seed, seed_kind=seed_kind, opening=opening,
         finale=finale, extra=extra, previous_first=_last_opening(history),
-        previous_faces=_recent_faces(history),
+        previous_faces=_recent_faces(history, faces=faces_for(character)),
         used_phrases=_used_phrases(history)[0], tomorrow=_used_phrases(history)[1],
         place=place, events_so_far=tuple(events_so_far), wishes=_recent_wishes(history),
         wish_streak=_wish_streak(history), seed_hint=seed_hint, story=story, beat=beat,
@@ -890,7 +938,7 @@ def _to_strength(value) -> int:
     return max(STRENGTH_MIN, min(STRENGTH_MAX, int(round(value))))
 
 
-def parse_reply(raw: str, fx_names: set[str]) -> Reply | None:
+def parse_reply(raw: str, fx_names: set[str], faces: tuple = FACES) -> Reply | None:
     """모델의 답을 `Reply`로 읽는다. 못 읽거나 `say`가 없으면 None."""
     data = _read_json_object(raw)
     if data is None:
@@ -901,7 +949,7 @@ def parse_reply(raw: str, fx_names: set[str]) -> Reply | None:
         return None
 
     face = data.get("face")
-    if not isinstance(face, str) or face not in FACES:
+    if not isinstance(face, str) or face not in faces:
         face = "neutral"
 
     fx: list[str] = []
@@ -1185,7 +1233,7 @@ def review_reply(reply: Reply, character: dict, *, banned=None, event_seed=None,
     return " ".join(problems) if problems else None
 
 
-def ask_turn(llm, messages: list[dict], fx_names: set[str], review=None) -> Reply | None:
+def ask_turn(llm, messages: list[dict], fx_names: set[str], review=None, faces: tuple = FACES) -> Reply | None:
     """배우를 부른다. 호출은 최대 2번이다.
 
     답이 안 읽히면 같은 요청을 한 번 더 한다. 읽히는데 review(reply)가 고칠 점을 돌려주면
@@ -1195,14 +1243,14 @@ def ask_turn(llm, messages: list[dict], fx_names: set[str], review=None) -> Repl
         raw = llm(messages)
     except AllProvidersDown:
         return None
-    reply = parse_reply(raw, fx_names)
+    reply = parse_reply(raw, fx_names, faces)
     if reply is None:
         retry_messages = list(messages) + [{"role": "user", "content": RETRY_CUE}]
         try:
             raw = llm(retry_messages)
         except AllProvidersDown:
             return None
-        return parse_reply(raw, fx_names)
+        return parse_reply(raw, fx_names, faces)
 
     problem = review(reply) if review is not None else None
     if not problem:
@@ -1215,7 +1263,7 @@ def ask_turn(llm, messages: list[dict], fx_names: set[str], review=None) -> Repl
         raw = llm(rewrite_messages)
     except AllProvidersDown:
         return reply
-    again = parse_reply(raw, fx_names)
+    again = parse_reply(raw, fx_names, faces)
     if again is None:
         return reply
     # 고쳐 쓰기는 글만 고치는 것이다. 점수는 처음 답의 것을 쓴다.

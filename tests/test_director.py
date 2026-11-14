@@ -19,7 +19,7 @@ EIGHT_KEYS = {"narration", "say", "inner", "face", "fx", "delta", "reason", "cho
 HISTORY_KEYS = EIGHT_KEYS | {"wish", "strength"}  # 기록에는 화면에 안 나오는 바람과 세기도 남는다
 TURN_KEYS = EIGHT_KEYS | {
     "kind", "turn", "total_turns", "change", "strength", "score", "band", "popup",
-    "notes", "heard", "extras", "fallback", "finale", "place",
+    "notes", "heard", "extras", "fallback", "finale", "place", "face_base",
 }
 ENDING_KEYS = {
     "kind", "character_id", "character_name", "band_id", "band_name", "title",
@@ -782,6 +782,36 @@ class FaceTest(unittest.TestCase):
         outs = play(Session("gemma", llm=llm), count=3)
         self.assertEqual(outs[3]["face"], "smile")  # 대체 대사를 건너뛰고 앞의 두 blush를 센다
 
+    def test_extra_face_passes_with_its_base(self):
+        llm = ScriptedLlm(turns={1: {"face": "huff"}})
+        outs = play(Session("astra", llm=llm), count=1)
+        self.assertEqual((outs[1]["face"], outs[1]["face_base"]), ("huff", "pout"))
+        self.assertEqual(outs[0]["face_base"], outs[0]["face"])
+        self.assertIn("  huff(흥. pout 자리에 쓴다): ", llm.system_of(1))
+
+    def test_other_characters_extra_face_is_unknown(self):
+        llm = ScriptedLlm(turns={1: {"face": "huff"}})
+        outs = play(Session("gemma", llm=llm), count=1)
+        self.assertEqual((outs[1]["face"], outs[1]["face_base"]), ("neutral", "neutral"))
+
+    def test_extra_face_is_limited_per_game(self):
+        llm = ScriptedLlm(default={"face": "huff"})
+        faces = [o["face"] for o in play(Session("astra", llm=llm))]
+        limit = actor.EXTRA_FACE_LIMIT
+        self.assertEqual(faces[:limit], ["huff"] * limit)
+        self.assertEqual(set(faces[limit:]), {"pout"})
+
+    def test_blush_like_extra_face_counts_as_blush(self):
+        llm = ScriptedLlm(turns={0: {"face": "blush"}, 1: {"face": "denial"}, 2: {"face": "blush"}})
+        outs = play(Session("astra", llm=llm), count=2)
+        self.assertEqual([o["face"] for o in outs], ["blush", "denial", "smile"])
+        self.assertEqual(outs[2]["face_base"], "smile")
+
+    def test_recent_faces_keep_extra_faces(self):
+        llm = ScriptedLlm(turns={0: {"face": "huff"}, 1: {"face": "huff"}})
+        play(Session("astra", llm=llm), count=2)
+        self.assertIn("앞 답들의 표정(오래된 것부터): huff, huff. 이번 답은 다른 표정을 고른다.", llm.system_of(2))
+
     def test_prompt_names_recent_faces_and_character_face_note(self):
         llm = ScriptedLlm(default={"face": "blush"})
         play(Session("astra", llm=llm), count=2)
@@ -1122,6 +1152,17 @@ class FakeLlmTest(unittest.TestCase):
         self.assertLessEqual(len(ending["title"]), 20)
         self.assertLessEqual(len(ending["nickname"]), 12)
         self.assertEqual(set(json.loads(fake_llm([]))), HISTORY_KEYS)
+
+    def test_uses_the_characters_extra_face(self):
+        system = actor.build_turn_messages(content.load_character("astra"), [], band="mid", intensity=2,
+                                           intensity_meaning="", fx_allowed=[])[0]["content"]
+        messages = [{"role": "system", "content": system}, {"role": "user", "content": "시작"},
+                    {"role": "assistant", "content": "{}"}, {"role": "user", "content": "가나다라마바"}]
+        self.assertEqual(json.loads(fake_llm(messages))["face"], "huff")      # delta -1: pout 자리
+        messages[-1]["content"] = "가나다라"
+        self.assertEqual(json.loads(fake_llm(messages))["face"], "denial")    # delta +2: blush 자리
+        messages[-1]["content"] = "가나다"
+        self.assertEqual(json.loads(fake_llm(messages))["face"], "smile")     # delta +1: 바꿀 표정이 없다
 
     def test_delta_depends_on_input_length(self):
         deltas = set()

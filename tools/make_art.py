@@ -48,6 +48,8 @@ GEMINI_MODEL = "gemini-nano-banana-2.1"
 
 FACES = ("neutral", "smile", "blush", "pout", "shock", "dark")
 BASE_FACE = "neutral"
+# 캐릭터만의 표정 이름(characters.<이름>.faces 에서 FACES 밖의 것). 게임의 캐릭터 설정 extra_faces 와 같은 이름이다
+EXTRA_FACE_RE = re.compile(r"[a-z][a-z_]{1,23}")
 RAW_EXTS = ("png", "jpg", "webp")
 TIMEOUT_SEC = 180
 RETRY_WAITS = (5, 20, 60)   # 잠깐 생긴 문제일 때 기다렸다 다시 해 보는 간격(초)
@@ -105,7 +107,19 @@ def load_config(path=PROMPTS_PATH):
     for char_id, char in cfg["characters"].items():
         if char.get("key") not in ("green", "magenta"):
             raise ValueError(f"{char_id}의 key는 green이나 magenta여야 합니다")
+        for face in char.get("faces", {}):
+            if face not in FACES and not EXTRA_FACE_RE.fullmatch(face):
+                raise ValueError(f"{char_id}의 표정 이름 {face}: 영문 소문자와 밑줄로 짓습니다")
+        for face in char.get("poses", {}):
+            if face not in faces_for(cfg, char_id) or face == BASE_FACE:
+                raise ValueError(f"{char_id}의 poses에 있는 {face}는 그 캐릭터의 표정이 아닙니다")
     return cfg
+
+
+def faces_for(cfg, char_id):
+    """그 캐릭터의 표정: 기본 여섯 가지와 캐릭터만의 표정."""
+    extra = [face for face in cfg["characters"][char_id].get("faces", {}) if face not in FACES]
+    return FACES + tuple(extra)
 
 
 def sniff_image(data):
@@ -477,7 +491,7 @@ def generate(backend, prompt, *, seed, **kwargs):
 # ---------------------------------------------------------------- 할 일 목록
 
 def all_keys(cfg):
-    keys = [f"{char}:{face}" for char in cfg["characters"] for face in FACES]
+    keys = [f"{char}:{face}" for char in cfg["characters"] for face in faces_for(cfg, char)]
     keys += [f"bg:{place}" for place in cfg["backgrounds"]]
     return keys
 
@@ -485,7 +499,7 @@ def all_keys(cfg):
 def parse_only(tokens, cfg):
     """--only에 적은 이름을 그림 열쇠 목록으로 바꾼다.
 
-    astra          그 캐릭터의 표정 여섯 장
+    astra          그 캐릭터의 표정 전부 (기본 여섯 장과 캐릭터만의 표정)
     astra:smile    그 한 장
     sprites          캐릭터 전부
     bg               배경 전부
@@ -504,7 +518,7 @@ def parse_only(tokens, cfg):
         elif token == "bg":
             picked = [k for k in everything if k.startswith("bg:")]
         elif token in cfg["characters"]:
-            picked = [f"{token}:{face}" for face in FACES]
+            picked = [f"{token}:{face}" for face in faces_for(cfg, token)]
         elif token in cfg["backgrounds"]:
             picked = [f"bg:{token}"]
         elif token in everything:
@@ -514,7 +528,7 @@ def parse_only(tokens, cfg):
             faces = ", ".join(FACES)
             raise ValueError(
                 f"모르는 이름: {token}\n  쓸 수 있는 이름: {names}\n"
-                f"  표정 한 장만: 캐릭터:표정 (표정: {faces})"
+                f"  표정 한 장만: 캐릭터:표정 (표정: {faces}, 그리고 캐릭터만의 표정)"
             )
         chosen.extend(k for k in picked if k not in chosen)
     return [k for k in everything if k in chosen]
@@ -564,6 +578,16 @@ def seed_for(name, offset=0):
     return int(digest[:8], 16) % 1_000_000_000 + offset
 
 
+def variant_text(cfg, char_id, face):
+    """기준 그림에서 표정을 바꾸라는 말. 몸짓도 바꾸는 표정(poses)이면 몸짓도 적는다."""
+    char = cfg["characters"][char_id]
+    expression = char.get("faces", {}).get(face) or cfg["faces"][face]
+    pose = char.get("poses", {}).get(face)
+    if pose:
+        return f"{cfg['sprite']['variant_pose']} New expression: {expression}. New pose: {pose}"
+    return f"{cfg['sprite']['variant']} New expression: {expression}."
+
+
 def sprite_prompt(cfg, char_id, face, *, variant=False):
     sprite = cfg["sprite"]
     char = cfg["characters"][char_id]
@@ -571,7 +595,7 @@ def sprite_prompt(cfg, char_id, face, *, variant=False):
     key_words = cfg["keys"][char["key"]]["words"]
     parts = []
     if variant:
-        parts.append(f"{sprite['variant']} New expression: {expression}.")
+        parts.append(variant_text(cfg, char_id, face))
     parts += [sprite["style"], sprite["framing"], sprite["safety"], char["look"], sprite["uniform"]]
     if not variant:
         parts.append(f"Expression: {expression}.")
@@ -601,20 +625,18 @@ def gpt_sprite_prompt(cfg, char_id):
 
 def gpt_variant_prompt(cfg, char_id, face):
     """기준 그림을 붙인 채로 보내는 표정 바꾸기 요청문."""
-    char = cfg["characters"][char_id]
-    expression = char.get("faces", {}).get(face) or cfg["faces"][face]
-    return (
-        f"{cfg['sprite']['variant']} New expression: {expression}. "
-        "Keep the same background and the same image size."
-    )
+    return variant_text(cfg, char_id, face) + " Keep the same background and the same image size."
 
 
 def gpt_doc(cfg):
     """docs/art-prompts-gpt.md 의 내용. 요청문은 art_prompts.json에서 가져온다."""
+    extra_count = sum(len(faces_for(cfg, c)) - len(FACES) for c in cfg["characters"])
     lines = [
         "# GPT로 캐릭터 그림 뽑기",
         "",
-        "ChatGPT 같은 대화형 그림 도구에 붙여 넣을 요청문이다. 캐릭터 6명, 표정 6장씩 36장.",
+        "ChatGPT 같은 대화형 그림 도구에 붙여 넣을 요청문이다. "
+        f"캐릭터 {len(cfg['characters'])}명, 기본 표정 {len(FACES)}장씩과 캐릭터만의 표정 {extra_count}장, "
+        f"모두 {len(FACES) * len(cfg['characters']) + extra_count}장.",
         "",
         "이 글은 `python tools/make_art.py --gpt-doc` 이 만든다. 직접 고치지 말고 "
         "`tools/art_prompts.json`을 고친 뒤 같은 명령으로 다시 만든다.",
@@ -630,7 +652,7 @@ def gpt_doc(cfg):
         "4. `python tools/make_art.py --recut` 을 실행한다. 배경을 지우고(이미 투명이면 그대로 두고) "
         f"{cfg['sprite']['width']}x{cfg['sprite']['height']} 크기로 맞춰 `art/sprites/` 에 넣는다. "
         "`art/preview.png` 도 다시 만든다.",
-        "5. `art/preview.png` 를 열어 여섯 표정이 같은 얼굴인지, 머리가 잘리지 않았는지, "
+        "5. `art/preview.png` 를 열어 모든 표정이 같은 얼굴인지, 머리가 잘리지 않았는지, "
         "배경이 깨끗이 지워졌는지 본다.",
         "6. 게임은 `run_booth.py` 로 켤 때 `art/` 의 그림을 가져다 쓴다. "
         "그림이 없는 캐릭터와 표정은 자리표시 그림이 나온다.",
@@ -642,7 +664,9 @@ def gpt_doc(cfg):
         "- 그림에 글자나 워터마크가 들어가면 다시 뽑는다.",
         "- 배경이 투명하게 안 나오면 요청문에 적힌 단색 배경으로 받는다. "
         "`--recut` 이 그 색을 지운다.",
-        "- 표정 이름: " + ", ".join(FACES) + ".",
+        "- 기본 표정 이름: " + ", ".join(FACES) + ".",
+        "- 캐릭터만의 표정은 그 캐릭터의 요청문 끝에 있다. 성격에 맞춰 더한 표정이고, 몸짓이 조금 바뀌는 것도 있다. "
+        "그림이 없으면 게임은 비슷한 기본 표정의 그림을 대신 쓴다.",
         "",
         "## 캐릭터별 요청문",
     ]
@@ -657,12 +681,13 @@ def gpt_doc(cfg):
             gpt_sprite_prompt(cfg, char_id),
             "```",
         ]
-        for face in FACES:
+        for face in faces_for(cfg, char_id):
             if face == "neutral":
                 continue
+            label = "표정" if face in FACES else "캐릭터만의 표정"
             lines += [
                 "",
-                f"표정 {face}. 저장할 곳: `art/raw/{char_id}/{face}.png`",
+                f"{label} {face}. 저장할 곳: `art/raw/{char_id}/{face}.png`",
                 "",
                 "```",
                 gpt_variant_prompt(cfg, char_id, face),
@@ -883,7 +908,8 @@ def make_preview(out, cfg, note=""):
     chars = list(cfg["characters"])
     places = list(cfg["backgrounds"])
     pad, label_w, cell_w, cell_h = 8, 110, 200, 300
-    width = label_w + len(FACES) * (cell_w + pad) + pad
+    columns = max(len(faces_for(cfg, c)) for c in chars) if chars else len(FACES)
+    width = label_w + columns * (cell_w + pad) + pad
     head_h, line_h = 44, 22
     bg_cols = 4
     bg_w = (width - pad * (bg_cols + 1)) // bg_cols
@@ -907,15 +933,18 @@ def make_preview(out, cfg, note=""):
 
     # 캐릭터 표정
     board = _checker((cell_w, cell_h))
-    for column, face in enumerate(FACES):
-        draw.text((label_w + column * (cell_w + pad) + 4, head_h + 2), face, fill=ink, font=small)
+    for column in range(columns):
+        name = FACES[column] if column < len(FACES) else "extra"
+        draw.text((label_w + column * (cell_w + pad) + 4, head_h + 2), name, fill=ink, font=small)
     for row, char_id in enumerate(chars):
         top = sprites_top + row * (cell_h + pad)
         draw.text((pad, top + 6), char_id, fill=ink, font=small)
         draw.text((pad, top + 26), f"key: {cfg['characters'][char_id]['key']}", fill=faint, font=small)
-        for column, face in enumerate(FACES):
+        for column, face in enumerate(faces_for(cfg, char_id)):
             left = label_w + column * (cell_w + pad)
             sheet.paste(board, (left, top))
+            if face not in FACES:      # 캐릭터만의 표정은 칸 위에 이름을 적는다
+                draw.text((left + 8, top + cell_h - 20), face, fill=ink, font=small)
             path = final_path(out, f"{char_id}:{face}")
             if not path.is_file():
                 draw.text((left + 8, top + 8), "missing", fill=faint, font=small)

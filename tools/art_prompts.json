@@ -10,7 +10,8 @@
     "safety": "A high school student in a modest, fully covering school outfit. Wholesome, all-ages.",
     "uniform": "School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.",
     "background": "The background is one flat, uniform, {key} color filling the whole frame. No gradient, no shadow, no floor, no objects, no text, no border.",
-    "variant": "Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression."
+    "variant": "Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression.",
+    "variant_pose": "Use the reference image. Keep the same character, hairstyle, outfit, colors, art style and framing exactly. Change the facial expression, and change the pose only as the new pose describes."
   },
 
   "keys": {
@@ -45,7 +46,12 @@
       "key": "green",
       "look": "Deep midnight-blue hair fading to violet at the tips, tied in a high ponytail that puffs out wider toward the end. Golden amber eyes, sharply raised eyebrows. A navy-blue track jacket with rolled-up sleeves and a thin chest stripe in blue, red, yellow and green, worn over the white school shirt instead of a blazer. A small star-shaped hairpin. Arms crossed, head turned slightly away while her eyes glance at the viewer.",
       "faces": {
-        "neutral": "annoyed, aloof look with raised eyebrows, mouth closed"
+        "neutral": "annoyed, aloof look with raised eyebrows, mouth closed",
+        "huff": "a tsundere 'hmph' face: eyes closed, chin raised, a small pouting mouth, a faint blush on the cheeks",
+        "denial": "flustered angry denial: face bright red up to the ears, eyes squeezed shut, mouth wide open as if shouting, eyebrows angled sharply, a small sweat drop"
+      },
+      "poses": {
+        "huff": "She turns her head further away to the side, arms still crossed."
       }
     },
     "gemma": {
@@ -53,7 +59,11 @@
       "key": "green",
       "look": "Soft periwinkle-blue hair in two neat, loose braids. Round glasses. A navy school blazer worn neatly. A small gem-shaped hairpin. She holds a small notebook against her chest with both hands. Shoulders slightly drawn in, a shy posture.",
       "faces": {
-        "neutral": "shy, gentle look with eyes slightly lowered and a small soft smile"
+        "neutral": "shy, gentle look with eyes slightly lowered and a small soft smile",
+        "hide": "deeply embarrassed: cheeks bright red, eyes looking up shyly"
+      },
+      "poses": {
+        "hide": "She lifts the notebook with both hands to cover the lower half of her face, so only her eyes and glasses show above it."
       }
     },
     "sora": {
@@ -61,7 +71,8 @@
       "key": "magenta",
       "look": "Fluffy white short bob with pale sky-blue tips and messy flyaway strands, like a cloud. Sleepy half-closed sky-blue eyes with a small star-shaped sparkle in each. A small cloud-shaped hair clip on one side only. A cream-colored knit cardigan with one button missing, worn over the white school shirt instead of a blazer. Relaxed posture, head tilted slightly.",
       "faces": {
-        "neutral": "sleepy, absent-minded look with a faint vacant smile"
+        "neutral": "sleepy, absent-minded look with a faint vacant smile",
+        "yawn": "mid-yawn: eyes squeezed shut with a small tear at the corner of one eye, mouth open wide in a big relaxed yawn"
       }
     },
     "nova": {
@@ -71,7 +82,11 @@
       "faces": {
         "neutral": "cheerful wide grin, eyes curved from smiling",
         "smile": "an even bigger beaming smile, eyes closed in happy arcs",
-        "dark": "still smiling brightly, but the eyes are blank and without highlights, a small sweat drop on the temple"
+        "dark": "still smiling brightly, but the eyes are blank and without highlights, a small sweat drop on the temple",
+        "excited": "fired up with excitement: sparkling star-shaped highlights in the eyes, mouth wide open in a happy cheer"
+      },
+      "poses": {
+        "excited": "She raises one clenched fist up near her shoulder."
       }
     },
     "mistral": {
@@ -80,7 +95,8 @@
       "look": "Long wavy hair in a warm gradient, golden yellow at the top, turning orange and then deep red at the tips, swept to one side as if by wind. Confident amber eyes. A navy school blazer draped over her shoulders like a cape. A plain white armband on one arm with a single hand-drawn star, no letters. She holds a thick hardcover book. Chin slightly raised, looking down at the viewer.",
       "faces": {
         "neutral": "smug, confident smirk",
-        "smile": "a triumphant, self-satisfied grin"
+        "smile": "a triumphant, self-satisfied grin",
+        "busted": "caught bluffing and panicking: eyes darting to the side, a stiff nervous smile, several sweat drops on the face, eyebrows raised"
       }
     },
     "haiku": {
@@ -93,7 +109,8 @@
         "blush": "almost the same deadpan face, eyes looking away, a faint blush on the cheeks",
         "pout": "almost the same deadpan face, eyebrows lowered slightly, eyes narrowed a little",
         "shock": "almost the same deadpan face, eyebrows raised and the visible eye opened a little wider",
-        "dark": "the same deadpan face with the upper half in shadow, the visible eye dull and without highlights"
+        "dark": "the same deadpan face with the upper half in shadow, the visible eye dull and without highlights",
+        "flushed": "the same deadpan, expressionless face and closed mouth, eyes looking away, but the whole face and ears are bright red"
       }
     }
   },

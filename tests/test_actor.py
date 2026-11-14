@@ -381,6 +381,57 @@ class ParseReplyTest(unittest.TestCase):
         for face in FACES:
             self.assertEqual(parse_reply(raw_reply(face=face), FX).face, face)
 
+    def test_extra_face_only_for_its_character(self):
+        faces = FACES + ("huff",)
+        self.assertEqual(parse_reply(raw_reply(face="huff"), FX, faces).face, "huff")
+        self.assertEqual(parse_reply(raw_reply(face="huff"), FX).face, "neutral")
+
+
+class ExtraFaceTest(unittest.TestCase):
+    """캐릭터만의 표정(extra_faces). 이름과 base가 맞는 것만 쓴다."""
+
+    def character(self, extra):
+        return dict(sample_character(), extra_faces=extra)
+
+    def test_valid_entries(self):
+        c = self.character({"huff": {"base": "pout", "name": "흥", "when": "흥 할 때"}})
+        self.assertEqual(actor.faces_for(c), FACES + ("huff",))
+        self.assertEqual(actor.face_base(c, "huff"), "pout")
+        self.assertEqual(actor.face_base(c, "smile"), "smile")
+        self.assertEqual(actor.face_base(c, "unknown"), "neutral")
+
+    def test_broken_entries_are_dropped(self):
+        c = self.character({
+            "smile": {"base": "blush", "when": "기본 표정 이름은 못 쓴다"},
+            "Bad-Name": {"base": "pout", "when": "이름 모양이 틀렸다"},
+            "nobase": {"base": "angry", "when": "base가 기본 표정이 아니다"},
+            "nowhen": {"base": "pout"},
+            "listed": ["pout"],
+        })
+        self.assertEqual(actor.extra_faces(c), {})
+        self.assertEqual(actor.faces_for(c), FACES)
+        self.assertEqual(actor.face_base(c, "smile"), "smile")
+        self.assertEqual(actor.faces_for(dict(sample_character(), extra_faces="huff")), FACES)
+        self.assertEqual(actor.faces_for(sample_character()), FACES)
+
+    def test_prompt_lists_extra_faces(self):
+        c = self.character({"huff": {"base": "pout", "name": "흥", "when": "칭찬받고 아닌 척할 때."}})
+        system = system_of(character=c)
+        self.assertIn("- 이 캐릭터만의 표정: face에 아래 이름도 쓸 수 있다.", system)
+        self.assertIn("한 판에 " + str(actor.EXTRA_FACE_LIMIT) + "번까지만", system)
+        self.assertIn("  huff(흥. pout 자리에 쓴다): 칭찬받고 아닌 척할 때.", system)
+        self.assertNotIn("이 캐릭터만의 표정:", system_of())
+
+    def test_every_character_file_has_valid_extra_faces(self):
+        from sogaeting import content
+        for char_id in content.list_character_ids():
+            character = content.load_character(char_id)
+            with self.subTest(character=char_id):
+                raw = character.get("extra_faces", {})
+                self.assertEqual(sorted(actor.extra_faces(character)), sorted(raw))
+                for info in raw.values():
+                    self.assertIsInstance(info.get("name"), str)
+
     def test_fx_string_is_dropped(self):
         self.assertEqual(parse_reply(raw_reply(fx="꽃잎"), FX).fx, [])
 

@@ -393,6 +393,14 @@ init -5 python:
         size = 64 if n <= 4 else 52 if n <= 7 else 42 if n <= 10 else 34 if n <= 13 else 26
         return color, size
 
+    def sg_view_face(turn):
+        """턴의 표정을 기본 여섯 가지 가운데 하나로. 캐릭터만의 표정이면 서버가 함께 준 face_base 를 쓴다."""
+        face = turn.get("face")
+        if face in sg_faces:
+            return face
+        base = turn.get("face_base")
+        return base if base in sg_faces else "neutral"
+
     def sg_build_view(turn):
         """서버가 준 턴(dict)을 화면이 그대로 그릴 값으로 바꾼다. 글은 여기서 전부 sg_esc를 거친다."""
         extras = turn.get("extras") if isinstance(turn.get("extras"), python_dict) else { }
@@ -436,7 +444,9 @@ init -5 python:
             "total": total,
             "progress": "등장" if turn_no == 0 else "답 %d/%d" % (turn_no, total),
             "stages": stages,
-            "face": turn.get("face") if turn.get("face") in sg_faces else "neutral",
+            # face 는 기본 여섯 표정 가운데 하나(연출용), sprite_face 는 그림을 찾을 표정 이름(캐릭터만의 표정일 수 있다)
+            "face": sg_view_face(turn),
+            "sprite_face": turn.get("face") if sg_face_name_ok(turn.get("face")) else sg_view_face(turn),
             "score": max(0.0, min(100.0, sg_num(turn.get("score"), 50.0))),
             "fallback": fallback,
             "finale": finale,
@@ -557,11 +567,13 @@ init -5 python:
         renpy.show("sg_bg", what=sg_bg_image(key),
                    at_list=sg_stage_call("sg_stage_bg_at") or [ ], layer="master")
 
-    def sg_show_char(char_id, face, at=None):
-        """스탠딩을 세우거나 표정을 바꾼다. 움직임(숨쉬기, 등장, 표정 동작)은 sg_stage.rpy 가 고른다."""
+    def sg_show_char(char_id, face, at=None, sprite=None):
+        """스탠딩을 세우거나 표정을 바꾼다. 움직임(숨쉬기, 등장, 표정 동작)은 sg_stage.rpy 가 고른다.
+        sprite 는 캐릭터만의 표정 이름이다. 그림은 그것으로 찾고, 움직임은 기본 표정(face)으로 고른다."""
         place = at or store.sg_char_center
-        renpy.show("sg_char", what=sg_sprite_image(char_id, face),
-                   at_list=sg_stage_call("sg_stage_char_at", face, place) or [ place ], layer="master")
+        renpy.show("sg_char", what=sg_sprite_image(char_id, face, sprite),
+                   at_list=sg_stage_call("sg_stage_char_at", face, place, sprite=sprite) or [ place ],
+                   layer="master")
 
     def sg_hide_play_screens():
         for name in ("sg_hud", "sg_wait", "sg_wait_start", "sg_wait_reply", "sg_confirm"):
@@ -627,7 +639,7 @@ init -5 python:
         if first:                  # 등장: 장소에 맞는 배경으로 바꾼다
             store.sg_place = place
             sg_show_bg(sg_bg_key(place))
-        sg_show_char(store.sg_char["id"], view["face"])
+        sg_show_char(store.sg_char["id"], view["face"], sprite=view["sprite_face"])
         # 표정과 호감도 변화에 맞는 만화 기호. 등장 턴이면 장소 제목 카드도 뜬다
         sg_stage_call("sg_stage_turn", view["face"], sg_num(turn.get("change")),
                       first=first, fallback=view["fallback"], place=place, score=view["score"])

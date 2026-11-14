@@ -22,6 +22,8 @@ define sg_place_bg = {
 }
 
 ## 표정 여섯 가지. 서버가 턴마다 이 가운데 하나를 준다.
+## 캐릭터만의 표정(아스트라의 huff 같은 것)도 오는데, 그때는 그 표정이 이 여섯 가운데 어느 자리인지(face_base)가
+## 같이 온다. 그림은 images/sprites/<캐릭터 id>/<그 표정>.png 를 먼저 찾고, 없으면 face_base 의 그림을 쓴다.
 define sg_faces = ("neutral", "smile", "blush", "pout", "shock", "dark")
 
 ## 장소를 모를 때와 고르기 화면에 쓰는 배경.
@@ -64,14 +66,22 @@ init -5 python:
             return Solid("#cfd8ea")
         return Transform(path, xysize=(1280, 720), fit="cover")
 
-    def sg_sprite_path(char_id, face):
-        """스탠딩 그림 파일. 그 표정이 없으면 평소 표정, 그것도 없으면 그 캐릭터의 다른 진짜 그림,
+    def sg_face_name_ok(name):
+        """그림 파일 이름으로 써도 되는 표정 이름인가. 영문 소문자와 밑줄, 24자까지."""
+        return (isinstance(name, str) and 0 < len(name) <= 24
+                and all(c in "abcdefghijklmnopqrstuvwxyz_" for c in name))
+
+    def sg_sprite_path(char_id, face, sprite=None):
+        """스탠딩 그림 파일. sprite 는 캐릭터만의 표정 이름(없으면 None)이고 face 는 그 자리의 기본 표정이다.
+        sprite 의 진짜 그림, face 의 진짜 그림, 평소 표정, 그 캐릭터의 다른 진짜 그림 순서로 찾고,
         진짜 그림이 하나도 없을 때만 자리표시 그림. 진짜 그림과 자리표시 그림이 한 판에 섞이지 않게 한다."""
         if not isinstance(char_id, str) or not char_id.replace("_", "").isalnum():
             return None
         if face not in sg_faces:
             face = "neutral"
         real = [face, "neutral"] + [f for f in sg_faces if f not in (face, "neutral")]
+        if sg_face_name_ok(sprite) and sprite not in real:
+            real.insert(0, sprite)
         candidates = []
         for f in real:
             candidates += ["images/sprites/%s/%s.png" % (char_id, f),
@@ -82,9 +92,9 @@ init -5 python:
         ]
         return sg_first_loadable(candidates)
 
-    def sg_sprite_image(char_id, face):
+    def sg_sprite_image(char_id, face, sprite=None):
         """스탠딩 그림. 파일이 하나도 없는 캐릭터면 빈 그림."""
-        path = sg_sprite_path(char_id, face)
+        path = sg_sprite_path(char_id, face, sprite)
         if path is None:
             return Null(768, 1152)
         return Image(path)

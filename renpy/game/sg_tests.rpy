@@ -551,3 +551,27 @@ testcase sg_story_pages:
     pause 0.6
     screenshot "story_04_choices_last_page.png"
     exit
+
+
+## 캐릭터만의 표정: 아스트라에게 여섯 글자를 보내면 가짜 모델이 삐침(pout) 자리의 huff 를 낸다(fake_llm 의 글자 수 규칙).
+## huff 그림(images/sprites/astra/huff.png)이 없으면 pout 그림을 쓰고, 움직임과 기호는 pout 의 것을 쓴다.
+##   python3 -m sogaeting.server --fake --port 8101
+testcase sg_extra_face:
+    assert eval (sg_view_face({"face": "huff", "face_base": "pout"}) == "pout")
+    assert eval (sg_view_face({"face": "huff"}) == "neutral" and sg_view_face({"face": "smile", "face_base": "pout"}) == "smile")
+    assert eval (sg_face_name_ok("red_ears") and not sg_face_name_ok("../x") and not sg_face_name_ok("") and not sg_face_name_ok(3))
+    assert eval (sg_sprite_path("gemma", "blush", "hide") == sg_sprite_path("gemma", "blush"))
+    assert eval (sg_sprite_path("gemma", "blush", "../../x") == sg_sprite_path("gemma", "blush"))
+    pause until screen "sg_select"
+    click "아스트라"
+    pause until screen "sg_talk"
+    click id "sg_advance" until id "sg_input"
+    $ sg_test_text("가나다라마바")
+    keysym "K_RETURN"
+    pause until eval (sg_turn_no == 1)
+    assert eval (sg_view["face"] == "pout" and sg_view["sprite_face"] == "huff")
+    pause 0.5
+    click id "sg_advance"
+    pause 1.5
+    screenshot "extra_face_astra_huff.png"
+    exit

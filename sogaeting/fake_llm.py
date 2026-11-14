@@ -40,6 +40,8 @@ _CHOICES = ["좋아, 더 말해줘", "잘 모르겠는데", "물구나무를 서
 
 _SHORT_SAY_RE = re.compile(r"겉말은 한 답에 \d+자 이내")
 _EVENT_RE = re.compile(r'사건 씨앗: "([^"]+)"')
+# 지시문의 캐릭터만의 표정 줄: "  huff(흥. pout 자리에 쓴다): ..." (actor._extra_face_lines)
+_EXTRA_FACE_LINE_RE = re.compile(r"^  ([a-z][a-z_]+)\([^)]*?\. ([a-z]+) 자리에 쓴다\)", re.M)
 
 
 def _event_note(system: str) -> str:
@@ -110,11 +112,17 @@ def fake_llm(messages: list[dict]) -> str:
                     " 거기서 보는 노을이 진짜 예뻐서, 나 혼자 몰래 자주 가. 아직 아무한테도 말 안 했어."
                     " 그런데 왠지 너한테는 보여 주고 싶어졌어. 수업 끝나면 같이 가 볼래? 싫으면 매점이라도 괜찮아."
                     " 아, 너무 갑자기였나. 그래도 대답은 천천히 해 줘도 돼.")
+    face = _FACE_BY_DELTA[delta]
+    # 캐릭터만의 표정이 있으면 그 자리의 기본 표정 대신 낸다. 화면이 그 표정을 받는 길을 시험할 수 있게 한다
+    extras = {}
+    for name, base in _EXTRA_FACE_LINE_RE.findall(system):
+        extras.setdefault(base, name)
+    face = extras.get(face, face)
     return json.dumps({
         "narration": narration,
         "say": say,
         "inner": inner,
-        "face": _FACE_BY_DELTA[delta],
+        "face": face,
         "fx": _FX[turn % len(_FX)],
         "delta": delta,
         "strength": strength,
