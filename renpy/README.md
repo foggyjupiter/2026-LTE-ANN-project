@@ -160,17 +160,22 @@ xvfb-run -a python3 run_booth.py --fake --windowed
 
   | 상황 | 파일 | 편곡 |
   |---|---|---|
-  | 고르기 화면 | `game/audio/bgm_menu.ogg` | 피아노 주선율, 바이올린, 플루트, 글로켄슈필, 처음부터 끝까지 장조 (112 BPM, 약 2분 14초) |
-  | 대화 중, 호감도 보통 | `game/audio/bgm_talk.ogg` | 잔잔한 편곡 (104 BPM, 약 3분) |
-  | 대화 중, 호감도 65점 이상 | `game/audio/bgm_high.ogg` | 들뜬 뱀프 편곡 (116 BPM, 약 2분 42초) |
-  | 대화 중, 호감도 40점 미만 | `game/audio/bgm_low.ogg` | 단조로 가라앉은 편곡 (79 BPM, 약 3분 52초) |
+  | 고르기 화면 | `game/audio/bgm_menu.ogg` | 신나는 디스코 뱀프: 트럼펫, 알토 색소폰, 피아노 (120 BPM, 약 2분 41초) |
+  | 대화 중, 호감도 보통 | `game/audio/bgm_talk.ogg` | 잔잔한 오케스트라 편곡, 피아노 주선율 (104 BPM, 약 3분) |
+  | 대화 중, 호감도 65점 이상 | `game/audio/bgm_high.ogg` | 들뜬 펑크 뱀프 (116 BPM, 약 2분 42초) |
+  | 대화 중, 호감도 40점 미만 | `game/audio/bgm_low.ogg` | 단조, 피아노와 현 (79 BPM, 약 3분 52초) |
   | 엔딩 | 배경음을 줄이고 엔딩 음을 들려준다 | |
 
   - 곡은 1.5초 동안 겹치며 바뀐다. 구간 경계에서 곡이 자꾸 바뀌지 않게 들어갈 때와 나올 때 5점 차이를 둔다(65점에 들뜬 곡으로 들어가면 60점 아래로 내려가야 돌아온다).
   - 상황별 파일이 없으면 `game/audio/bgm.ogg`(또는 `bgm.mp3`) 한 곡을 계속 튼다. 저작권 문제가 없는 음악만 넣는다.
-  - 만든 방법(2026-11-14): 사용자의 작곡 도구 레포 `foggyjupiter/fl-studio-plugin`(커밋 a1b87a1)의 arranger. 처음 만든 뮤직박스 곡의 주제 첫 4마디를 모티프(`dev/music/motif.mid`)로 뽑고, 같은 모티프로 분위기마다 `python -m arranger.cli song --genre <dev/music/game_ost_handmade의 절대 경로, .json 빼고> --key C --seed 21 --mood <musicbox|peaceful|vamp> --tempo <112|104|116> --template loop_long --progressions manual --motif dev/music/motif.mid --motif-key C --motif-chords "C | Dm7 | Em | G"` 를 돌렸다. 모티프의 코드를 정하지 않으면 도구가 Am - Dm7 - G로 붙여서 단조처럼 침울하게 들렸다(사용자 확인). low만 `--key Cm --mood sad` 이고 모티프 코드는 도구에 맡겼다. 렌더링은 `python -m tools.render_audio out/<번호>/song.mid --soundfont sgm -o bgm_<상황>.ogg`.
-  - 고르기 화면 곡은 "침울하다, 희망찬 느낌으로"라는 의견(2026-11-14)으로 따로 다시 만들었다: `--mood peaceful --ensemble piano_trio --tempo 112 --structure dev/music/bgm_menu_structure.json`. 이 구성 파일은 도구가 만든 구성에서 나란한조(A단조)로 가는 B, B2 섹션을 뺀 것이고, 프로파일에서 주선율을 칩 사각파로 바꿀 확률(`ensembles.lead.chip_share`)도 0으로 두었다.
-  - 채보 자료는 쓰지 않았다. 이 도구는 기본으로 코드 진행, 반주 음형(오스티나토), 베이스, 드럼 패턴 일부를 원곡 채보에서 가져오는데, 그 비율(`data.share`)을 모두 0으로 바꾼 프로파일(`dev/music/game_ost_handmade.json`)로 만들었다. 멜로디와 편곡은 도구의 규칙과 확률로 새로 만든 것이다.
+  - 만든 방법(2026-11-14): 사용자의 작곡 도구 레포 `foggyjupiter/fl-studio-plugin`(커밋 a1b87a1)의 arranger. 처음 만든 뮤직박스 곡의 주제 첫 4마디를 모티프(`dev/music/motif.mid`)로 뽑고, 같은 모티프로 곡마다 아래를 돌렸다. 공통 옵션은 `song --genre <dev/music/game_ost_handmade의 절대 경로, .json 빼고> --seed 21 --template loop_long --progressions manual --motif dev/music/motif.mid --motif-key C --climb off` 이다.
+    - 고르기 화면: `--key C --mood vamp --ensemble disco --tempo 120 --motif-chords "C | Dm7 | Em | G"`
+    - 대화 보통: `--key C --mood peaceful --tempo 104 --motif-chords "C | Dm7 | Em | G"`
+    - 호감도 높음: `--key C --mood vamp --ensemble funk --tempo 116 --motif-chords "C | Dm7 | Em | G"`
+    - 호감도 낮음: `--key Cm --mood sad` (모티프 코드는 도구에 맡김)
+    - 렌더링: `python -m tools.render_audio out/<번호>/song.mid --soundfont sgm -o bgm_<상황>.ogg`
+  - 사용자 의견으로 바꾼 것: 모티프의 코드를 도구에 맡기면 Am - Dm7 - G로 붙어서 침울했다(코드를 C - Dm7 - Em - G로 정함). 클라이맥스 앞에서 주선율이 반음씩 올라가는 변화구는 뺐다(`--climb off`). 고르기 화면 곡은 신나는 뱀프로 했다.
+  - 채보 자료는 쓰지 않았다. 이 도구는 기본으로 코드 진행, 반주 음형(오스티나토), 베이스, 드럼 패턴 일부를 원곡 채보에서 가져오는데, 그 비율(`data.share`)을 모두 0으로 바꾼 프로파일(`dev/music/game_ost_handmade.json`)로 만들었다. 주선율을 칩 사각파로 바꿀 확률(`ensembles.lead.chip_share`)도 0으로 두었다. 멜로디와 편곡은 도구의 규칙과 확률로 새로 만든 것이다.
   - 소리는 SGM-V2.01 사운드폰트와 그 레포에 들어 있는 자체 칩 사운드폰트(`soundfonts/chip_leads.sf2`)만 썼다. 원곡 게임 사운드폰트는 라이선스 때문에 받지 않았다(도구가 고른 게임 음색은 SGM의 같은 번호 악기로 나온다).
   - 곡마다의 MIDI는 `dev/music/bgm_<상황>.mid` 에 있다.
 - 음량은 `game/sg_audio.rpy` 맨 위의 `sg_sfx_volume`, `sg_bgm_volume` 으로 맞춘다.
