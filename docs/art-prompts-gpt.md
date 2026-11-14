@@ -330,7 +330,7 @@ No text, no watermark, no border. Portrait image, aspect ratio 2:3.
 표정 smile (새로 뽑기). 저장할 곳: `art/raw/haiku/smile.png`
 
 ```
-Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: a small but clearly visible soft smile, the visible eye gently narrowed and curved, a faint warmth on the cheeks. The change must be easy to see even at a small size. Keep the same background and the same image size.
+Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: a rare, clearly visible soft smile she cannot hold back, the visible eye gently narrowed and curved, a faint warmth on the cheeks. The change must be easy to see even at a small size. Keep the same background and the same image size.
 ```
 
 표정 blush (새로 뽑기). 저장할 곳: `art/raw/haiku/blush.png`
@@ -342,7 +342,7 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 표정 pout (새로 뽑기). 저장할 곳: `art/raw/haiku/pout.png`
 
 ```
-Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: a flat, unamused half-lidded stare, one cheek slightly puffed, mouth turned down in a small frown. The change must be easy to see even at a small size. Keep the same background and the same image size.
+Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: a cold, unimpressed look, as if looking down on something childish: a half-lidded bored stare, one eyebrow slightly raised, mouth a flat line turned down at one corner. The change must be easy to see even at a small size. Keep the same background and the same image size.
 ```
 
 표정 shock (새로 뽑기). 저장할 곳: `art/raw/haiku/shock.png`
