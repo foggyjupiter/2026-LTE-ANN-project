@@ -509,6 +509,57 @@ class GptDoc(unittest.TestCase):
         self.assertEqual(saved, self.doc, "python tools/make_art.py --gpt-doc 을 다시 실행하세요")
 
 
+def fake_checker_sprite(width=240, height=360, cell=9):
+    """그림 도구가 투명 배경 대신 그려 넣은 체크무늬 위의 사람. 칸 색은 조금씩 들쭉날쭉하다.
+    흰 셔츠가 아래 테두리에 닿아 있고, 남색 옷이 셔츠 양옆을 감싼다. 머리 옆에는 체크무늬가 갇힌 틈이 있다."""
+    image = Image.new("RGB", (width, height))
+    pixels = image.load()
+    for y in range(height):
+        for x in range(width):
+            base = 251 if (x // cell + y // cell) % 2 == 0 else 212
+            wobble = (x * 7 + y * 13) % 5 - 2
+            pixels[x, y] = (base + wobble, base + wobble, base + wobble + 1)
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((40, 200, 200, height), fill=(35, 40, 100))             # 남색 옷
+    draw.rectangle((90, 210, 150, height), fill=(250, 250, 252))            # 흰 셔츠 (아래 테두리에 닿음)
+    draw.ellipse((60, 60, 180, 210), fill=(40, 40, 110))                   # 머리카락
+    draw.ellipse((85, 90, 155, 180), fill=(255, 222, 200))                 # 얼굴
+    draw.ellipse((112, 120, 118, 126), fill=(255, 255, 255))               # 눈의 흰 하이라이트
+    draw.rectangle((20, 90, 59, 140), outline=(40, 40, 110), width=3)      # 머리카락으로 둘러싸인 틈
+    return image
+
+
+@unittest.skipIf(Image is None, "Pillow가 없으면 건너뛴다")
+class Checker(unittest.TestCase):
+    def test_detects_only_the_painted_checker(self):
+        self.assertTrue(make_art.looks_like_checker(fake_checker_sprite()))
+        self.assertFalse(make_art.looks_like_checker(fake_sprite(120, 180, (0, 255, 0), (60, 40, 120), False)))
+        self.assertFalse(make_art.looks_like_checker(Image.new("RGB", (120, 180), (255, 255, 255))))
+        clear = Image.new("RGBA", (120, 180), (0, 0, 0, 0))
+        self.assertFalse(make_art.looks_like_checker(clear))
+
+    def test_checker_becomes_transparent_and_the_shirt_stays(self):
+        cut, warning = make_art.cut_checker(fake_checker_sprite())
+        self.assertIsNone(warning)
+        alpha = cut.getchannel("A")
+        for point in ((2, 2), (235, 2), (2, 300), (235, 300), (10, 359)):     # 테두리와 아래 구석
+            self.assertEqual(alpha.getpixel(point), 0, point)
+        self.assertEqual(alpha.getpixel((40, 115)), 0)                        # 머리카락에 갇힌 틈
+        for point in ((120, 300), (120, 359), (100, 215), (115, 123), (60, 300), (120, 100)):
+            self.assertEqual(alpha.getpixel(point), 255, point)               # 셔츠, 하이라이트, 옷, 머리
+
+    def test_recut_uses_the_checker_cut(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            raw = pathlib.Path(tmp) / "raw.png"
+            fake_checker_sprite().save(raw)
+            out = pathlib.Path(tmp) / "out.png"
+            warning = make_art.finish_sprite(raw, out, make_art.load_config(), "astra")
+            self.assertIsNone(warning)
+            with Image.open(out) as sprite:
+                self.assertEqual(sprite.size, (768, 1152))
+                self.assertEqual(sprite.getpixel((3, 3))[3], 0)
+
+
 @unittest.skipIf(Image is None, "Pillow가 없으면 건너뛴다")
 class Cutting(unittest.TestCase):
     def _cut(self, key, key_rgb, hair, as_jpeg=False):

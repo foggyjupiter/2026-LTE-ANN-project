@@ -663,7 +663,7 @@ def gpt_doc(cfg):
         "선정적으로 나온 그림은 쓰지 않는다.",
         "- 그림에 글자나 워터마크가 들어가면 다시 뽑는다.",
         "- 배경이 투명하게 안 나오면 요청문에 적힌 단색 배경으로 받는다. "
-        "`--recut` 이 그 색을 지운다.",
+        "`--recut` 이 그 색을 지운다. 투명 배경 대신 체크무늬가 그려져 나와도 `--recut` 이 알아보고 지운다.",
         "- 기본 표정 이름: " + ", ".join(FACES) + ".",
         "- 캐릭터만의 표정은 그 캐릭터의 요청문 끝에 있다. 성격에 맞춰 더한 표정이고, 몸짓이 조금 바뀌는 것도 있다. "
         "그림이 없으면 게임은 비슷한 기본 표정의 그림을 대신 쓴다.",
@@ -775,6 +775,118 @@ def cut_background(image, key, *, low=40, high=0.75):
     return result, None
 
 
+# 그림 도구(ChatGPT 등)가 투명 배경을 달라는 요청에 체크무늬(흰 칸과 밝은 회색 칸)를 그림에 그려 넣을 때가 있다
+# (2026-11-14 아스트라 denial). 칸의 색은 고르지 않고 칸 크기도 들쭉날쭉해서 정확한 격자로는 찾지 못한다.
+# 그래서 "거의 무채색이고 밝은 점"을 위, 왼쪽, 오른쪽 테두리에서부터 이어지는 데까지 배경으로 본다.
+# 아래쪽 테두리에서는 시작하지 않는다. 흰 셔츠가 아래 테두리에 닿아 있어서 셔츠까지 지워진다
+CHECKER_SAT = 16            # 체크무늬 점: 가장 큰 채널과 가장 작은 채널의 차이가 이만큼 이하(셔츠는 연보라라서 더 크다)
+CHECKER_LOW = 188           # 체크무늬 점: 가장 작은 채널이 이만큼 이상(어두운 칸도 꽤 밝다)
+CHECKER_SPLIT = 232         # 이보다 밝으면 흰 칸, 어두우면 회색 칸
+CHECKER_EDGE_SHARE = 0.6    # 테두리 점의 이만큼 이상이 체크무늬 점이고 흰 칸과 회색 칸이 다 있으면 체크무늬 배경이다
+CHECKER_MIX = 0.15          # 흰 칸과 회색 칸이 저마다 이만큼 이상 섞여 있어야 체크무늬다
+CHECKER_HOLE_MIN = 20       # 머리카락 사이에 갇힌 체크무늬 조각은 이만큼 이상 크고 두 칸이 섞여 있으면 지운다
+FRINGE_LOW = 150            # 사람 가장자리에서 이보다 밝고
+FRINGE_SAT = 40             # 이보다 무채색에 가까운 점은 체크무늬가 섞인 것이라 지운다
+FRINGE_PASSES = 2
+
+
+def _checker_masks(rgb):
+    """(체크무늬 색인 점, 흰 칸 점)을 점마다 0/1인 bytes로."""
+    red, green, blue = rgb.split()
+    high = ImageChops.lighter(ImageChops.lighter(red, green), blue)
+    low = ImageChops.darker(ImageChops.darker(red, green), blue)
+    gray = ImageChops.subtract(high, low).point(lambda v: 1 if v <= CHECKER_SAT else 0)
+    bright = low.point(lambda v: 1 if v >= CHECKER_LOW else 0)
+    light = low.point(lambda v: 1 if v >= CHECKER_SPLIT else 0)
+    # 두 판은 점마다 0 또는 1이다. 둘 다 1인 점(darker는 작은 쪽)이 체크무늬 색이다. multiply는 255로 나눠서 쓰지 않는다
+    return ImageChops.darker(gray, bright).tobytes(), light.tobytes(), low.tobytes(), \
+        ImageChops.subtract(high, low).tobytes()
+
+
+def _edge_indexes(width, height):
+    """위, 왼쪽, 오른쪽 테두리 점의 번호."""
+    return list(range(width)) + [y * width for y in range(height)] + [y * width + width - 1 for y in range(height)]
+
+
+def looks_like_checker(image):
+    """배경에 체크무늬가 그려진 그림인가."""
+    rgb = image.convert("RGB")
+    width, height = rgb.size
+    candidate, light, _, _ = _checker_masks(rgb)
+    edge = _edge_indexes(width, height)
+    hits = [i for i in edge if candidate[i]]
+    whites = sum(light[i] for i in hits)
+    return (len(hits) >= CHECKER_EDGE_SHARE * len(edge)
+            and whites >= CHECKER_MIX * len(hits) and len(hits) - whites >= CHECKER_MIX * len(hits))
+
+
+def _neighbors(index, width, total):
+    x = index % width
+    if index >= width:
+        yield index - width
+    if index + width < total:
+        yield index + width
+    if x > 0:
+        yield index - 1
+    if x < width - 1:
+        yield index + 1
+
+
+def cut_checker(image):
+    """그려 넣은 체크무늬 배경을 투명하게 만든다. (RGBA 그림, 경고 문장 또는 None)을 돌려준다."""
+    rgb = image.convert("RGB")
+    width, height = rgb.size
+    total = width * height
+    candidate, light, low, spread = _checker_masks(rgb)
+    background = bytearray(total)
+
+    # 1. 위, 왼쪽, 오른쪽 테두리에서 이어지는 체크무늬 점
+    stack = [i for i in _edge_indexes(width, height) if candidate[i] and not background[i]]
+    for index in stack:
+        background[index] = 1
+    while stack:
+        index = stack.pop()
+        for near in _neighbors(index, width, total):
+            if candidate[near] and not background[near]:
+                background[near] = 1
+                stack.append(near)
+
+    # 2. 머리카락 사이에 갇힌 체크무늬 조각. 흰 칸과 회색 칸이 섞여 있어야 한다(셔츠의 흰 부분은 흰색만이다)
+    seen = bytearray(background)
+    for start in range(total):
+        if not candidate[start] or seen[start]:
+            continue
+        seen[start] = 1
+        piece = [start]
+        stack = [start]
+        while stack:
+            index = stack.pop()
+            for near in _neighbors(index, width, total):
+                if candidate[near] and not seen[near]:
+                    seen[near] = 1
+                    piece.append(near)
+                    stack.append(near)
+        whites = sum(light[i] for i in piece)
+        if (len(piece) >= CHECKER_HOLE_MIN and whites >= CHECKER_MIX * len(piece)
+                and len(piece) - whites >= CHECKER_MIX * len(piece)):
+            for index in piece:
+                background[index] = 1
+
+    # 3. 가장자리에 남은 밝은 무채색 점(체크무늬와 섞인 점)을 벗겨 낸다
+    for _ in range(FRINGE_PASSES):
+        peel = [i for i in range(total) if not background[i] and low[i] >= FRINGE_LOW and spread[i] <= FRINGE_SAT
+                and any(background[n] for n in _neighbors(i, width, total))]
+        for index in peel:
+            background[index] = 1
+
+    if sum(background) >= total * 0.98:
+        return rgb.convert("RGBA"), "체크무늬를 지우고 나니 남은 것이 없음"
+    alpha = Image.frombytes("L", (width, height), bytes(0 if b else 255 for b in background))
+    result = rgb.convert("RGBA")
+    result.putalpha(alpha)
+    return result, None
+
+
 def normalize_sprite(image, size, *, top_margin=0.04, max_scale=1.5):
     """사람만 잘라 정해진 크기의 판에 아래 가운데로 맞춰 놓는다. 표정끼리 크기가 같아진다."""
     width, height = size
@@ -812,6 +924,9 @@ def finish_sprite(raw_path, out_path, cfg, char_id):
         if has_transparency(source):
             # 직접 그렸거나 다른 도구로 뽑은 그림. 이미 투명 배경이면 지울 것이 없다
             image, warning = source.convert("RGBA"), None
+        elif looks_like_checker(source):
+            # 투명 배경 대신 체크무늬를 그려 넣은 그림 (ChatGPT에서 가끔 나온다)
+            image, warning = cut_checker(source)
         else:
             image, warning = cut_background(
                 source, cfg["characters"][char_id]["key"],

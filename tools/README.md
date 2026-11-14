@@ -61,7 +61,7 @@ art/
 
 1. `docs/art-prompts-gpt.md` 의 요청문을 붙여 넣어 그림을 받는다.
 2. 받은 그림을 `art/raw/<캐릭터 id>/<표정>.png` 로 저장한다. 예: `art/raw/astra/neutral.png`
-3. `python tools/make_art.py --recut` 을 실행한다. 투명 배경 그림은 그대로 두고, 단색 배경 그림은 그 색을 지운 뒤 크기를 맞춰 `art/sprites/` 에 넣는다.
+3. `python tools/make_art.py --recut` 을 실행한다. 투명 배경 그림은 그대로 두고, 단색 배경 그림은 그 색을 지운 뒤 크기를 맞춰 `art/sprites/` 에 넣는다. ChatGPT가 투명 배경 대신 체크무늬(흰 칸과 회색 칸)를 그려 넣은 그림도 알아보고 지운다(위, 왼쪽, 오른쪽 테두리에서 이어진 무채색 밝은 점과 머리카락 사이에 갇힌 체크무늬 조각을 지운다. 아래 테두리에서는 시작하지 않아서 흰 셔츠는 남는다). 머리끝 사이에 몇 점짜리 부스러기가 남을 수 있다.
 
 요청문 문서는 `python tools/make_art.py --gpt-doc` 으로 다시 만든다. `tools/art_prompts.json` 을 고쳤으면 꼭 다시 만든다(시험이 검사한다).
 
