@@ -252,6 +252,12 @@ class StoryModeTest(unittest.TestCase):
         with mock.patch.dict("os.environ", {director.STORY_ENV: "0"}):
             self.assertFalse(Session("mistral", llm=ScriptedLlm()).story)
 
+    def test_story_mode_scales_the_points(self):
+        story = Session("mistral", llm=ScriptedLlm(), story=True).points
+        self.assertEqual(story, {step: points * director.STORY_POINTS_SCALE for step, points in MISTRAL.items()})
+        outs = play(Session("mistral", llm=ScriptedLlm(default={"delta": 1}), story=True), count=2)
+        self.assertEqual(outs[1]["change"], round(MISTRAL[1] * director.STORY_POINTS_SCALE, 1))
+
     def test_story_prompt_carries_the_beat(self):
         llm = ScriptedLlm()
         session = Session("mistral", llm=llm, story=True)

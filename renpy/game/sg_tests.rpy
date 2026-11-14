@@ -528,3 +528,26 @@ testsuite sg_colors:
         pause 1.6
         screenshot f"colors_tag_{who}.png"
         run Jump("sg_select")
+
+
+## 이야기 모드(실험)의 긴 글: 지문과 대사가 여러 쪽으로 나뉘는지. 이야기 모드 가짜 모델 서버를 켜 두고 돌린다.
+##   SOGAETING_STORY=1 python3 -m sogaeting.server --fake --port 8101   (또는 --story)
+testcase sg_story_pages:
+    pause until screen "sg_select"
+    click "젬마"
+    pause until screen "sg_talk"
+    pause 2.5
+    screenshot "story_01_narration.png"
+    ## 긴 대사는 여러 쪽이고, 어느 쪽도 글자가 20보다 작아지지 않는다
+    assert eval (len(sg_view["say_pages"]) >= 2)
+    assert eval (all(p["size"] >= 20 for p in sg_view["narration_pages"] + sg_view["say_pages"]))
+    click id "sg_advance" until eval (renpy.get_screen("sg_talk").scope.get("stage") == "say")
+    pause 2.5
+    screenshot "story_02_say_p1.png"
+    click id "sg_advance"
+    pause 2.5
+    screenshot "story_03_say_p2.png"
+    click id "sg_advance" until id "sg_input"
+    pause 0.6
+    screenshot "story_04_choices_last_page.png"
+    exit

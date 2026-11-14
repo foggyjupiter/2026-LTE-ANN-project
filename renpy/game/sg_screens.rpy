@@ -427,6 +427,14 @@ style sg_placeholder_text:
     size 20
     color "#c9a9bf"
 
+style sg_page_count:
+    font gui.text_font
+    size 15
+    color "#b093ab"
+    xpos 1150
+    xanchor 1.0
+    ypos 662
+
 style sg_counter_text:
     font gui.text_font
     size 13
@@ -838,14 +846,31 @@ screen sg_talk(v, first):
     zorder 5
 
     default stage = first
+    default page = 0              # 지문이나 대사가 여러 쪽이면 지금 쪽 (sg_pages)
 
     $ nxt = sg_next_stage(v, stage)
+    $ pages = sg_stage_pages(v, stage)
+    $ more = page + 1 < pages     # 이 단계에 남은 쪽이 있다
     $ name = sg_esc(sg_char["name"])
     $ color = sg_char["color"]
     $ talking = stage in ("say", "choices", "finale")
+    ## 선택지와 결말 단계에서는 대사의 마지막 쪽을 띄워 둔다
+    $ say_page = v["say_pages"][min(page, len(v["say_pages"]) - 1)] if stage == "say" else v["say_pages"][-1]
+    $ narration_page = v["narration_pages"][min(page, len(v["narration_pages"]) - 1)]
 
-    ## 화면 어디를 눌러도 다음 단계로 넘어간다. 대사가 나오는 중이면 먼저 대사가 다 나온다.
-    if nxt:
+    ## 화면 어디를 눌러도 다음 쪽, 다음 단계로 넘어간다. 대사가 나오는 중이면 먼저 대사가 다 나온다.
+    if more:
+        button:
+            id "sg_advance"
+            xysize (1280, 720)
+            background None
+            keyboard_focus False
+            action [ Function(sg_sound, "sg_sfx", "next"), SetScreenVariable("page", page + 1) ]
+
+        key [ "K_SPACE", "K_RETURN", "K_KP_ENTER" ] action [
+            Function(sg_sound, "sg_sfx", "next"), SetScreenVariable("page", page + 1) ]
+
+    elif nxt:
         button:
             id "sg_advance"
             xysize (1280, 720)
@@ -855,6 +880,7 @@ screen sg_talk(v, first):
                         Function(sg_sound, "sg_sfx_score", v["popup"]),
                         Function(sg_sound, "sg_sfx", "next")),
                      SetScreenVariable("stage", nxt),
+                     SetScreenVariable("page", 0),
                      If(nxt == "say", SetVariable("sg_score_shown", v["score"]), NullAction()) ]
 
         key [ "K_SPACE", "K_RETURN", "K_KP_ENTER" ] action [
@@ -862,6 +888,7 @@ screen sg_talk(v, first):
                Function(sg_sound, "sg_sfx_score", v["popup"]),
                Function(sg_sound, "sg_sfx", "next")),
             SetScreenVariable("stage", nxt),
+            SetScreenVariable("page", 0),
             If(nxt == "say", SetVariable("sg_score_shown", v["score"]), NullAction()) ]
 
     ## 속마음: 스탠딩 왼쪽의 생각 풍선
@@ -924,21 +951,25 @@ screen sg_talk(v, first):
 
     elif stage == "narration":
         use sg_textbox():
-            text v["narration"] style "sg_narration_text" size v["narration_size"] slow_cps sg_text_cps
+            text narration_page["text"] style "sg_narration_text" size narration_page["size"] slow_cps sg_text_cps
 
     elif v["fallback"]:
         ## 대체 대사는 괄호로 싸인 지문이라 이름표 없이 지문처럼 보여 준다.
         use sg_textbox():
-            text v["say"] style v["say_style"] size v["say_size"]
+            text say_page["text"] style v["say_style"] size say_page["size"]
 
     else:
         use sg_textbox(name, color, raw_name=sg_char["name"]):
             if stage == "say":
-                text v["say"] style v["say_style"] size v["say_size"] slow_cps sg_text_cps
+                text say_page["text"] style v["say_style"] size say_page["size"] slow_cps sg_text_cps
             else:
-                text v["say"] style v["say_style"] size v["say_size"]
+                text say_page["text"] style v["say_style"] size say_page["size"]
 
-    if nxt:
+    ## 여러 쪽이면 몇 쪽째인지 대사창 오른쪽 아래에 적는다
+    if pages > 1:
+        text ("%d/%d" % (page + 1, pages)) style "sg_page_count"
+
+    if more or nxt:
         add "images/ui/gal_ctc.png" xpos 1172 ypos 656 at sg_ctc_blink
 
     ## 선택지와 직접 말하기: 대사창 바로 위, 오른쪽. 가운데에 두면 캐릭터의 얼굴을 가렸다.

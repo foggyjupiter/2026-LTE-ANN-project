@@ -8,6 +8,7 @@
 import argparse
 import http.server
 import json
+import os
 import pathlib
 import re
 import secrets
@@ -19,6 +20,7 @@ import urllib.parse
 
 from . import content, ranking
 from . import llm as model  # 인자 이름 llm과 헷갈리지 않게 다른 이름으로 부른다
+from . import director
 from .director import Session, save_result
 from .fake_llm import fake_llm
 
@@ -438,11 +440,15 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="python3 -m sogaeting.server", description="소개팅 화면을 띄우는 로컬 서버.")
     parser.add_argument("--fake", action="store_true", help="실제 모델 대신 가짜 모델을 쓴다")
+    parser.add_argument("--story", action="store_true",
+                        help="이야기 모드(실험): 답이 길고 캐릭터가 이야기를 끌고 간다, 답 12번")
     parser.add_argument("--host", default="127.0.0.1", help="서버가 들을 주소 (기본 127.0.0.1)")
     parser.add_argument("--port", type=int, default=8000, help="포트 번호 (기본 8000)")
     parser.add_argument("--results", default="results", metavar="DIR",
                         help="결과 파일을 쓸 폴더 (기본 results)")
     args = parser.parse_args(argv)
+    if args.story:
+        os.environ[director.STORY_ENV] = "1"  # 판(Session)을 만들 때 이 값을 보고 이야기 모드 진행표를 쓴다
 
     model.load_dotenv()
     try:
@@ -458,6 +464,8 @@ def main(argv=None) -> int:
     if host in ("", "0.0.0.0"):
         host = "localhost"
     print(f"소개팅 서버를 켰습니다: http://{host}:{port}/")
+    if director.story_mode_on():
+        print("이야기 모드(실험)로 진행합니다: 답 12번, 답이 길다.")
     if args.fake:
         print("가짜 모델로 진행합니다.")
     else:

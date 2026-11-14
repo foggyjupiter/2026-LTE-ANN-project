@@ -95,8 +95,19 @@ def fake_llm(messages: list[dict]) -> str:
         moved = "±0" if delta == 0 else f"{delta:+d}"
         inner = f"가짜 속마음 {turn}번: 글자 수 {len(last_user)} → 점수 {moved}칸"
         reason = f"글자 수가 {len(last_user)}개라서"
+    narration = "가짜 모델이 등장했다." if turn == 0 else f"가짜 모델의 {turn}번째 답이다." + _event_note(system)
+    if "[이야기 모드]" in system:
+        # 이야기 모드는 답이 길다. 화면이 긴 글을 여러 쪽으로 나누는지 볼 수 있게 길게 쓴다
+        narration += (" 창밖으로 운동장의 함성이 멀리서 들려왔고, 복도 끝 창문으로 늦은 오후의 햇빛이 길게 들어왔다."
+                      " 가짜 모델은 손에 든 수첩을 만지작거리다가 한 걸음 다가와 전학생 쪽을 바라보았다."
+                      " 무언가 말하려다 멈추고, 다시 용기를 내는 얼굴이었다.")
+        if not _SHORT_SAY_RE.search(system):
+            say += (" 있잖아, 아까부터 하고 싶은 말이 있었어. 이 학교에는 아무도 모르는 옥상 정원이 있거든."
+                    " 거기서 보는 노을이 진짜 예뻐서, 나 혼자 몰래 자주 가. 아직 아무한테도 말 안 했어."
+                    " 그런데 왠지 너한테는 보여 주고 싶어졌어. 수업 끝나면 같이 가 볼래? 싫으면 매점이라도 괜찮아."
+                    " 아, 너무 갑자기였나. 그래도 대답은 천천히 해 줘도 돼.")
     return json.dumps({
-        "narration": "가짜 모델이 등장했다." if turn == 0 else f"가짜 모델의 {turn}번째 답이다." + _event_note(system),
+        "narration": narration,
         "say": say,
         "inner": inner,
         "face": _FACE_BY_DELTA[delta],

@@ -42,6 +42,11 @@ BLUSH_LIMIT = 4  # 한 판에 붉어진 얼굴(blush)을 이만큼까지만 낸�
 # 이야기 모드(실험, 2026-11-14): 이 환경변수가 비어 있지 않고 0이 아니면 답을 길게 쓰고 캐릭터가 이야기를 끌고
 # 가는 진행표(data/schedule_story.json, 답 12번)를 쓴다. 친구의 의견("노잼, Zeta처럼 대화가 길었으면")으로 만든 실험이다
 STORY_ENV = "SOGAETING_STORY"
+# 이야기 모드에서 답마다 움직이는 점수에 곱하는 값. 답이 12번이고(지금 10번) 캐릭터가 꺼낸 제안을 받아 주다가
+# 바람을 짚는 일이 많아서 점수가 더 올랐다. 실전 시험(2026-11-14, 평범한 참가자 역할, 3캐릭터씩): 지금 방식
+# 평균 73.9점, 이야기 모드 82.8점(같은 표로 다시 매긴 값). 오른 몫(23.9점과 32.8점)의 비가 0.73이라 0.75로 둔다.
+# 3판씩이라 어림값이다
+STORY_POINTS_SCALE = 0.75
 
 
 def story_mode_on() -> bool:
@@ -109,6 +114,8 @@ class Session:
         hit = self.character.get("hit_points")
         if isinstance(hit, int) and not isinstance(hit, bool) and HIT_POINTS_RANGE[0] <= hit <= HIT_POINTS_RANGE[1]:
             self.points[2] = hit
+        if self.story:
+            self.points = {step: points * STORY_POINTS_SCALE for step, points in self.points.items()}
         self._from_choice = False  # 이번 입력이 그 선택지 가운데 하나와 같은가
         self._ending = None
         self._finished_at = None

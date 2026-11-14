@@ -302,6 +302,72 @@ init -5 python:
                 return size
         return sizes[-1]
 
+    ## 긴 글은 여러 쪽으로 나눈다. 이야기 모드(지문 2-3문장, 겉말 3-5문장)에서는 글자를 줄여도 대사창에
+    ## 다 들어가지 않거나 너무 작아졌다. 한 쪽에 들어가면 지금처럼 큰 글자로 한 쪽, 안 들어가면 문장 단위로 나눈다
+    ## 나눈 쪽의 글자 크기. 대사는 24(대사창에 세 줄), 지문은 22. 22로 대사 네 줄을 채우면 글이 빽빽해서
+    ## 읽기 힘들었다(2026-11-14 캡처)
+    SG_PAGE_SIZE = 24
+    SG_SENTENCE_END = re.compile(r"[.!?\u2026]+[\"'\u201d\u2019)\]]*\s+")   # 문장 끝 부호(말줄임표 포함), 닫는 따옴표, 공백
+
+    def sg_split_sentences(markup):
+        """Ren'Py 글을 문장으로 나눈다. 글자 꾸밈({color}...{/color})이 열려 있는 자리에서는 자르지 않는다."""
+        pieces = [ ]
+        start = 0
+        depth = 0
+        i = 0
+        n = len(markup)
+        while i < n:
+            ch = markup[i]
+            if ch == "{":
+                if markup.startswith("{{", i):        # 글자 그대로의 중괄호
+                    i += 2
+                    continue
+                end = markup.find("}", i)
+                if end < 0:
+                    break
+                tag = markup[i + 1:end]
+                if tag.startswith("/"):
+                    depth = max(0, depth - 1)
+                elif not tag.startswith(("image", "w", "p", "nw", "fast", "space", "vspace")):
+                    depth += 1                       # 닫는 짝이 있는 꾸밈만 센다
+                i = end + 1
+                continue
+            if depth == 0:
+                m = SG_SENTENCE_END.match(markup, i)
+                if m:
+                    pieces.append(markup[start:m.end()].strip())
+                    start = i = m.end()
+                    continue
+            i += 1
+        rest = markup[start:].strip()
+        if rest:
+            pieces.append(rest)
+        return [ p for p in pieces if p ]
+
+    def sg_pages(markup, style, width, height, sizes, page_size=SG_PAGE_SIZE):
+        """글을 대사창 쪽들로 나눈다. [{"text": 글, "size": 글자 크기}].
+
+        sizes 가운데 하나로 한 쪽에 들어가면 그 한 쪽. 아니면 page_size 로 문장을 차례로 담아 쪽을 채운다.
+        한 문장이 혼자서도 안 들어가면 그 쪽만 글자를 더 줄인다(sg_fit_size)."""
+        if not markup:
+            return [ { "text": "", "size": sizes[0] } ]
+        for size in sizes:
+            if sg_text_height(markup, style, width, size) <= height:
+                return [ { "text": markup, "size": size } ]
+        pages = [ ]
+        current = ""
+        for sentence in sg_split_sentences(markup):
+            candidate = (current + " " + sentence).strip() if current else sentence
+            if current and sg_text_height(candidate, style, width, page_size) > height:
+                pages.append(current)
+                current = sentence
+            else:
+                current = candidate
+        if current:
+            pages.append(current)
+        smaller = tuple(n for n in (page_size, 22, 20, 18, 16) if n <= page_size)
+        return [ { "text": page, "size": sg_fit_size(page, style, width, height, smaller) } for page in pages ]
+
     def sg_curve_height(epilogue, epilogue_size, best, best_size):
         """엔딩 카드에 넣을 호감도 곡선의 높이. 후일담과 명대사가 길수록 낮춰서 아래 단추와 부딪치지 않게 한다.
 
@@ -377,9 +443,11 @@ init -5 python:
             "heard": sg_esc(heard),
             "narration": sg_esc(narration),
             "narration_size": sg_fit_size(sg_esc(narration), "sg_narration_text", 1092, 112, (24, 22, 20, 18)),
+            "narration_pages": sg_pages(sg_esc(narration), "sg_narration_text", 1092, 112, (24, 22), 22),
             "say": say,
             "say_style": say_style,
             "say_size": sg_fit_size(say, say_style, 1092, 112, (26, 24, 22, 20, 18, 16)),
+            "say_pages": sg_pages(say, say_style, 1092, 112, (26, 24)),
             "inner": inner_markup,
             "inner_size": sg_fit_size(inner_markup, "sg_bubble_text", 254, 250, (19, 17, 15, 13)),
             "masked": masked is not None,
@@ -394,6 +462,14 @@ init -5 python:
             # label은 화면에 찍을 글, raw는 서버에 그대로 보낼 글
             "choices": [ { "label": sg_esc(c), "raw": c } for c in choices[:3] ],
         }
+
+    def sg_stage_pages(view, stage):
+        """그 단계의 쪽 수. 지문과 대사만 여러 쪽일 수 있다."""
+        if stage == "narration":
+            return len(view.get("narration_pages") or [ None ])
+        if stage == "say":
+            return len(view.get("say_pages") or [ None ])
+        return 1
 
     def sg_next_stage(view, stage):
         """대화 화면에서 눌렀을 때 넘어갈 다음 단계. 더 넘어갈 곳이 없으면 None."""
