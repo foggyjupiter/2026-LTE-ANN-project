@@ -160,10 +160,10 @@ xvfb-run -a python3 run_booth.py --fake --windowed
 
   | 상황 | 파일 | 편곡 |
   |---|---|---|
-  | 고르기 화면 | `game/audio/bgm_menu.ogg` | 신나는 디스코 뱀프: 트럼펫, 알토 색소폰, 피아노 (120 BPM, 약 2분 41초) |
-  | 대화 중, 호감도 보통 | `game/audio/bgm_talk.ogg` | 잔잔한 오케스트라 편곡, 피아노 주선율 (104 BPM, 약 3분) |
-  | 대화 중, 호감도 65점 이상 | `game/audio/bgm_high.ogg` | 들뜬 펑크 뱀프 (116 BPM, 약 2분 42초) |
-  | 대화 중, 호감도 40점 미만 | `game/audio/bgm_low.ogg` | 단조, 피아노와 현 (79 BPM, 약 3분 52초) |
+  | 고르기 화면 | `game/audio/bgm_menu.ogg` | 신나는 뱀프를 피아노로: 주선율 플루트, 비브라폰, 클라리넷, 현, 드럼 (120 BPM, 약 2분 41초) |
+  | 대화 중, 호감도 보통 | `game/audio/bgm_talk.ogg` | 잔잔하게: 피아노 주선율, 플루트, 클라리넷, 나일론 기타, 하프, 현, 브러시 드럼 (104 BPM, 약 3분) |
+  | 대화 중, 호감도 65점 이상 | `game/audio/bgm_high.ogg` | 들뜬 뱀프: 일렉트릭 피아노 주선율, 비브라폰, 클린 기타, 피아노, 현, 드럼 (116 BPM, 약 2분 42초) |
+  | 대화 중, 호감도 40점 미만 | `game/audio/bgm_low.ogg` | 단조: 피아노, 바이올린, 나일론 기타, 하프, 현 (79 BPM, 약 3분 52초) |
   | 엔딩 | 배경음을 줄이고 엔딩 음을 들려준다 | |
 
   - 곡은 1.5초 동안 겹치며 바뀐다. 구간 경계에서 곡이 자꾸 바뀌지 않게 들어갈 때와 나올 때 5점 차이를 둔다(65점에 들뜬 곡으로 들어가면 60점 아래로 내려가야 돌아온다).
@@ -173,11 +173,12 @@ xvfb-run -a python3 run_booth.py --fake --windowed
     - 대화 보통: `--key C --mood peaceful --tempo 104 --motif-chords "C | Dm7 | Em | G"`
     - 호감도 높음: `--key C --mood vamp --ensemble funk --tempo 116 --motif-chords "C | Dm7 | Em | G"`
     - 호감도 낮음: `--key Cm --mood sad` (모티프 코드는 도구에 맡김)
-    - 렌더링: `python -m tools.render_audio out/<번호>/song.mid --soundfont sgm -o bgm_<상황>.ogg`
-  - 사용자 의견으로 바꾼 것: 모티프의 코드를 도구에 맡기면 Am - Dm7 - G로 붙어서 침울했다(코드를 C - Dm7 - Em - G로 정함). 클라이맥스 앞에서 주선율이 반음씩 올라가는 변화구는 뺐다(`--climb off`). 고르기 화면 곡은 신나는 뱀프로 했다.
+    - 악기 바꾸기: `python3 dev/music/set_instruments.py out/<번호> <menu|talk|high|low> <내보낼 폴더>` (mido 필요). 트랙 이름의 역할(Lead 1, Ostinato 1 등)마다 스크립트 맨 위 표의 악기로 바꾼다. 음과 리듬은 그대로다.
+    - 렌더링: `python -m tools.render_audio <내보낼 폴더>/song.mid --soundfont sgm -o bgm_<상황>.ogg`
+  - 사용자 의견으로 바꾼 것: 모티프의 코드를 도구에 맡기면 Am - Dm7 - G로 붙어서 침울했다(코드를 C - Dm7 - Em - G로 정함). 클라이맥스 앞에서 주선율이 반음씩 올라가는 변화구는 뺐다(`--climb off`). 고르기 화면 곡은 신나는 뱀프로 하고 뱀프를 피아노로 쳤다. 도구가 고른 편성에 합창(아카펠라), 신스, 칩 사각파가 섞여 게임과 안 어울려서, 곡을 만든 뒤 모든 트랙을 피아노, 기타, 플루트, 클라리넷, 비브라폰, 하프, 현 같은 악기로 바꿨다(`dev/music/set_instruments.py`). 반복 음형에는 메아리를 걸지 않았다.
   - 채보 자료는 쓰지 않았다. 이 도구는 기본으로 코드 진행, 반주 음형(오스티나토), 베이스, 드럼 패턴 일부를 원곡 채보에서 가져오는데, 그 비율(`data.share`)을 모두 0으로 바꾼 프로파일(`dev/music/game_ost_handmade.json`)로 만들었다. 주선율을 칩 사각파로 바꿀 확률(`ensembles.lead.chip_share`)도 0으로 두었다. 멜로디와 편곡은 도구의 규칙과 확률로 새로 만든 것이다.
-  - 소리는 SGM-V2.01 사운드폰트와 그 레포에 들어 있는 자체 칩 사운드폰트(`soundfonts/chip_leads.sf2`)만 썼다. 원곡 게임 사운드폰트는 라이선스 때문에 받지 않았다(도구가 고른 게임 음색은 SGM의 같은 번호 악기로 나온다).
-  - 곡마다의 MIDI는 `dev/music/bgm_<상황>.mid` 에 있다.
+  - 소리는 SGM-V2.01 사운드폰트의 일반 악기(뱅크 0)와 드럼 세트만 썼다. 원곡 게임 사운드폰트는 라이선스 때문에 받지 않았다.
+  - 곡마다의 MIDI(악기를 바꾼 뒤)는 `dev/music/bgm_<상황>.mid` 에 있다.
 - 음량은 `game/sg_audio.rpy` 맨 위의 `sg_sfx_volume`, `sg_bgm_volume` 으로 맞춘다.
 - 소리를 전부 끄려면 환경변수 `SOGAETING_MUTE=1` 을 주고 켠다.
 - 이 소리들은 만든 환경에서 귀로 들어 보지 못했다. 부스 PC에서 처음 켤 때 작은 음량으로 들어 보고 맞춘다.
