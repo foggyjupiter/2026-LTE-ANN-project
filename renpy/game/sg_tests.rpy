@@ -27,6 +27,7 @@ testcase sg_flow:
     screenshot "flow_01_select.png"
     ## 고르기 화면에서는 menu 곡 (소리를 끈 실행이면 아무 곡도 없다)
     assert eval (sg_audio_muted or sg_bgm_now == "menu")
+    assert eval (sg_audio_muted or sg_bgm_channel_now == "sg_bgm_a")
 
     ## 카드에 마우스를 올리면 떠오르며 빛난다
     move "미스트랄"
@@ -39,6 +40,8 @@ testcase sg_flow:
     screenshot "flow_02_narration.png"
     ## 대화가 시작되면 호감도 구간의 곡으로 바뀐다 (시작은 50점이라 talk)
     assert eval (sg_audio_muted or sg_bgm_now == "talk")
+    ## 새 곡은 다른 채널에서 커지고 앞 곡은 원래 채널에서 줄어든다 (두 곡이 겹치며 바뀐다)
+    assert eval (sg_audio_muted or sg_bgm_channel_now == "sg_bgm_b")
     assert eval (sg_bgm_mood_for(70, "talk") == "high" and sg_bgm_mood_for(62, "high") == "high" and sg_bgm_mood_for(58, "high") == "talk")
     assert eval (sg_bgm_mood_for(38, "talk") == "low" and sg_bgm_mood_for(43, "low") == "low" and sg_bgm_mood_for(46, "low") == "talk")
 

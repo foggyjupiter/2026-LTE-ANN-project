@@ -108,8 +108,15 @@ define sg_bgm_high_in = 65
 define sg_bgm_high_out = 60
 define sg_bgm_low_in = 40
 define sg_bgm_low_out = 45
-## 곡을 바꿀 때 앞 곡이 줄어들고 새 곡이 커지는 시간(초)
-define sg_bgm_fade = 1.5
+## 곡을 바꿀 때 새 곡이 커지는 시간과 앞 곡이 줄어드는 시간(초). 두 곡이 겹치며 바뀐다.
+## Ren'Py의 페이드는 dB로 고르게 움직인다(2026-11-14 사인파로 잼: 페이드 시간 동안 약 -36dB에서 0dB까지).
+## 그래서 둘을 같은 시간으로 겹치면 한가운데서 합친 소리가 15dB나 꺼진다. 앞 곡은 천천히(4초) 줄이고
+## 새 곡은 빨리(1.2초) 키워 꺼짐을 6dB 안으로 줄인다. 대화 중 곡은 반복 음형만 나오는 조용한 두 마디로
+## 시작해서, 앞 곡의 꼬리와 겹쳐도 덜 부딪힌다
+define sg_bgm_fade_in = 1.2
+define sg_bgm_fade_out = 4.0
+## 엔딩에서 배경음을 줄이는 시간(초). 엔딩 음과 오래 겹치지 않게 짧게 둔다
+define sg_bgm_ending_fade = 1.5
 
 
 ## 다른 파일의 스타일과 sg_fx_play 가 다 만들어진 뒤에 돌아야 하므로 순서를 늦춘다.
@@ -313,8 +320,15 @@ init 900 python:
     ##
     ## options.rpy 가 config.has_music 을 꺼 두어서 기본 music 채널은 음량 조절이 안 된다.
     ## 그래서 음량(music 믹서)을 따르는 채널을 따로 둔다.
+    ##
+    ## 채널은 둘이다. 한 채널에서 곡을 바꾸면 앞 곡이 다 줄어든 뒤에야 새 곡이 시작해서, 그 사이에
+    ## 소리가 거의 끊긴다(2026-11-14 SDL disk 출력으로 확인: 1.5초 줄고, 거의 무음, 1.5초 커짐).
+    ## 새 곡은 쉬고 있는 채널에서 커지게 하고 앞 곡은 원래 채널에서 줄여서 두 곡이 겹치며 바뀌게 한다.
 
-    renpy.music.register_channel("sg_bgm", mixer="music", loop=True)
+    sg_bgm_channels = ("sg_bgm_a", "sg_bgm_b")
+    for sg_audio_channel in sg_bgm_channels:
+        renpy.music.register_channel(sg_audio_channel, mixer="music", loop=True)
+    sg_audio_channel = None
 
     def sg_audio_first_loadable(names):
         for name in names:
@@ -334,17 +348,28 @@ init 900 python:
 
     ## 지금 나오는 상황 이름 (menu, talk, high, low). 엔딩에서 줄였으면 None
     sg_bgm_now = None
+    ## 지금 곡이 나오는 채널과 파일. 곡이 없으면 None
+    sg_bgm_channel_now = None
+    sg_bgm_path_now = None
 
     def sg_bgm_play(mood):
-        """그 상황의 곡으로 바꾼다. 같은 파일이 이미 나오고 있으면 그대로 둔다."""
-        global sg_bgm_now
+        """그 상황의 곡으로 바꾼다. 같은 파일이 이미 나오고 있으면 그대로 둔다.
+
+        새 곡은 쉬고 있는 채널에서 처음부터 커지고, 앞 곡은 그동안 줄어든다."""
+        global sg_bgm_now, sg_bgm_channel_now, sg_bgm_path_now
         try:
             path = sg_bgm_paths.get(mood)
             if path is None:
                 return
-            renpy.music.play(path, channel="sg_bgm", loop=True, fadein=sg_bgm_fade,
-                             fadeout=sg_bgm_fade, if_changed=True)
-            sg_bgm_now = mood
+            if path == sg_bgm_path_now and sg_bgm_channel_now is not None:
+                sg_bgm_now = mood
+                return
+            old = sg_bgm_channel_now
+            new = sg_bgm_channels[1] if old == sg_bgm_channels[0] else sg_bgm_channels[0]
+            renpy.music.play(path, channel=new, loop=True, fadein=sg_bgm_fade_in, fadeout=0)
+            if old is not None:
+                renpy.music.stop(channel=old, fadeout=sg_bgm_fade_out)
+            sg_bgm_now, sg_bgm_channel_now, sg_bgm_path_now = mood, new, path
         except Exception:
             sg_audio_oops("sg_bgm_play")
 
@@ -375,10 +400,11 @@ init 900 python:
 
     def sg_bgm_ending():
         """엔딩: 배경음을 줄여서 엔딩 음이 들리게 한다. 고르기 화면으로 돌아가면 menu 곡이 다시 나온다."""
-        global sg_bgm_now
+        global sg_bgm_now, sg_bgm_channel_now, sg_bgm_path_now
         try:
-            renpy.music.stop(channel="sg_bgm", fadeout=sg_bgm_fade)
-            sg_bgm_now = None
+            for channel in sg_bgm_channels:
+                renpy.music.stop(channel=channel, fadeout=sg_bgm_ending_fade)
+            sg_bgm_now = sg_bgm_channel_now = sg_bgm_path_now = None
         except Exception:
             sg_audio_oops("sg_bgm_ending")
 
