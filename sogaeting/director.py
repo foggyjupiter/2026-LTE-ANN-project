@@ -20,6 +20,8 @@ START_SCORE = 50
 POINTS = {2: 8, 1: 2, 0: 0, -1: -5, -2: -10}
 # 글자(한글, 영문, 숫자)가 이만큼 이하인 말("응", "별로", "ㅋㅋ")은 호감도를 올리지 않는다
 SHORT_INPUT = 2
+# 점수 사유에서 바람(wish)을 가리키는 말. 날씨의 바람("바람이 불어서")은 건드리지 않는다
+WISH_REASON_RE = re.compile(r"바람(을|대로|에\s?맞|이\s?이루)|wish", re.IGNORECASE)
 BLUSH_LIMIT = 4  # 한 판에 붉어진 얼굴(blush)을 이만큼까지만 낸다. 그 뒤는 smile
 
 
@@ -217,6 +219,10 @@ class Session:
             for name in ("narration", "say", "inner", "reason"):
                 setattr(reply, name, getattr(reply, name).replace("주인공", "전학생"))
             reply.narration = actor.plain_narration(reply.narration)
+            # 점수 사유는 화면에 뜬다. 숨은 칸(wish)의 이름인 "바람"이 새면 흔한 사유로 바꾼다.
+            # 실전 기록: "바람대로 손끝이 닿았음", "소나기와 함께 기대고 싶다는 바람을 짚어줘서"
+            if WISH_REASON_RE.search(reply.reason):
+                reply.reason = "마음을 알아줘서"
             # 소라는 대사에서 호칭을 일부러 틀리게 부르는데(정학생, 전학새, 전화생), 지문에까지 옮겨 썼다
             for slip in ("정학생", "전학새", "전화생"):
                 reply.narration = reply.narration.replace(slip, "전학생")

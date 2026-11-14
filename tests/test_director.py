@@ -628,6 +628,15 @@ class OffstageTest(unittest.TestCase):
         session.start()
         self.assertFalse(session.reply("심심한데 야한 얘기 할까?")["fallback"])
 
+    def test_wish_word_in_reason_is_replaced(self):
+        for reason in ("바람대로 손끝이 닿았음", "기대고 싶다는 바람을 짚어줘서", "wish를 들어줘서"):
+            session = Session("mistral", llm=ScriptedLlm(turns={1: {"reason": reason}}))
+            session.start()
+            self.assertEqual(session.reply("안녕, 반가워")["reason"], "마음을 알아줘서", reason)
+        session = Session("mistral", llm=ScriptedLlm(turns={1: {"reason": "바람이 불어서 웃음"}}))
+        session.start()
+        self.assertEqual(session.reply("안녕, 반가워")["reason"], "바람이 불어서 웃음")  # 날씨는 그대로
+
     def test_sora_call_slip_is_fixed_only_in_narration(self):
         llm = ScriptedLlm(turns={1: {"narration": "소라와 정학생만 남았다.", "say": "정학생, 같이 있자아."}})
         session = Session("sora", llm=llm)
