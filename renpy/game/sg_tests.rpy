@@ -25,6 +25,8 @@ testcase sg_flow:
     pause until screen "sg_select"
     pause 0.8
     screenshot "flow_01_select.png"
+    ## 고르기 화면에서는 menu 곡 (소리를 끈 실행이면 아무 곡도 없다)
+    assert eval (sg_audio_muted or sg_bgm_now == "menu")
 
     ## 카드에 마우스를 올리면 떠오르며 빛난다
     move "미스트랄"
@@ -35,6 +37,10 @@ testcase sg_flow:
     pause until screen "sg_talk"
     pause 0.8
     screenshot "flow_02_narration.png"
+    ## 대화가 시작되면 호감도 구간의 곡으로 바뀐다 (시작은 50점이라 talk)
+    assert eval (sg_audio_muted or sg_bgm_now == "talk")
+    assert eval (sg_bgm_mood_for(70, "talk") == "high" and sg_bgm_mood_for(62, "high") == "high" and sg_bgm_mood_for(58, "high") == "talk")
+    assert eval (sg_bgm_mood_for(38, "talk") == "low" and sg_bgm_mood_for(43, "low") == "low" and sg_bgm_mood_for(46, "low") == "talk")
 
     ## 지문 → 대사
     click id "sg_advance"
@@ -128,9 +134,12 @@ testcase sg_flow:
     pause until screen "sg_ending"
     pause 1.2
     screenshot "flow_10_ending.png"
+    ## 엔딩에서는 배경음을 줄이고 엔딩 음을 들려준다
+    assert eval (sg_bgm_now is None)
 
     click "다른 캐릭터 고르기"
     pause until screen "sg_select"
+    assert eval (sg_audio_muted or sg_bgm_now == "menu")
     pause 0.6
     screenshot "flow_11_back_to_select.png"
     exit

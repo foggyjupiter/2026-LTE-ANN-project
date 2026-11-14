@@ -4,12 +4,16 @@
 ## 이 파일은 다른 .rpy 를 고치지 않고 소리를 붙인다.
 ##   단추 소리    sg_screens.rpy 의 단추 스타일에 activate_sound, hover_sound 를 얹는다
 ##   연출 소리    sg_fx.rpy 의 sg_fx_play 를 감싼다. sg_fx.rpy 가 없으면 아무 일도 없다
-##   배경음       audio/bgm.ogg (또는 bgm.mp3)가 있으면 고르기 화면부터 되풀이 재생한다
+##   배경음       상황마다 곡을 바꾼다. 고르기 화면은 menu, 대화 중에는 호감도에 따라 talk, high, low,
+##                엔딩에서는 배경음을 줄이고 엔딩 음을 들려준다. 네 곡은 같은 모티프의 다른 편곡이다.
+##                상황별 파일이 없으면 audio/bgm.ogg (또는 bgm.mp3) 한 곡을 계속 튼다
 ##
 ## 다른 파일에서 부르는 것. 전부 아무것도 돌려주지 않고, 파일이나 소리 장치가 없어도 조용히 지나간다.
 ##   sg_sfx(name)              효과음 하나. name 은 아래 sg_sounds 의 이름
 ##   sg_sfx_score(change)      호감도 변화. 숫자나 팝업 글("+7", "-14", "±0", "NaN")을 준다
 ##   sg_sfx_ending(band_id)    엔딩 등장. "great", "good" 은 팡파르, 나머지는 차분한 음
+##   sg_bgm_for_score(score)   대화 중 배경음을 호감도에 맞춘다 (sg_core.rpy 의 sg_enter_turn 이 부른다)
+##   sg_bgm_ending()           엔딩에서 배경음을 줄인다
 ##   SgSfx(name), SgSfxScore(change)    화면의 action 목록에 넣는 꼴
 ##
 ## 환경변수 SOGAETING_MUTE=1 이면 효과음과 배경음을 모두 끈다.
@@ -85,8 +89,27 @@ define sg_ending_sounds = {
     "good": "end_good",
 }
 
-## 배경음 파일. 앞에서부터 찾아서 처음 있는 것을 쓴다. 하나도 없으면 배경음이 없다.
+## 상황별 배경음. 같은 모티프(renpy/dev/music/motif.mid)로 분위기만 바꿔 만든 곡이다.
+##   menu  고르기 화면. 뮤직박스, 첼레스타
+##   talk  대화 중, 호감도 보통
+##   high  대화 중, 호감도가 높을 때. 들뜬 편곡
+##   low   대화 중, 호감도가 낮을 때. 단조로 가라앉은 편곡
+define sg_bgm_moods = {
+    "menu": "audio/bgm_menu.ogg",
+    "talk": "audio/bgm_talk.ogg",
+    "high": "audio/bgm_high.ogg",
+    "low": "audio/bgm_low.ogg",
+}
+## 상황별 파일이 없을 때 대신 쓰는 한 곡. 앞에서부터 찾아서 처음 있는 것을 쓴다.
 define sg_bgm_files = ("audio/bgm.ogg", "audio/bgm.mp3")
+## 호감도 구간. 서버의 구간(sogaeting/director.py band_of: 40, 65)과 같다. 경계에서 곡이 자꾸 바뀌지 않게
+## 들어갈 때와 나올 때 5점 차이를 둔다 (65점에 high로 들어가면 60점 아래로 내려가야 talk로 돌아온다)
+define sg_bgm_high_in = 65
+define sg_bgm_high_out = 60
+define sg_bgm_low_in = 40
+define sg_bgm_low_out = 45
+## 곡을 바꿀 때 앞 곡이 줄어들고 새 곡이 커지는 시간(초)
+define sg_bgm_fade = 1.5
 
 
 ## 다른 파일의 스타일과 sg_fx_play 가 다 만들어진 뒤에 돌아야 하므로 순서를 늦춘다.
@@ -293,24 +316,71 @@ init 900 python:
 
     renpy.music.register_channel("sg_bgm", mixer="music", loop=True)
 
-    sg_bgm_file = None
-    if not sg_audio_muted:
-        for sg_audio_name in sg_bgm_files:
+    def sg_audio_first_loadable(names):
+        for name in names:
             try:
-                if renpy.loadable(sg_audio_name):
-                    sg_bgm_file = sg_audio_name
-                    break
+                if renpy.loadable(name):
+                    return name
             except Exception:
                 pass
-    sg_audio_name = None
+        return None
+
+    sg_bgm_file = None if sg_audio_muted else sg_audio_first_loadable(sg_bgm_files)
+    sg_bgm_paths = { }
+    if not sg_audio_muted:
+        for sg_audio_name, sg_audio_path in sg_bgm_moods.items():
+            sg_bgm_paths[sg_audio_name] = sg_audio_first_loadable((sg_audio_path,)) or sg_bgm_file
+    sg_audio_name = sg_audio_path = None
+
+    ## 지금 나오는 상황 이름 (menu, talk, high, low). 엔딩에서 줄였으면 None
+    sg_bgm_now = None
+
+    def sg_bgm_play(mood):
+        """그 상황의 곡으로 바꾼다. 같은 파일이 이미 나오고 있으면 그대로 둔다."""
+        global sg_bgm_now
+        try:
+            path = sg_bgm_paths.get(mood)
+            if path is None:
+                return
+            renpy.music.play(path, channel="sg_bgm", loop=True, fadein=sg_bgm_fade,
+                             fadeout=sg_bgm_fade, if_changed=True)
+            sg_bgm_now = mood
+        except Exception:
+            sg_audio_oops("sg_bgm_play")
 
     def sg_bgm_start():
-        """배경음 파일이 있으면 되풀이 재생한다. 이미 나오고 있으면 그대로 둔다."""
+        """고르기 화면의 배경음을 튼다."""
+        sg_bgm_play("menu")
+
+    def sg_bgm_mood_for(score, now):
+        """호감도와 지금 상황으로 대화 중의 곡을 고른다. 경계에서는 지금 곡을 조금 더 붙든다."""
+        if not isinstance(score, (int, float)) or isinstance(score, bool):
+            return now if now in ("talk", "high", "low") else "talk"
+        if now == "high":
+            return "high" if score >= sg_bgm_high_out else ("low" if score < sg_bgm_low_in else "talk")
+        if now == "low":
+            return "low" if score < sg_bgm_low_out else ("high" if score >= sg_bgm_high_in else "talk")
+        if score >= sg_bgm_high_in:
+            return "high"
+        if score < sg_bgm_low_in:
+            return "low"
+        return "talk"
+
+    def sg_bgm_for_score(score):
+        """대화 중 배경음을 호감도에 맞춘다."""
         try:
-            if sg_bgm_file is not None:
-                renpy.music.play(sg_bgm_file, channel="sg_bgm", loop=True, fadein=1.0, if_changed=True)
+            sg_bgm_play(sg_bgm_mood_for(score, sg_bgm_now))
         except Exception:
-            sg_audio_oops("sg_bgm_start")
+            sg_audio_oops("sg_bgm_for_score")
+
+    def sg_bgm_ending():
+        """엔딩: 배경음을 줄여서 엔딩 음이 들리게 한다. 고르기 화면으로 돌아가면 menu 곡이 다시 나온다."""
+        global sg_bgm_now
+        try:
+            renpy.music.stop(channel="sg_bgm", fadeout=sg_bgm_fade)
+            sg_bgm_now = None
+        except Exception:
+            sg_audio_oops("sg_bgm_ending")
 
     def sg_audio_on_label(name, abnormal):
         """고르기 화면(label sg_select)에 들어올 때 배경음을 켠다."""

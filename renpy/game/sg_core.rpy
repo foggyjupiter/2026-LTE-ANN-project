@@ -529,6 +529,8 @@ init -5 python:
         if store.sg_first_stage == "say":
             store.sg_score_shown = view["score"]
             sg_sound("sg_sfx_score", view["popup"])
+        # 배경음을 호감도 구간에 맞춘다 (등장 턴이면 고르기 화면의 곡에서 대화 곡으로 넘어간다)
+        sg_sound("sg_bgm_for_score", view["score"])
 
         place = sg_str(turn.get("place"))
         first = view["turn"] == 0
@@ -559,6 +561,7 @@ init -5 python:
         sg_show_char(store.sg_char["id"], face, at=store.sg_char_left)
         sg_stage_call("sg_stage_ending", store.sg_end_view["band_id"])
         renpy.transition(sg_stage_trans("ending", Dissolve(0.3)))
+        sg_sound("sg_bgm_ending")
         sg_sound("sg_sfx_ending", store.sg_end_view["band_id"])
 
     ############################################################################
