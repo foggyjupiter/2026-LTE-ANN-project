@@ -86,7 +86,7 @@ init -5 python:
     def sg_num(value, fallback=0.0):
         """호감도 같은 소수 한 자리 수. 숫자가 아니거나 NaN, 무한대면 fallback.
 
-        서버의 호감도는 반응의 세기를 곱해 소수 한 자리까지 움직인다(sogaeting/director.py STRENGTH_SCALE)."""
+        서버의 호감도는 설렘(0-100)을 곱해 소수 한 자리까지 움직인다(sogaeting/director.py strength_scale)."""
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             return fallback
         if value != value or value in (float("inf"), float("-inf")):

@@ -22,22 +22,24 @@ POINTS = {2: 8, 1: 2, 0: 0, -1: -5, -2: -10}
 # 캐릭터 데이터의 hit_points가 있으면 바라던 말(+2)의 점수를 그 값으로 바꾼다. 속마음 힌트가 잘 보이는
 # 캐릭터일수록 낮다. 실전 기록(Claude가 직접 해 본 6판): +8일 때 넷이 100점, 미스트랄 98, 하이쿠 90점이었다
 HIT_POINTS_RANGE = (3, 10)
-# 반응의 세기(actor의 strength, 1-5)마다 위 점수에 곱하는 값. 보통(3)이면 그대로다.
-# 순위 경쟁에서 같은 점수가 덜 나오게 하려고 더했다(사용자, 2026-11-14). 칸만으로 움직이면 다정하게 한
-# 실전 시험 6판 가운데 3판이 똑같이 66점이었다. 점수는 소수 한 자리까지 쓴다
-STRENGTH_SCALE = {1: 0.6, 2: 0.8, 3: 1.0, 4: 1.2, 5: 1.4}
-# 바라던 말(+2)의 설렘 배수. 바람을 짚었다는 것만으로 크게 오르지 않고, 얼마나 설레게 했는지에 따라
-# hit_points의 0.4-1.1배가 된다(사용자, 2026-11-14: "원하는 말만 한다고 많이 오르는 게 아니게").
-# 지시문에서 짚은 것(delta)과 설렘(strength)을 따로 매기게 하고 기준을 적었지만, 실전 시험(2026-11-14, 새 지시문)
-# 에서도 모델은 속마음을 읽는 참가자의 바라던 말 20번 가운데 17번에 5를 줬다. 다정한 말(+1)에는 세기를 갈라서
-# 줬다(다정한 각본은 3이 33번, 속마음을 읽는 참가자는 4-5가 33번). 5를 1.25배로 두면 속마음을 읽는 참가자가
-# 평균 89.0점이라, 같은 대화를 다시 매겨 86점 언저리(앞 시험의 목표)가 되는 이 표로 정했다(86.3점)
-HIT_STRENGTH_SCALE = {1: 0.4, 2: 0.6, 3: 0.75, 4: 0.9, 5: 1.1}
-# 바라던 말이라도 글자(한글, 영문, 숫자)가 이만큼 이하이면("필통 예쁘네") 설렘을 2까지로 둔다
+# 설렘(actor의 strength, 0-100, 보통 50)에 따라 위 점수에 곱하는 값. 곱하는 값은 설렘에 따라 고르게(이어서)
+# 바뀐다. 다정한 말(+1)과 내리는 말은 0.6-1.4배(보통 50이면 그대로), 바라던 말(+2)은 0.4-1.1배(보통 0.75배)다.
+# 순위 경쟁에서 같은 점수가 덜 나오게 하려고 더했다(사용자, 2026-11-14). 처음에는 1-5 다섯 단계였는데
+# "아직 이산적"이라는 의견에 0-100으로 바꿨다. 두 범위의 끝값은 1-5 때 실전 시험으로 맞춘 값이다:
+# 바라던 말의 5를 1.25배로 두면 속마음을 읽는 참가자가 평균 89.0점이라 1.1배로 낮췄다(86.3점)
+STRENGTH_RANGE = (0.6, 1.4)
+HIT_STRENGTH_RANGE = (0.4, 1.1)
+# 바라던 말이라도 글자(한글, 영문, 숫자)가 이만큼 이하이면("필통 예쁘네") 설렘을 30까지로 둔다
 SHORT_HIT_LETTERS = 10
-SHORT_HIT_STRENGTH_MAX = 2
-# 선택지를 고른 말의 세기 상한. 직접 쓴 말이 더 높게 나올 수 있게 한다
-CHOICE_STRENGTH_MAX = 3
+SHORT_HIT_STRENGTH_MAX = 30
+# 선택지를 고른 말의 설렘 상한. 직접 쓴 말이 더 높게 나올 수 있게 한다
+CHOICE_STRENGTH_MAX = 50
+# 점수가 높을수록 덜 오른다. 오르는 점수에 max(바닥, (100 - 지금 점수) / (100 - 시작점))를 곱한다:
+# 60점까지는 그대로, 80점이면 절반, 88점부터는 0.3배. 내리는 점수는 그대로다.
+# Claude가 속마음을 읽고 한 6판이 평균 93점, 3판이 100점이라 너무 쉬웠다(2026-11-14). 같은 대화를 이 규칙으로
+# 다시 매기면 평균 84.7점, 100점 0판이고 다정한 참가자는 66.9 → 66.4점으로 거의 그대로다
+SLOWDOWN_FROM = 60
+SLOWDOWN_FLOOR = 0.3
 SCORE_DIGITS = 1
 # 글자(한글, 영문, 숫자)가 이만큼 이하인 말("응", "별로", "ㅋㅋ")은 호감도를 올리지 않는다
 SHORT_INPUT = 2
@@ -77,10 +79,28 @@ def _signed(n: float) -> str:
     return "±0" if round(n, SCORE_DIGITS) == 0 else f"{n:+.{SCORE_DIGITS}f}"
 
 
-def points_for(step: float, strength: int, hit: bool = False) -> float:
-    """칸의 점수(step)에 세기를 곱한 점수. 소수 한 자리로 반올림한다. hit이면 바라던 말(+2)의 표를 쓴다."""
-    table = HIT_STRENGTH_SCALE if hit else STRENGTH_SCALE
-    return round(step * table.get(strength, 1.0), SCORE_DIGITS)
+def strength_scale(strength: float, hit: bool = False) -> float:
+    """설렘(0-100)에 따라 곱하는 값. hit이면 바라던 말(+2)의 범위를 쓴다."""
+    low, high = HIT_STRENGTH_RANGE if hit else STRENGTH_RANGE
+    s = max(actor.STRENGTH_MIN, min(actor.STRENGTH_MAX, strength))
+    return low + (high - low) * (s - actor.STRENGTH_MIN) / (actor.STRENGTH_MAX - actor.STRENGTH_MIN)
+
+
+def points_for(step: float, strength: float, hit: bool = False) -> float:
+    """칸의 점수(step)에 설렘을 곱한 점수. 소수 한 자리로 반올림한다. hit이면 바라던 말(+2)의 범위를 쓴다."""
+    return round(step * strength_scale(strength, hit), SCORE_DIGITS)
+
+
+def slowdown(score: float) -> float:
+    """지금 점수에서 오르는 점수에 곱하는 값. 60점까지 1, 높을수록 작아지고 SLOWDOWN_FLOOR 밑으로는 안 간다."""
+    return max(SLOWDOWN_FLOOR, min(1.0, (100 - score) / (100 - SLOWDOWN_FROM)))
+
+
+def gain_for(score: float, points: float) -> float:
+    """지금 점수에서 실제로 움직이는 점수. 오르는 점수만 줄어든다."""
+    if points <= 0:
+        return points
+    return round(points * slowdown(score), SCORE_DIGITS)
 
 
 class Session:
@@ -322,7 +342,8 @@ class Session:
         step = self.points[max(-2, min(2, delta))]
         strength = reply.strength if step else actor.STRENGTH_DEFAULT
         hit = max(-2, min(2, delta)) == 2
-        self.score = round(max(0.0, min(100.0, old_score + points_for(step, strength, hit))), SCORE_DIGITS)
+        moved = gain_for(old_score, points_for(step, strength, hit))
+        self.score = round(max(0.0, min(100.0, old_score + moved)), SCORE_DIGITS)
         change = round(self.score - old_score, SCORE_DIGITS)
 
         eight = {

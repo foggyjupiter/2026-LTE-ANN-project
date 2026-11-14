@@ -38,13 +38,14 @@ def points_of(character_id):
 MISTRAL = points_of("mistral")
 
 
-def clamped_scores(delta, count=TOTAL, points=None):
+def clamped_scores(delta, count=TOTAL, points=None, strength=50):
     """모델이 delta를 count번 냈을 때의 점수: 시작 점수와 답마다의 점수. points가 없으면 미스트랄의 점수표."""
     points = points or MISTRAL
     scores = [director.START_SCORE]
     for _ in range(count):
-        # 모델이 세기를 안 적으면 보통(3)이다. 바라던 말(+2)은 보통 세기에서 hit_points의 0.8배다
-        step = director.points_for(points[delta], 3, delta == 2)
+        # 모델이 설렘을 안 적으면 보통(50)이다. 바라던 말(+2)은 보통 설렘에서 hit_points의 0.75배다.
+        # 오르는 점수는 점수가 높을수록 줄어든다(director.gain_for)
+        step = director.gain_for(scores[-1], director.points_for(points[delta], strength, delta == 2))
         scores.append(round(max(0, min(100, scores[-1] + step)), 1))
     return scores
 RESULT_KEYS = {
@@ -307,95 +308,110 @@ class StoryModeTest(unittest.TestCase):
 
 
 class StrengthScoreTest(unittest.TestCase):
-    """세기(strength)를 곱한 소수 점수. 순위 경쟁에서 같은 점수가 덜 나오게 한다(사용자, 2026-11-14)."""
+    """설렘(strength, 0-100)을 곱한 소수 점수. 순위 경쟁에서 같은 점수가 덜 나오게 한다(사용자, 2026-11-14)."""
 
-    def test_scale_keeps_the_normal_strength(self):
-        self.assertEqual(director.STRENGTH_SCALE[actor.STRENGTH_DEFAULT], 1.0)
-        self.assertEqual(sorted(director.STRENGTH_SCALE), list(range(actor.STRENGTH_MIN, actor.STRENGTH_MAX + 1)))
-        # 세기가 셀수록 점수가 크다
-        scales = [director.STRENGTH_SCALE[n] for n in sorted(director.STRENGTH_SCALE)]
-        self.assertEqual(scales, sorted(scales))
+    def test_scale_is_continuous(self):
+        self.assertEqual(director.strength_scale(actor.STRENGTH_DEFAULT), 1.0)
+        self.assertEqual(director.strength_scale(0), 0.6)
+        self.assertEqual(round(director.strength_scale(100), 6), 1.4)
+        self.assertEqual(director.strength_scale(0, hit=True), 0.4)
+        self.assertEqual(round(director.strength_scale(100, hit=True), 6), 1.1)
+        self.assertEqual(round(director.strength_scale(50, hit=True), 6), 0.75)
+        # 설렘이 1만 달라도 점수가 달라진다(5단계였을 때보다 잘게)
+        values = {director.points_for(MISTRAL[2], s, hit=True) for s in range(0, 101)}
+        self.assertGreater(len(values), 40)
+        # 범위 밖의 값은 끝값으로 본다
+        self.assertEqual(director.strength_scale(150), director.strength_scale(100))
 
     def test_strength_multiplies_each_step(self):
-        cases = [(1, 5, director.points_for(MISTRAL[1], 5)), (1, 1, director.points_for(MISTRAL[1], 1)),
-                 (2, 1, director.points_for(MISTRAL[2], 1, hit=True)), (2, 5, round(MISTRAL[2] * 1.1, 1)),
-                 (-1, 4, director.points_for(MISTRAL[-1], 4))]
+        cases = [(1, 100, director.points_for(MISTRAL[1], 100)), (1, 10, director.points_for(MISTRAL[1], 10)),
+                 (2, 10, director.points_for(MISTRAL[2], 10, hit=True)), (2, 100, round(MISTRAL[2] * 1.1, 1)),
+                 (-1, 73, director.points_for(MISTRAL[-1], 73))]
         for delta, strength, points in cases:
             session = Session("mistral", llm=ScriptedLlm(default={"delta": delta, "strength": strength}))
             session.start()
             out = session.reply("좋은 말이네, 오늘 너랑 얘기해서 정말 좋았어")
             self.assertEqual((out["change"], out["strength"]), (points, strength), (delta, strength))
             self.assertEqual(out["score"], round(50 + points, 1))
-        self.assertEqual(director.points_for(2, 5), 2.8)
-        self.assertEqual(director.points_for(2, 1), 1.2)
+        self.assertEqual(director.points_for(2, 100), 2.8)
+        self.assertEqual(director.points_for(2, 0), 1.2)
+        self.assertEqual(director.points_for(2, 63), 2.2)
+        self.assertEqual(director.points_for(8, 100, hit=True), 8.8)
+        self.assertEqual(director.points_for(5, 0, hit=True), 2.0)
+
+    def test_gain_slows_down_near_the_top(self):
+        self.assertEqual(director.slowdown(50), 1.0)
+        self.assertEqual(director.slowdown(60), 1.0)
+        self.assertEqual(director.slowdown(80), 0.5)
+        self.assertEqual(director.slowdown(95), director.SLOWDOWN_FLOOR)
+        self.assertEqual(director.gain_for(80, 6.0), 3.0)
+        self.assertEqual(director.gain_for(80, -10.0), -10.0)   # 내리는 점수는 그대로
+        session = Session("mistral", llm=ScriptedLlm(default={"delta": 2, "strength": 100}))
+        outs = play(session)
+        changes = [o["change"] for o in outs[1:]]
+        self.assertEqual(changes[0], round(MISTRAL[2] * 1.1, 1))
+        self.assertEqual(changes, sorted(changes, reverse=True))  # 점수가 오를수록 덜 오른다
+        self.assertLess(outs[-1]["score"], 100)                 # 바라던 말을 열 번 세게 짚어도 100은 안 된다
 
     def test_short_wish_hit_is_capped(self):
-        # 바람의 낱말만 짧게 던진 말("필통 예쁘네")은 모델이 5를 줘도 설렘 2까지다
-        session = Session("mistral", llm=ScriptedLlm(default={"delta": 2, "strength": 5}))
+        # 바람의 낱말만 짧게 던진 말("필통 예쁘네")은 모델이 100을 줘도 설렘 30까지다
+        session = Session("mistral", llm=ScriptedLlm(default={"delta": 2, "strength": 100}))
         session.start()
         out = session.reply("좋은 말이네")
         self.assertEqual((out["delta"], out["strength"]), (2, director.SHORT_HIT_STRENGTH_MAX))
         self.assertEqual(out["change"], director.points_for(MISTRAL[2], director.SHORT_HIT_STRENGTH_MAX, hit=True))
         # 길게 쓴 말은 그대로다
         out = session.reply("좋은 말이네, 아까 네가 한 말이 계속 생각나")
-        self.assertEqual(out["strength"], 5)
+        self.assertEqual(out["strength"], 100)
         # 다정한 말(+1)에는 이 상한이 없다
-        session = Session("mistral", llm=ScriptedLlm(default={"delta": 1, "strength": 5}))
+        session = Session("mistral", llm=ScriptedLlm(default={"delta": 1, "strength": 100}))
         session.start()
-        self.assertEqual(session.reply("고마워 진짜")["strength"], 5)
-
-    def test_wish_scale_spreads_by_fluster(self):
-        scales = [director.HIT_STRENGTH_SCALE[n] for n in range(1, 6)]
-        self.assertEqual(scales, sorted(scales))
-        self.assertLess(scales[0], 0.5)       # 낱말만 꺼낸 말은 절반도 안 된다
-        self.assertGreater(scales[-1], 1.0)   # 숨이 멎을 말은 hit_points보다 크다
-        self.assertEqual(director.points_for(-5, 4), -6.0)
-        # 바라던 말은 설렘에 따라 hit_points의 0.4-1.1배다
-        self.assertEqual(director.points_for(8, 5, hit=True), 8.8)
-        self.assertEqual(director.points_for(8, 4, hit=True), 7.2)
-        self.assertEqual(director.points_for(5, 1, hit=True), 2.0)
+        self.assertEqual(session.reply("고마워 진짜")["strength"], 100)
 
     def test_scores_stay_at_one_decimal(self):
-        session = Session("mistral", llm=ScriptedLlm(default={"delta": 1, "strength": 5}))
+        session = Session("mistral", llm=ScriptedLlm(default={"delta": 1, "strength": 87}))
         outs = play(session, count=3)
-        self.assertEqual([o["score"] for o in outs], [50, 52.8, 55.6, 58.4])
-        self.assertEqual(outs[1]["popup"], "+2.8")
-        self.assertEqual(outs[1]["change"], 2.8)
+        step = director.points_for(MISTRAL[1], 87)
+        self.assertEqual(step, 2.6)
+        self.assertEqual([o["score"] for o in outs], [50, 52.6, 55.2, 57.8])
+        self.assertEqual(outs[1]["popup"], "+2.6")
 
     def test_strength_does_not_move_a_zero_step(self):
-        session = Session("mistral", llm=ScriptedLlm(default={"delta": 0, "strength": 5}))
+        session = Session("mistral", llm=ScriptedLlm(default={"delta": 0, "strength": 90}))
         out = session.start()
         self.assertEqual((out["change"], out["strength"], out["score"]), (0, actor.STRENGTH_DEFAULT, 50))
         out = session.reply("좋은 말이네 1")
         self.assertEqual((out["change"], out["strength"], out["popup"]), (0, actor.STRENGTH_DEFAULT, "±0"))
 
     def test_choice_is_capped_at_normal_strength(self):
-        # 선택지는 모델이 써 둔 말이다. 직접 쓴 말만 4-5가 나온다
-        session = Session("mistral", llm=ScriptedLlm(default={"delta": 1, "strength": 5}))
+        # 선택지는 모델이 써 둔 말이다. 직접 쓴 말만 보통(50)보다 높게 나온다
+        session = Session("mistral", llm=ScriptedLlm(default={"delta": 1, "strength": 95}))
         session.start()
         out = session.reply("첫째 선택")
-        self.assertEqual((out["strength"], out["change"]), (director.CHOICE_STRENGTH_MAX, MISTRAL[1] * 1.0))
+        self.assertEqual((out["strength"], out["change"]), (director.CHOICE_STRENGTH_MAX, float(MISTRAL[1])))
         out = session.reply("직접 쓴 다정한 말")
-        self.assertEqual(out["strength"], 5)
+        self.assertEqual(out["strength"], 95)
 
     def test_history_keeps_the_strength(self):
-        session = Session("mistral", llm=ScriptedLlm(default={"delta": 1, "strength": 4}))
+        session = Session("mistral", llm=ScriptedLlm(default={"delta": 1, "strength": 77}))
         session.start()
         session.reply("좋은 말이네 1")
         record = json.loads(session.history[-1]["content"])
-        self.assertEqual(record["strength"], 4)
+        self.assertEqual(record["strength"], 77)
         self.assertEqual(json.loads(session.history[1]["content"])["strength"], actor.STRENGTH_DEFAULT)
 
 
 class ScoreTest(unittest.TestCase):
-    def test_delta_plus_two_stops_at_100(self):
+    def test_delta_plus_two_slows_down_before_100(self):
+        # 점수가 높을수록 덜 올라서, 바라던 말을 열 번 짚어도 100점에 닿지 않는다(director.gain_for)
         outs = play(Session("mistral", llm=ScriptedLlm(default={"delta": 2})))
         scores = clamped_scores(2)
         self.assertEqual([o["score"] for o in outs], scores)
-        self.assertEqual(scores[-1], 100)
+        self.assertLess(scores[-1], 100)
+        self.assertGreater(scores[-1], 80)
         self.assertEqual([o["change"] for o in outs], [0] + [round(b - a, 1) for a, b in zip(scores, scores[1:])])
         self.assertEqual([o["delta"] for o in outs[1:]], [2] * TOTAL)
-        self.assertEqual(outs[1]["popup"], director._signed(director.points_for(MISTRAL[2], 3, hit=True)))
+        self.assertEqual(outs[1]["popup"], director._signed(director.points_for(MISTRAL[2], 50, hit=True)))
         self.assertEqual(outs[-1]["popup"], director._signed(scores[-1] - scores[-2]))
 
     def test_delta_minus_two_stops_at_0(self):
@@ -403,7 +419,7 @@ class ScoreTest(unittest.TestCase):
         scores = clamped_scores(-2)
         self.assertEqual([o["score"] for o in outs], scores)
         self.assertEqual(scores[-1], 0)
-        self.assertEqual([o["change"] for o in outs], [0] + [b - a for a, b in zip(scores, scores[1:])])
+        self.assertEqual([o["change"] for o in outs], [0] + [round(b - a, 1) for a, b in zip(scores, scores[1:])])
         self.assertEqual(outs[1]["popup"], f"{POINTS[-2]:.1f}")
 
     def test_short_input_never_raises_score(self):
@@ -462,14 +478,14 @@ class ScoreTest(unittest.TestCase):
         self.assertEqual(hits, {"gemma": 5, "sora": 5, "astra": 6, "nova": 6, "mistral": 7, "haiku": 8})
         for c in hits:
             self.assertEqual(points_of(c)[1], POINTS[1])  # 다정한 말은 모두 같다
-            # 다정한 말만으로는 누구도 대성공이 안 되고, 바라던 말을 짚으면 누구나 대성공에 닿는다
-            self.assertLess(clamped_scores(1, points=points_of(c))[-1], 85)
-            self.assertGreaterEqual(clamped_scores(2, points=points_of(c))[-1], 85)
+            # 다정한 말만으로는 누구도 대성공이 안 되고, 바라던 말을 매번 세게 짚으면 누구나 대성공에 닿는다
+            self.assertLess(clamped_scores(1, points=points_of(c), strength=100)[-1], 85)
+            self.assertGreaterEqual(clamped_scores(2, points=points_of(c), strength=100)[-1], 85)
 
     def test_points_go_up_slowly_and_down_fast(self):
-        self.assertEqual(clamped_scores(1)[-1], 50 + TOTAL * POINTS[1])
-        self.assertLess(clamped_scores(1)[-1], 85)  # 다정한 말(+1)만으로는 대성공이 안 된다
-        self.assertEqual(clamped_scores(1)[-1], 70)
+        # 다정한 말(+1)만으로는 대성공이 안 된다. 60점을 넘으면 덜 오른다
+        self.assertLess(clamped_scores(1)[-1], 70)
+        self.assertGreater(clamped_scores(1)[-1], 65)
         self.assertGreater(-POINTS[-1], POINTS[1])
 
     def test_band_follows_score_after_reply(self):
@@ -678,8 +694,8 @@ class FallbackTest(unittest.TestCase):
         out = session.reply("좋은 말이네, 반가워")
         self.assertFalse(out["fallback"])
         self.assertEqual(out["delta"], 2)
-        # "좋은 말이네, 반가워"는 글자가 열 개 이하라 설렘이 2까지다(SHORT_HIT_LETTERS)
-        self.assertEqual(out["score"], round(50 + director.points_for(MISTRAL[2], 2, hit=True), 1))
+        # "좋은 말이네, 반가워"는 글자가 열 개 이하라 설렘이 30까지다(SHORT_HIT_LETTERS)
+        self.assertEqual(out["score"], round(50 + director.points_for(MISTRAL[2], director.SHORT_HIT_STRENGTH_MAX, hit=True), 1))
         self.assertEqual(out["fx"], [])
         self.assertEqual(out["choices"], DEFAULT_CHOICES)  # 선택지가 두 개뿐이라 기본 선택지로 바뀐다
         self.assertEqual(out["face"], "neutral")
@@ -892,7 +908,7 @@ class GimmickTest(unittest.TestCase):
         self.assertEqual(json.loads(session.history[-1]["content"])["delta"], 0)
         out = session.reply("좋은 말이네, 너 웃는 거 좋아")
         self.assertEqual((out["delta"], out["score"], out["notes"]),
-                         (2, round(50 + director.points_for(points_of("nova")[2], 3, hit=True), 1), []))  # 문턱 0
+                         (2, round(50 + director.points_for(points_of("nova")[2], 50, hit=True), 1), []))  # 문턱 0
 
     def test_sora_hears_every_word(self):
         # 2026-11-13에 소라의 들린 말 가리기(■■)를 뺐다. 참가자의 말이 그대로 간다
@@ -913,9 +929,11 @@ class GimmickTest(unittest.TestCase):
         outs = play(Session("astra", llm=ScriptedLlm(default={"delta": 1})))
         self.assertIsNone(outs[0]["popup"])
         # 답 10번짜리 판: 앞의 넷은 그대로, 다섯째부터 10배씩, 마지막은 NaN
-        self.assertEqual([o["popup"] for o in outs[1:]],
-                         ["+2.0", "+2.0", "+2.0", "+2.0", "+20.0", "+200.0", "+2,000.0", "+20,000.0",
-                          "+200,000.0", "NaN"])
+        scores = clamped_scores(1)
+        changes = [round(b - a, 1) for a, b in zip(scores, scores[1:])]
+        expected = [f"{round(c * 10 ** max(0, n - 4), 1):+,.1f}" for n, c in enumerate(changes[:-1], start=1)] + ["NaN"]
+        self.assertEqual([o["popup"] for o in outs[1:]], expected)
+        self.assertEqual(expected[:5], ["+2.0", "+2.0", "+2.0", "+2.0", "+20.0"])
         self.assertEqual(outs[5]["extras"], {"popup": "+20.0"})
         self.assertEqual([o["score"] for o in outs], clamped_scores(1))  # 실제 점수는 그대로
 
@@ -1010,7 +1028,7 @@ class EndingTest(unittest.TestCase):
         self.assertEqual(ending["inners"], ["등장", "하나", "둘", "셋, 좋은 말이네", "넷", "다섯"])
         self.assertTrue(ending["early"])
         self.assertEqual(ending["score"], round(50 + MISTRAL[1] + MISTRAL[-2] + MISTRAL[0]
-                                                + director.points_for(MISTRAL[2], 3, hit=True) + MISTRAL[1], 1))
+                                                + director.points_for(MISTRAL[2], 50, hit=True) + MISTRAL[1], 1))
 
     def test_best_line_when_all_deltas_tie(self):
         turns = {n: {"inner": f"속마음 {n}", "delta": 0} for n in range(4)}

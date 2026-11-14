@@ -59,7 +59,7 @@ class ExplodingPopupTest(unittest.TestCase):
                                  "+100,000.0", "+1,000,000.0", "NaN"])
 
     def test_decimal_change_grows_without_float_noise(self):
-        # 점수는 소수 한 자리다(director.STRENGTH_SCALE). 2.4를 10배씩 키워도 24.000000000000004가 되지 않는다
+        # 점수는 소수 한 자리다(director.strength_scale). 2.4를 10배씩 키워도 24.000000000000004가 되지 않는다
         shown = [self.popup(turn=t, total_turns=10, change=2.4)["popup"] for t in range(4, 8)]
         self.assertEqual(shown, ["+2.4", "+24.0", "+240.0", "+2,400.0"])
 

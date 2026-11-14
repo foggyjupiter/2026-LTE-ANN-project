@@ -689,7 +689,7 @@ def _render_turn(game, turn, score_before):
         facts.append(f"호감도 {score_before} → {out['score']} "
                      f"({_signed(out['change'])}, {BAND_NAMES[out['band']]})")
         if out.get("delta"):
-            facts.append(f"칸 {_signed(out['delta'])}, 세기 {out.get('strength', '?')}")
+            facts.append(f"칸 {_signed(out['delta'])}, 설렘 {out.get('strength', '?')}")
     if out["popup"] is not None:
         facts.append(f"팝업 {out['popup']}")
     if out["reason"]:

@@ -85,13 +85,13 @@ def fake_llm(messages: list[dict]) -> str:
 
     if turn == 0:
         delta = 0
-        strength = 3
+        strength = 50
         say = f"{TAG} 안녕, 전학생. 오늘 소개팅 상대가 나야."
         inner = "가짜 속마음: 첫마디는 무난하게 가자"
         reason = ""
     else:
         delta = len(last_user) % 5 - 2  # 참가자 글의 길이로 정한다
-        strength = turn % 5 + 1         # 세기는 차례로 돌린다. 점수가 소수로 움직이는 것을 보여 준다
+        strength = 20 + turn * 37 % 81  # 설렘은 차례로 돌린다(20-100). 점수가 소수로 움직이는 것을 보여 준다
         tail = _TAILS[(turn - 1) % len(_TAILS)]
         say = f"{TAG} {turn}번째로 들은 말: \"{_hide_offstage(last_user)}\". {tail}"
         if _SHORT_SAY_RE.search(system):  # 겉말 길이가 정해진 캐릭터(하이쿠)에게는 짧게 답한다
