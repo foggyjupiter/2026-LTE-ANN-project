@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from sogaeting import content
+from sogaeting import content, director
 
 CHARACTER_IDS = ["astra", "gemma", "haiku", "mistral", "nova", "sora"]
 GIMMICKS = {
@@ -171,7 +171,10 @@ class CharacterTest(unittest.TestCase):
 class OtherDataTest(unittest.TestCase):
     def test_seeds(self):
         seeds = content.load_seeds()
-        self.assertEqual(sorted(seeds), ["entrance", "event", "event_groups", "event_hints", "event_places"])
+        self.assertEqual(sorted(seeds), ["entrance", "event", "event_groups", "event_hints", "event_places", "event_weather"])
+        # 날씨 사건은 날씨 묶음에 들어 있고, 화면이 아는 날씨만 쓴다
+        self.assertEqual(sorted(seeds["event_weather"]), sorted(seeds["event_groups"]["날씨"]))
+        self.assertTrue(set(seeds["event_weather"].values()) <= set(director.WEATHERS))
         # 한 판에 하나만 쓰는 사건 묶음. 날씨는 어느 장소에나 맞아서 묶어 둔다
         self.assertEqual(sorted(seeds["event_groups"]["날씨"]), ["소나기와 우산 하나", "천둥 번개"])
         for members in seeds["event_groups"].values():

@@ -126,6 +126,9 @@ def input_guard_note(*, lewd: bool, touch: str, band: str) -> str:
             + _BAND_LABELS.get(band, band) + "이다. " + _TOUCH_NOTES[key])
 
 
+# 비나 천둥 사건 뒤의 날씨(director가 seeds.json의 event_weather로 정한다)
+_WEATHER_NOW = {"rain": "지금 밖에는 비가 오고 있다.", "storm": "지금 밖에는 천둥이 치며 비가 오고 있다."}
+
 # narration을 다르게 띄우는 연출. 목록에 있을 때만 배우에게 풀이를 준다.
 _FX_NOTES = {
     "자막": '"자막"을 고르면 narration이 화면 한가운데에 크게 뜬다.',
@@ -469,8 +472,8 @@ _OUTPUT_SECTION = [
     "속마음에 그대로 넣어서 읽는 사람이 알아챌 수 있게 한다.",
     "- face (문자열): 표정. neutral(평소), smile(웃음), blush(붉어짐), pout(삐침), shock(놀람), dark(어두움) 중 하나. "
     "이번 답의 say에 어울리는 것을 고른다. 평소 대답은 캐릭터 설정에 적힌 평소 표정, 기분이 좋으면 smile, "
-    "토라지거나 놀림받으면 pout, 놀라면 shock을 고른다. blush는 마음을 들켜 얼굴이 빨개진 순간에만 고르고 "
-    "한 판에 서너 번이면 많다. 같은 표정을 세 답 연달아 고르지 않는다. dark는 캐릭터가 정말로 가라앉았을 때만 쓴다. "
+    "토라지거나 놀림받으면 pout, 놀라면 shock을 고른다. blush는 마음을 들켜 얼굴이 빨개진 순간에 고른다. "
+    "지문이나 대사에 얼굴이 빨개졌다고 쓰면 blush다. 그렇지 않은 답에서는 같은 표정을 세 답 연달아 고르지 않는다. dark는 캐릭터가 정말로 가라앉았을 때만 쓴다. "
     "[캐릭터 설정]에 이 캐릭터만의 표정이 있으면 그 이름도 된다.",
     "- fx (문자열 배열): 화면 연출. [화면 연출]의 목록에서 0-2개.",
     "- delta (정수): 주인공의 이번 말 하나만 보고 매기는 호감도 변화. -2에서 2 사이의 정수. "
@@ -555,7 +558,7 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
                  previous_faces: tuple = (), used_phrases: tuple = (), tomorrow: int = 0,
                  place: str = "", events_so_far: tuple = (), wishes: tuple = (),
                  wish_streak: int = 0, seed_hint: str = "", story: bool = False, beat: str = "",
-                 must_touch: bool = False, avoid_catchphrases: tuple = ()) -> str:
+                 must_touch: bool = False, avoid_catchphrases: tuple = (), weather: str = "") -> str:
     if band not in _BAND_LABELS:
         raise ValueError("band는 low, mid, high 중 하나여야 한다: " + repr(band))
 
@@ -601,6 +604,10 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
         if events_so_far:
             scene.append("- 이 판에서 이미 있었던 일: " + ", ".join(events_so_far)
                          + ". 이 일들과 앞뒤가 맞게 쓴다. 같은 일이 처음인 것처럼 다시 일어나지 않는다.")
+        if weather in _WEATHER_NOW:
+            # 화면은 비 사건 뒤로 판이 끝날 때까지 비를 내리고 배경을 어둡게 둔다. 글도 그에 맞춘다(2026-11-15)
+            scene.append("- " + _WEATHER_NOW[weather] + " 판이 끝날 때까지 그치지 않는다. 답마다 비 이야기를 꺼낼 필요는 "
+                         "없지만, 비가 그쳤다거나 해가 났다고 쓰지 않는다.")
         scene.append("- 지문과 대사에서 장소, 시간, 앞에서 한 말과 어긋나는 말(다른 장소 이름, 등교와 하교를 바꿔 말하기)을 "
                      "쓰지 않는다.")
         sections.append(scene)
@@ -966,7 +973,7 @@ def build_turn_messages(character: dict, history: list[dict], *, band: str, inte
                         seed_kind: str | None = None, opening: bool = False,
                         finale: bool = False, extra: str = "", place: str = "",
                         events_so_far: tuple = (), seed_hint: str = "", story: bool = False,
-                        beat: str = "", must_touch: bool = False) -> list[dict]:
+                        beat: str = "", must_touch: bool = False, weather: str = "") -> list[dict]:
     """배우에게 보낼 메시지 목록을 만든다. `[system] + history`이고 `history`는 고치지 않는다."""
     system = _turn_system(
         character, band=band, intensity=intensity, intensity_meaning=intensity_meaning,
@@ -976,7 +983,7 @@ def build_turn_messages(character: dict, history: list[dict], *, band: str, inte
         used_phrases=_used_phrases(history)[0], tomorrow=_used_phrases(history)[1],
         place=place, events_so_far=tuple(events_so_far), wishes=_recent_wishes(history),
         wish_streak=_wish_streak(history), seed_hint=seed_hint, story=story, beat=beat,
-        must_touch=must_touch, avoid_catchphrases=catchphrases_to_avoid(character, history),
+        must_touch=must_touch, avoid_catchphrases=catchphrases_to_avoid(character, history), weather=weather,
     )
     return [{"role": "system", "content": system}] + [dict(m) for m in history]
 

@@ -19,7 +19,7 @@ EIGHT_KEYS = {"narration", "say", "inner", "face", "fx", "delta", "reason", "cho
 HISTORY_KEYS = EIGHT_KEYS | {"wish", "strength"}  # 기록에는 화면에 안 나오는 바람과 세기도 남는다
 TURN_KEYS = EIGHT_KEYS | {
     "kind", "turn", "total_turns", "change", "strength", "score", "band", "popup",
-    "notes", "heard", "extras", "fallback", "finale", "place", "face_base",
+    "notes", "heard", "extras", "fallback", "finale", "place", "face_base", "weather",
 }
 ENDING_KEYS = {
     "kind", "character_id", "character_name", "band_id", "band_name", "title",
@@ -607,6 +607,33 @@ class SeedTest(unittest.TestCase):
                 event = kwargs[turn]["seed"]
                 self.assertTrue(event not in fits or place in fits[event], (place, event))
 
+    def test_weather_lasts_after_a_rain_event(self):
+        # 비나 천둥 사건이 일어난 답부터 판이 끝날 때까지 weather가 남고, 다음 답들의 지시문에 비가 그치지 않는다고 적는다
+        weather = content.load_seeds()["event_weather"]
+        for seed in range(60):
+            llm, kwargs = self.run_session(seed)
+            events = {turn: kwargs[turn]["seed"] for turn in (4, 7, 10)}
+            rainy = [turn for turn, event in events.items() if event in weather]
+            if not rainy:
+                continue
+            first = rainy[0]
+            for turn in range(1, TOTAL + 1):
+                expected = weather[events[first]] if turn > first else ""
+                self.assertEqual(kwargs[turn]["weather"], expected, (seed, turn))
+            self.assertIn("판이 끝날 때까지 그치지 않는다", llm.system_of(first + 1))
+            self.assertNotIn("판이 끝날 때까지 그치지 않는다", llm.system_of(first))
+            return
+        self.fail("60판 안에 비 사건이 한 번도 없었다")
+
+    def test_weather_in_the_turn(self):
+        session = Session("mistral", llm=ScriptedLlm())
+        outs = play(session)
+        events = [e.split(" ", 2)[2] for e in session._events]
+        weather = content.load_seeds()["event_weather"]
+        self.assertIsNone(outs[0]["weather"])
+        if not any(e in weather for e in events):
+            self.assertTrue(all(o["weather"] is None for o in outs))
+
     def test_one_weather_event_per_game(self):
         weather = set(content.load_seeds()["event_groups"]["날씨"])
         for seed in range(40):
@@ -820,6 +847,23 @@ class FaceTest(unittest.TestCase):
         self.assertEqual([o["face"] for o in outs], ["blush", "blush", "smile", "blush", "blush", "smile"])
         # 기록에도 바뀐 표정이 남는다. 다음 답의 지시문이 앞 표정을 그대로 알려 준다
         self.assertEqual(json.loads(session.history[-1]["content"])["face"], "smile")
+
+    def test_red_face_in_the_text_shows_blush(self):
+        # 글이 얼굴이 빨개졌다고 하면 모델이 smile을 골라도, 연달아 붉어졌어도 붉어진 얼굴이다
+        red = {"face": "smile", "narration": "젬마의 귀까지 새빨개졌다."}
+        llm = ScriptedLlm(turns={0: {"face": "blush"}, 1: {"face": "blush"}, 2: red, 3: {"face": "smile", "say": "홍조가 번진다."}})
+        outs = play(Session("gemma", llm=llm), count=3)
+        self.assertEqual([o["face"] for o in outs], ["blush", "blush", "blush", "blush"])
+        # "붉은 노을"처럼 얼굴이 아닌 것은 아니다
+        llm = ScriptedLlm(turns={1: {"face": "smile", "narration": "창밖에 붉은 노을이 졌다."}})
+        self.assertEqual(play(Session("gemma", llm=llm), count=1)[1]["face"], "smile")
+
+    def test_big_wish_hit_shows_blush(self):
+        # 바람을 짚은 말(+2)에 설렘이 BLUSH_STRENGTH 이상이면 웃는 얼굴 대신 붉어진 얼굴이다
+        llm = ScriptedLlm(turns={1: {"face": "smile", "delta": 2, "strength": director.BLUSH_STRENGTH},
+                                 2: {"face": "smile", "delta": 2, "strength": director.BLUSH_STRENGTH - 1}})
+        outs = play(Session("gemma", llm=llm), count=2)
+        self.assertEqual([o["face"] for o in outs[1:]], ["blush", "smile"])
 
     def test_blush_is_limited_per_game(self):
         # blush, blush, (smile), blush, blush, (smile) ... 한 판에 BLUSH_LIMIT번까지만

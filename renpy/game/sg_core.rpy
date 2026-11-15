@@ -640,6 +640,8 @@ init -5 python:
             store.sg_place = place
             sg_show_bg(sg_bg_key(place))
         sg_show_char(store.sg_char["id"], view["face"], sprite=view["sprite_face"])
+        # 비나 천둥 사건 뒤로는 판이 끝날 때까지 배경을 어둡게 두고 스탠딩 뒤에서 비를 내린다
+        sg_stage_call("sg_stage_weather", sg_str(turn.get("weather")))
         # 표정과 호감도 변화에 맞는 만화 기호. 등장 턴이면 장소 제목 카드도 뜬다
         sg_stage_call("sg_stage_turn", view["face"], sg_num(turn.get("change")),
                       first=first, fallback=view["fallback"], place=place, score=view["score"])

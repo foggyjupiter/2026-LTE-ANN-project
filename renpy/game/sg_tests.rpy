@@ -561,6 +561,29 @@ testcase sg_story_pages:
     exit
 
 
+## 날씨: 비나 천둥 사건 뒤로 배경이 어둡고 스탠딩 뒤에서 비가 내린다. 같은 날씨가 이어지면 그대로 두고,
+## 배경이 바뀌면 함께 치워진다. 날씨는 서버가 보내는 값(weather)을 그대로 무대에 건다.
+##   python3 -m sogaeting.server --fake --port 8101
+testcase sg_weather:
+    pause until screen "sg_select"
+    click "아스트라"
+    pause until screen "sg_talk"
+    $ sg_stage_weather("storm")
+    assert eval (sg_stage_weather_now == "storm" and renpy.showing("sg_weather_rain", layer="master") and renpy.showing("sg_weather_flash", layer="master"))
+    $ sg_stage_weather("storm")
+    assert eval (sg_stage_weather_now == "storm")
+    pause 1.6
+    screenshot "weather_storm.png"
+    $ sg_stage_weather("rain")
+    assert eval (sg_stage_weather_now == "rain" and renpy.showing("sg_weather_dim", layer="master") and not renpy.showing("sg_weather_flash", layer="master"))
+    $ sg_stage_weather("hail")
+    assert eval (sg_stage_weather_now == "" and not renpy.showing("sg_weather_rain", layer="master"))
+    $ sg_stage_weather("rain")
+    $ sg_show_bg(sg_bg_key(sg_place))
+    assert eval (sg_stage_weather_now == "" and not renpy.showing("sg_weather_rain", layer="master"))
+    exit
+
+
 ## 캐릭터만의 표정: 아스트라에게 여섯 글자를 보내면 가짜 모델이 삐침(pout) 자리의 huff 를 낸다(fake_llm 의 글자 수 규칙).
 ## huff 그림(images/sprites/astra/huff.png)이 없으면 pout 그림을 쓰고, 움직임과 기호는 pout 의 것을 쓴다.
 ##   python3 -m sogaeting.server --fake --port 8101

@@ -47,6 +47,7 @@ SCORE_DIGITS = 1
 # 처음에는 대성공 커트와 같은 80이었는데, 대성공을 75로 낮추면서 사용자가 "80 도달은 쉽지 않다"며 77로 정했다.
 # 한 판에 한 번이고, 답에 그런 마음이 안 보이면 다음 답에서 한 번 더 시킨다(CLOSE_TRIES)
 CLOSE_SCORE = 77
+WEATHERS = ("rain", "storm")   # 화면이 아는 날씨
 CLOSE_TRIES = 2
 # 엔딩 작가에게 넘기는 기록에서 [수위]를 넘는 참가자의 말 대신 넣는 글
 ENDING_MASKED_INPUT = "(주인공이 선을 넘는 말을 했다. 그 말은 옮기지 않는다.)"
@@ -58,6 +59,10 @@ BLUSH_LIMIT = 4  # 한 판에 붉어진 얼굴(blush)을 이만큼까지만 낸�
 # 지문이나 겉말이 웃음, 붉어짐을 그리고 있는지. 그렇다면 표정 고르기(_balance_face)가 그 표정을 바꾸지 않는다
 SMILE_WORDS_RE = re.compile(r"웃|미소|후훗|싱긋|빙긋|방긋")
 BLUSH_WORDS_RE = re.compile(r"빨개|빨갛|붉어|붉게|붉은|달아오|화끈|홍조")
+# 얼굴(볼, 귀, 목)이 빨개졌다고 쓴 글. "붉은 노을", "빨간 우산"은 잡지 않는다
+RED_FACE_RE = re.compile(r"(얼굴|볼|뺨|귀|귓|목덜미|목까지)[^.!?…]{0,12}(빨개|빨갛|붉어|붉게|붉히|붉힌|달아오|화끈|새빨)|홍조")
+# 바람을 짚은 말(+2)의 설렘이 이만큼 이상이면 웃는 얼굴 대신 붉어진 얼굴을 보인다(사용자, 2026-11-15)
+BLUSH_STRENGTH = 90
 # 이야기 모드(실험, 2026-11-14): 이 환경변수가 비어 있지 않고 0이 아니면 답을 길게 쓰고 캐릭터가 이야기를 끌고
 # 가는 진행표(data/schedule_story.json, 답 12번)를 쓴다. 친구의 의견("노잼, Zeta처럼 대화가 길었으면")으로 만든 실험이다
 STORY_ENV = "SOGAETING_STORY"
@@ -170,6 +175,9 @@ class Session:
         self._faces = []         # 화면에 낸 표정 전부 (등장 포함, 대체 대사 제외)
         self._place = ""         # 등장 장소. 판 내내 그곳이다
         self._events = []        # 지금까지 일어난 사건 ("답 3 소나기와 우산 하나")
+        # 날씨. 비나 천둥 사건(seeds.json의 event_weather)이 일어난 뒤로 판이 끝날 때까지 "rain" 또는 "storm"이다.
+        # 화면은 이 값으로 배경을 어둡게 두고 비를 계속 내린다(사용자, 2026-11-15: 비가 오는데 배경이 밝으면 어색하다)
+        self._weather = None
         self._best = None        # (delta 절댓값, 속마음)
         self._last_choices = []  # 바로 앞 답에서 화면에 보인 선택지
         self.points = dict(POINTS)
@@ -339,6 +347,7 @@ class Session:
             story=self.story,
             beat=str(slot.get("beat") or "") if self.story else "",
             must_touch=must_touch,
+            weather="" if opening else (self._weather or ""),
         )
         fx_names = set(self.fx["light"]) | set(self.fx["heavy"])
         event_seed = seed if seed_kind == "event" else None
@@ -480,6 +489,9 @@ class Session:
             self._place = seed
         if seed_kind == "event" and seed and not fallback:
             self._events.append(f"답 {self.turn} {seed}")
+            weather = (self.seeds.get("event_weather") or {}).get(seed)
+            if weather in WEATHERS:
+                self._weather = weather
         self._inners.append(eight["inner"])
         # 명대사 후보: delta 절댓값이 가장 큰 답. 같으면 뒤쪽. 대체 대사는 속마음이 없어서 뺀다
         if not opening and not fallback and (self._best is None or (abs(delta), strength) >= self._best[0]):
@@ -506,6 +518,8 @@ class Session:
             # 표정(face)이 기본 여섯 가지 가운데 어느 자리인지. 화면은 캐릭터만의 표정 그림이 없으면 이 그림을 쓰고,
             # 연출(기호, 움직임)도 이것으로 고른다
             "face_base": actor.face_base(self.character, reply.face),
+            # 날씨: None, "rain", "storm". 비나 천둥 사건이 있은 답부터 판이 끝날 때까지 같은 값이다
+            "weather": self._weather,
         }
 
     def _balance_face(self, reply, *, opening, finale, event):
@@ -521,6 +535,16 @@ class Session:
             face = actor.face_base(self.character, face)
         bases = [actor.face_base(self.character, f) for f in self._faces]
         base = actor.face_base(self.character, face)
+        # 글이 얼굴이 빨개졌다고 하거나, 바람을 짚은 말에 아주 크게 설렜으면 붉어진 얼굴을 보인다. 아래의 횟수 제한도
+        # 받지 않는다. 사용자(2026-11-15): "누가 봐도 얼굴이 빨개야 할 것 같은데 그냥 웃으니 어색하다".
+        # 실제 모델 215답 가운데 14답은 글에 "얼굴이 새빨개졌다"가 있는데 그림은 웃는 얼굴이었다
+        red = bool(RED_FACE_RE.search(" ".join([reply.narration, reply.say, reply.inner])))
+        big = reply.delta == 2 and reply.strength >= BLUSH_STRENGTH
+        if red or big:
+            if base in ("smile", "neutral"):
+                return "blush"
+            if base == "blush":
+                return face
         # 붉어진 얼굴이 세 번 연달아 나오면 웃는 얼굴로 바꾼다. 실제 모델은 답의 3분의 2를 blush로 냈다.
         # blush 자리에 쓰는 캐릭터만의 표정(아스트라의 denial 같은 것)도 blush로 센다
         if base == "blush" and (bases[-2:] == ["blush", "blush"] or bases.count("blush") >= BLUSH_LIMIT):

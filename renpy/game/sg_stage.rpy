@@ -99,8 +99,20 @@ define sg_stage_trans_turn = Dissolve(0.2)        # 턴이 바뀔 때: 표정만
 define sg_stage_trans_ending = Dissolve(0.6)      # 엔딩으로
 define sg_stage_trans_home = Fade(0.22, 0.04, 0.42, color="#f6f2fb")   # 첫 화면으로: 하얗게 한 번 감았다 뜬다
 
+## 날씨. 비나 천둥 사건이 있은 뒤로 판이 끝날 때까지 배경이 어둡고 스탠딩 뒤에서 비가 내린다
+## (사용자, 2026-11-15: 비가 내리기 시작했는데 배경이 밝으면 어색하다). 서버가 답마다 weather 를 보낸다.
+## 배경을 덮는 어두운 막의 불투명도: 날씨마다.
+define sg_stage_weather_dim = {"rain": 0.34, "storm": 0.46}
+## 뒤에서 내리는 빗줄기 수. 한 번 쏟아지는 연출(sg_fx.rpy 의 "비", 84개)보다 적게 둔다.
+define sg_stage_weather_drops = 56
+## 천둥(storm)일 때 멀리서 번쩍이는 간격(초).
+define sg_stage_weather_flash_every = 13.0
+
 ## 지금 무대에 선 스탠딩의 표정. 같은 표정이 이어지면 큰 동작을 되풀이하지 않으려고 적어 둔다.
 default sg_stage_face = None
+
+## 지금 무대의 날씨: "", "rain", "storm". 같은 날씨가 이어지면 비를 처음부터 다시 그리지 않으려고 적어 둔다.
+default sg_stage_weather_now = ""
 
 ## 대사가 나올 때까지 미뤄 둔 호감도 기호: (그때의 점수, 기호 목록, 몇 번째 태그부터 쓸지) 또는 None.
 default sg_stage_later = None
@@ -545,6 +557,57 @@ init -4 python:
         except Exception:
             sg_stage_oops("sg_stage_ending")
 
+    def sg_stage_rain():
+        """스탠딩 뒤에서 판이 끝날 때까지 내리는 비. 빗줄기는 같은 길을 되풀이해 떨어진다."""
+        import random
+
+        W, H = config.screen_width, config.screen_height
+        near = renpy.displayable("images/fx/sg_fx_drop_near.png")
+        far = renpy.displayable("images/fx/sg_fx_drop_far.png")
+        items = [ ]
+        for i in range(sg_stage_weather_drops):
+            ## 뒤에서 내리는 비라 먼 빗줄기를 더 많이 둔다
+            is_near = (i % 3 == 0)
+            h = 72 if is_near else 44
+            dy = H + 2 * h
+            items.append({
+                "frames": [ near if is_near else far ],
+                "x": random.uniform(0, W + 0.26 * dy),
+                "y": -h,
+                "dx": -0.26 * dy,
+                "dy": dy,
+                "dur": random.uniform(0.5, 0.66) if is_near else random.uniform(0.8, 1.1),
+                "delay": -random.uniform(0, 1.2),
+            })
+        return SgFxSprites("drop", items, 10 ** 9)
+
+    def sg_stage_weather(kind):
+        """날씨를 무대에 건다. kind 는 "rain", "storm" 또는 빈 값이다.
+
+        배경 위, 스탠딩 아래에 어두운 막과 비를 깔고, 천둥이면 가끔 멀리서 번쩍인다.
+        같은 날씨가 이어지면 그대로 둔다. 배경이 바뀌면(sg_show_bg) 무대와 함께 치워진다."""
+        try:
+            kind = kind if kind in sg_stage_weather_dim else ""
+            if kind == store.sg_stage_weather_now:
+                return
+            for tag in ("sg_weather_dim", "sg_weather_rain", "sg_weather_flash"):
+                if renpy.showing(tag, layer="master"):
+                    renpy.hide(tag, layer="master")
+            store.sg_stage_weather_now = kind
+            if not kind:
+                return
+            ## 나중에 보인 것이 스탠딩 바로 아래에 들어간다: 막 → 비 → 번쩍임 차례로 쌓인다
+            behind = [ "sg_char" ] if renpy.showing("sg_char", layer="master") else [ ]
+            renpy.show("sg_weather_dim", what=Solid(sg_fx_rgba(sg_fx_ink, sg_stage_weather_dim[kind])),
+                       at_list=[ store.sg_stage_weather_in ], layer="master", behind=behind)
+            renpy.show("sg_weather_rain", what=sg_stage_rain(),
+                       at_list=[ store.sg_stage_weather_in ], layer="master", behind=behind)
+            if kind == "storm":
+                renpy.show("sg_weather_flash", what=Solid("#FFFFFF"),
+                           at_list=[ store.sg_stage_weather_flash ], layer="master", behind=behind)
+        except Exception:
+            sg_stage_oops("sg_stage_weather")
+
     def sg_stage_reset():
         """기호와 제목 카드를 치우고 표정 기억을 지운다. 판이 바뀔 때 부른다."""
         try:
@@ -552,6 +615,7 @@ init -4 python:
             renpy.hide_screen("sg_stage_title")
             store.sg_stage_face = None
             store.sg_stage_later = None
+            store.sg_stage_weather_now = ""   # 무대를 치우면(renpy.scene) 날씨도 함께 치워진다
         except Exception:
             sg_stage_oops("sg_stage_reset")
 
@@ -580,6 +644,22 @@ init -4 python:
 ################################################################################
 ## 3. 배경
 ################################################################################
+
+## 날씨가 바뀔 때 어두운 막과 비가 천천히 드리운다.
+transform sg_stage_weather_in:
+    alpha 0.0
+    linear 1.2 alpha 1.0
+
+## 천둥: 멀리서 옅게 한 번 번쩍이고 사그라들기를 되풀이한다.
+transform sg_stage_weather_flash:
+    alpha 0.0
+    block:
+        pause sg_stage_weather_flash_every
+        linear 0.08 alpha 0.18
+        linear 0.12 alpha 0.04
+        linear 0.06 alpha 0.12
+        linear 0.6 alpha 0.0
+        repeat
 
 ## 아주 느리게 다가왔다 물러나며 옆으로 조금 흐른다. 한 번 오가는 데 36초.
 transform sg_stage_bg_drift:

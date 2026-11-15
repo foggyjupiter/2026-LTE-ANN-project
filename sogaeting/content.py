@@ -62,6 +62,7 @@ def load_seeds() -> dict:
     "event_hints": {사건: 가까워지는 순간의 힌트}, "event_groups": {묶음 이름: [사건, ...]}}
 
     event_places에 없는 사건은 어느 장소에서나 일어날 수 있다. event_groups의 한 묶음에서는 한 판에 사건 하나만 고른다.
+    event_weather({사건: "rain" 또는 "storm"})의 사건이 일어나면 그 뒤로 판이 끝날 때까지 비가 온다.
     """
     return _read_json(DATA_DIR / "seeds.json")
 
