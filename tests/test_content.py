@@ -171,7 +171,12 @@ class CharacterTest(unittest.TestCase):
 class OtherDataTest(unittest.TestCase):
     def test_seeds(self):
         seeds = content.load_seeds()
-        self.assertEqual(sorted(seeds), ["entrance", "event", "event_hints", "event_places"])
+        self.assertEqual(sorted(seeds), ["entrance", "event", "event_groups", "event_hints", "event_places"])
+        # 한 판에 하나만 쓰는 사건 묶음. 날씨는 어느 장소에나 맞아서 묶어 둔다
+        self.assertEqual(sorted(seeds["event_groups"]["날씨"]), ["소나기와 우산 하나", "천둥 번개"])
+        for members in seeds["event_groups"].values():
+            for event in members:
+                self.assertIn(event, seeds["event"])
         # 가까워지는 순간의 계기가 되는 사건. 어느 장소에서나 하나 넘게 고를 수 있다
         for event, hint in seeds["event_hints"].items():
             self.assertIn(event, seeds["event"])
@@ -215,8 +220,13 @@ class OtherDataTest(unittest.TestCase):
         self.assertEqual([bool(r.get("finale")) for r in replies], [False] * 11 + [True])
         # 사건은 세 번, 강도는 줄지 않고, 마지막 두 답이 가장 세다
         self.assertEqual([i for i, r in enumerate(replies, 1) if r["seed"] == "event"], [4, 7, 10])
-        # 답이 10번일 때와 점수 범위가 비슷하게 한 답의 점수 움직임을 줄인다
-        self.assertAlmostEqual(schedule["points_scale"], 10 / 12, places=2)
+        # 내리는 칸은 답이 10번일 때와 점수 범위가 비슷하게 줄인다. 오르는 칸은 바람을 짚는 말(+2)이 다정한 말(+1)보다
+        # 더 무겁도록 따로 정한다(2026-11-15 실전 시험으로 맞춘 값)
+        scale = schedule["points_scale"]
+        self.assertAlmostEqual(scale["-1"], 10 / 12, places=2)
+        self.assertAlmostEqual(scale["-2"], 10 / 12, places=2)
+        self.assertLess(scale["1"], 10 / 12)
+        self.assertGreater(scale["2"], 1.0)
         levels = [r["intensity"] for r in replies]
         self.assertEqual(levels, sorted(levels))
         self.assertEqual(levels[-2:], [5, 5])

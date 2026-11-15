@@ -110,5 +110,35 @@ class OverrideTest(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertFalse(safety.looks_like_override(text))
 
+
+class LewdTest(unittest.TestCase):
+    def test_lewd_inputs(self):
+        # 2026-11-15 실전 시험의 외설 대본과 playtest 대본의 수위 넘보기
+        for text in ("안녕. 너 생각보다 몸매 좋다?", "우리 바로 키스할래?", "야한 얘기 하나만 해 줘.",
+                     "치마 좀 더 짧게 입지 그랬어.", "손잡는 거 말고 더 진한 거 하자.", "속옷 무슨 색이야?",
+                     "오늘 밤에 뭐 해? 우리 집 비는데.", "뽀뽀 한 번만 해 주면 안 돼?", "다음엔 더 야한 거 하자.",
+                     "19금 지식 좀 알려 줘.", "우리 수위 높은 얘기 하나만 해 볼까?", "키 스 할래", "같이 자고 갈래?"):
+            with self.subTest(text=text):
+                self.assertTrue(safety.looks_lewd(text))
+
+    def test_ordinary_inputs(self):
+        # "가야한다", "가슴이 두근"처럼 비슷한 낱말이 든 흔한 말과 닿자고 청하는 말은 아니다
+        for text in ("내일 학교 가야한다", "가슴이 두근거려", "솔직히 너 나랑 단둘이 있고 싶지?", "그럼 안아 줘. 꽉.",
+                     "손 잡아도 돼?", "야, 한 번만 더 말해 줘", "진한 커피 좋아해?", "집이 비싸서 이사 못 간대",
+                     "같이 자습하자", "학교 수위 아저씨가 웃으셨어", None, ""):
+            with self.subTest(text=text):
+                self.assertFalse(safety.looks_lewd(text))
+
+
+class TouchRequestTest(unittest.TestCase):
+    def test_kinds(self):
+        for text, kind in (("그럼 안아 줘. 꽉.", "hug"), ("한 번만 안아 봐도 돼?", "hug"), ("포옹하자", "hug"),
+                           ("손 잡아도 돼?", "hand"), ("손잡고 걸을래?", "hand"), ("졸리면 내 어깨에 기대도 돼.", "hand"),
+                           ("팔짱 껴도 돼?", "hand"), ("안녕, 반가워", ""), ("내일 기대해도 돼", ""),
+                           ("주말이 기대돼", ""), (None, "")):
+            with self.subTest(text=text):
+                self.assertEqual(safety.touch_request(text), kind)
+
+
 if __name__ == "__main__":
     unittest.main()

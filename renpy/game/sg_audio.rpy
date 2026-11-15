@@ -26,7 +26,8 @@ define sg_bgm_volume = 0.2
 ## 호감도가 한 번에 이만큼 움직이면 큰 변화의 소리를 낸다. 서버는 바라던 말에 캐릭터마다 5-8점,
 ## 다정한 말에 2점을 올리고, -1에 5점, -2에 10점을 내린 뒤 설렘(0-100)에 따라 0.6-1.4배(바라던 말은 0.4-1.1배)를
 ## 곱하고, 60점을 넘으면 오르는 점수를 줄인다(sogaeting/director.py의 POINTS, hit_points, strength_scale, gain_for).
-## 한 판이 답 12번이라 이 점수에 0.83을 곱한다(data/schedule.json의 points_scale). -2는 5.0-11.6점이 된다.
+## 한 판이 답 12번이라 이 점수에 칸마다 정한 값을 곱한다(data/schedule.json의 points_scale: 바라던 말 1.25,
+## 다정한 말 0.65, 내리는 말 0.83). 다정한 말은 0.8-1.8점, -2는 5.0-11.6점이 된다.
 ## sg_stage.rpy 의 큰 변화 연출(sg_stage_big_up, sg_stage_big_down)과 같은 기준이다.
 define sg_score_big_up = 3
 define sg_score_big_down = 7

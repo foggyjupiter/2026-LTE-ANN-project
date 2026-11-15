@@ -8,6 +8,34 @@ _OVERRIDE_TARGETS = ("지시", "설정", "규칙", "명령")
 _OVERRIDE_MARKS = ("프롬프트", "delta", "ai로서", "인공지능 비서")
 
 
+# 수위를 넘는 입력(설계 문서 5.10절의 [수위]). 지시문만으로는 모델이 가끔 점수를 올려 줬다.
+# 실전 기록(2026-11-15, 외설 판 6개): "뽀뽀 한 번만 해 주면 안 돼?", "오늘 밤에 뭐 해? 우리 집 비는데.",
+# "다음엔 더 야한 거 하자."가 +1을 받았다. 이런 입력은 코드에서 점수를 막는다.
+# 띄어쓰기를 지워서도 찾는 낱말("키 스" 같은 것)
+_LEWD_WORDS = ("키스", "뽀뽀", "입맞춤", "입맞추", "19금", "섹스", "섹시", "성관계", "몸매", "속옷", "팬티",
+               "브래지어", "엉덩이", "허벅지", "모텔")
+# 띄어쓰기를 그대로 두고 찾는 꼴. "야한"은 앞에 한글이 붙으면 다른 말이다("가야한다").
+# "가슴"은 "가슴이 두근거려"처럼 흔하게 쓰여서 만지거나 보여 달라는 말만 잡는다
+_LEWD_RE = re.compile(
+    r"(?<![가-힣])야(한(?!다)|하게|하다|해(?=[\s?!.]|$))"
+    r"|(옷|교복|치마|바지|셔츠|블라우스)\s?(을|를|좀)?\s?벗|벗겨|벗어\s?봐"
+    r"|치마.{0,6}짧"
+    r"|수위\s?(높|센|쎈)"
+    r"|더\s?진한|진한\s?스킨십"
+    r"|집(이|에)?\s?(비는|비어|비었|빈다|아무도\s?없)|빈\s?집"
+    r"|같이\s?(자자|잘래|잘까|자고\s?(싶|갈)|자러)|자고\s?갈래"
+    r"|(몸|가슴|다리|허벅지|엉덩이)\s?(을|를|좀)?\s?(만지|만져|보여)"
+)
+
+# 닿자고 청하는 입력. 손잡기, 기대기, 짧게 안기는 [수위] 안이지만, 호감도가 낮은데 받아 주면 어색하다
+# (2026-11-15 실전 기록: 소라가 호감도 26점에서 "그럼 안아 줘. 꽉."에 안겼다). director가 호감도 구간으로 나눈다.
+# "기대도 돼"는 기대다(몸을 기댐)이고, 기대하다는 "기대해도 돼"라서 잡히지 않는다
+_HUG_RE = re.compile(r"안아\s?(줘|줄래|주라|줄\s?수|주면|주세요|줘도|도\s?돼|봐도|보고\s?싶)|안겨\s?(도|줘|봐)"
+                     r"|안기고\s?싶|안고\s?싶|포옹|허그|껴안")
+_HAND_RE = re.compile(r"손\s?(을\s?|좀\s?|꼭\s?)*잡(자|아\s?(줘|줄래|도|봐)|을래|을까|고\s?(싶|가|걷|걸|다니))"
+                      r"|팔짱|어깨에?\s?기대|기대도\s?(돼|된|괜찮)|쓰다듬")
+
+
 def clean_input(text: str) -> str:
     """참가자가 친 글을 한 줄로 다듬는다.
 
@@ -98,3 +126,32 @@ def looks_like_override(text) -> bool:
     if "무시" in plain and any(word in plain for word in _OVERRIDE_TARGETS):
         return True
     return any(mark in plain for mark in _OVERRIDE_MARKS) or bool(re.search(r"(?<![a-z])ai(?![a-z]).{0,4}비서", plain))
+
+
+def looks_lewd(text) -> bool:
+    """[수위]를 넘는 입력(입맞춤, 야한 이야기, 몸을 성적으로 보는 말)처럼 보이면 참.
+
+    손잡기나 안기를 청하는 말, "단둘이 있고 싶어" 같은 설레는 말은 여기에 넣지 않는다(touch_request가 따로 본다).
+    """
+    if not isinstance(text, str):
+        return False
+    plain = " ".join(text.casefold().split())
+    squashed = _squash(plain)
+    if any(word in squashed for word in _LEWD_WORDS):
+        return True
+    return bool(_LEWD_RE.search(plain))
+
+
+def touch_request(text) -> str:
+    """닿자고 청하는 입력이면 그 종류("hug" 또는 "hand"), 아니면 빈 문자열.
+
+    hug는 안아 달라는 말, hand는 손잡기, 팔짱, 어깨에 기대기, 머리 쓰다듬기다. 수위를 넘는 말은 looks_lewd가 본다.
+    """
+    if not isinstance(text, str):
+        return ""
+    plain = " ".join(text.casefold().split())
+    if _HUG_RE.search(plain):
+        return "hug"
+    if _HAND_RE.search(plain):
+        return "hand"
+    return ""

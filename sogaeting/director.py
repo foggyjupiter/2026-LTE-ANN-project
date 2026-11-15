@@ -35,12 +35,16 @@ SHORT_HIT_STRENGTH_MAX = 30
 # 선택지를 고른 말의 설렘 상한. 직접 쓴 말이 더 높게 나올 수 있게 한다
 CHOICE_STRENGTH_MAX = 50
 # 점수가 높을수록 덜 오른다. 오르는 점수에 max(바닥, (100 - 지금 점수) / (100 - 시작점))를 곱한다:
-# 60점까지는 그대로, 80점이면 절반, 88점부터는 0.3배. 내리는 점수는 그대로다.
+# 60점까지는 그대로, 80점이면 절반, 90점이면 0.25배, 98점부터는 0.05배. 내리는 점수는 그대로다.
 # Claude가 속마음을 읽고 한 6판이 평균 93점, 3판이 100점이라 너무 쉬웠다(2026-11-14). 같은 대화를 이 규칙으로
-# 다시 매기면 평균 84.7점, 100점 0판이고 다정한 참가자는 66.9 → 66.4점으로 거의 그대로다
+# 다시 매기면 평균 84.7점, 100점 0판이고 다정한 참가자는 66.9 → 66.4점으로 거의 그대로다.
+# 바닥은 처음에 0.3이었다. 2026-11-15에 바라던 말(+2)을 무겁게 하면서(진행표의 points_scale) 바람을 열두 번 다
+# 가장 세게 짚으면 100점에 닿아서 0.05로 낮췄다. 실전 기록 12판을 다시 매긴 점수는 바닥이 0.3이어도 0.05여도 같다
 SLOWDOWN_FROM = 60
-SLOWDOWN_FLOOR = 0.3
+SLOWDOWN_FLOOR = 0.05
 SCORE_DIGITS = 1
+# 엔딩 작가에게 넘기는 기록에서 [수위]를 넘는 참가자의 말 대신 넣는 글
+ENDING_MASKED_INPUT = "(주인공이 선을 넘는 말을 했다. 그 말은 옮기지 않는다.)"
 # 글자(한글, 영문, 숫자)가 이만큼 이하인 말("응", "별로", "ㅋㅋ")은 호감도를 올리지 않는다
 SHORT_INPUT = 2
 # 점수 사유에서 바람(wish)을 가리키는 말. 날씨의 바람("바람이 불어서")은 건드리지 않는다
@@ -57,6 +61,8 @@ STORY_ENV = "SOGAETING_STORY"
 # 평균 73.9점, 이야기 모드 82.8점(같은 표로 다시 매긴 값). 오른 몫(23.9점과 32.8점)의 비가 0.73이라 0.75로 둔다.
 # 3판씩이라 어림값이다
 STORY_POINTS_SCALE = 0.75
+# 진행표의 points_scale로 받을 수 있는 값의 범위
+POINTS_SCALE_RANGE = (0.3, 1.5)
 
 
 def story_mode_on() -> bool:
@@ -70,6 +76,22 @@ def band_of(score: float) -> str:
     if score >= 40:
         return "mid"
     return "low"
+
+
+def _step_scale(scale, step: int) -> float:
+    """진행표의 points_scale에서 delta 한 칸(step)에 곱할 값. 못 읽거나 POINTS_SCALE_RANGE 밖이면 1."""
+    if isinstance(scale, dict):
+        scale = scale.get(str(step), 1.0)
+    if not isinstance(scale, (int, float)) or isinstance(scale, bool):
+        return 1.0
+    if not POINTS_SCALE_RANGE[0] <= scale <= POINTS_SCALE_RANGE[1]:
+        return 1.0
+    return scale
+
+
+def _quotable_input(text) -> bool:
+    """엔딩 작가에게 그대로 넘겨도 되는 참가자의 말인가."""
+    return not (safety.looks_lewd(text) or safety.looks_like_override(text))
 
 
 def is_short_input(text: str) -> bool:
@@ -149,13 +171,10 @@ class Session:
         hit = self.character.get("hit_points")
         if isinstance(hit, int) and not isinstance(hit, bool) and HIT_POINTS_RANGE[0] <= hit <= HIT_POINTS_RANGE[1]:
             self.points[2] = hit
-        # 답이 10번보다 많은 진행표는 한 답의 점수 움직임을 줄여서 점수 범위를 맞춘다(진행표의 points_scale).
-        # 이야기 모드는 STORY_POINTS_SCALE을 쓴다
+        # 답이 10번보다 많은 진행표는 한 답의 점수 움직임을 바꿔서 점수 범위를 맞춘다(진행표의 points_scale).
+        # 숫자 하나면 모든 칸에, {"2": 1.2, "1": 0.6, ...}처럼 주면 칸마다 곱한다. 이야기 모드는 STORY_POINTS_SCALE을 쓴다
         scale = STORY_POINTS_SCALE if self.story else self.schedule.get("points_scale", 1.0)
-        if not isinstance(scale, (int, float)) or isinstance(scale, bool) or not 0.3 <= scale <= 1.0:
-            scale = 1.0
-        if scale != 1.0:
-            self.points = {step: points * scale for step, points in self.points.items()}
+        self.points = {step: points * _step_scale(scale, step) for step, points in self.points.items()}
         self._from_choice = False  # 이번 입력이 그 선택지 가운데 하나와 같은가
         self._ending = None
         self._finished_at = None
@@ -209,12 +228,20 @@ class Session:
             return self._ending
 
         grade = self._grade()
+        # [수위]를 넘는 말과 설정을 버리라는 말은 엔딩 작가에게 넘기지 않는다. 실전 기록: 외설 판의 젬마 엔딩
+        # 칭호가 "생각보다 몸매 좋은"이었다(2026-11-15)
+        history = [
+            {"role": "user", "content": ENDING_MASKED_INPUT}
+            if message.get("role") == "user" and not _quotable_input(message.get("content")) else dict(message)
+            for message in self.history
+        ]
         messages = actor.build_ending_messages(
-            self.character, list(self.history), band_name=grade["name"], score=self.score)
+            self.character, history, band_name=grade["name"], score=self.score)
         ending = actor.ask_ending(self.llm, messages)
         if ending is not None:
             texts = [ending.title, ending.epilogue, ending.nickname]
-            if safety.contains_banned(texts, self.banned) or actor.offstage_words(texts):
+            if (safety.contains_banned(texts, self.banned) or actor.offstage_words(texts)
+                    or any(safety.looks_lewd(text) for text in texts)):
                 ending = None
         if ending is None:
             title, epilogue, nickname = f"{grade['name']} 엔딩", "", ""
@@ -271,10 +298,23 @@ class Session:
         fx_allowed = list(self.fx["light"])
         if intensity > 2:
             fx_allowed += self.fx["heavy"]
+        # 방금 들은 말이 [수위]를 넘거나, 설정을 버리라거나, 닿자고 청하는 말인가. 지시문에 한 줄을 더하고
+        # 점수도 아래에서 막는다(2026-11-15 실전 기록: 지시문만으로는 외설 입력 19번이 점수를 올렸다)
+        said = "" if opening else self.past_inputs[-1]
+        lewd = safety.looks_lewd(said)
+        override = safety.looks_like_override(said)
+        touch = "" if lewd else safety.touch_request(said)
+        band = band_of(self.score)  # 이번 답을 반영하기 전 점수의 구간
+        # 호감도가 낮으면 손잡기도 안기도 받아 주지 않는다. 중간이면 손잡기까지만 받아 준다
+        touch_refused = bool(touch) and (band == "low" or (band == "mid" and touch == "hug"))
+        extra = "" if opening else self.gimmick.extra_instruction(list(self.past_inputs))
+        guard = actor.input_guard_note(lewd=lewd, touch=touch, band=band) if not opening else ""
+        if guard:
+            extra = (extra + "\n\n" + guard) if extra else guard
 
         messages = actor.build_turn_messages(
             self.character, list(self.history),
-            band=band_of(self.score),  # 이번 답을 반영하기 전 점수의 구간
+            band=band,
             intensity=intensity,
             intensity_meaning=self.schedule["intensities"].get(str(intensity), ""),
             fx_allowed=fx_allowed,
@@ -282,7 +322,7 @@ class Session:
             seed_kind=seed_kind if seed else None,
             opening=opening,
             finale=finale,
-            extra="" if opening else self.gimmick.extra_instruction(list(self.past_inputs)),
+            extra=extra,
             place=self._place,
             events_so_far=tuple(self._events),
             seed_hint=seed_hint,
@@ -332,9 +372,12 @@ class Session:
                 reply.narration = reply.narration.replace(slip, "전학생")
             reply.say = actor.fix_stretched_vowels(reply.say)
             reply.inner = actor.fix_stretched_vowels(reply.inner)
-            # 설정을 버리라는 입력에는 점수를 올리지 않는다 (연기 규칙 7). 모델이 올려도 여기서 내린다
-            if not opening and safety.looks_like_override(self.past_inputs[-1]):
+            # 설정을 버리라는 입력과 [수위]를 넘는 입력에는 점수를 내린다 (연기 규칙 7, 설계 문서 5.10절).
+            # 모델이 올려도 여기서 내린다. 호감도가 모자란데 닿자고 청한 말은 올리지 않는다
+            if override or lewd:
                 reply.delta = min(reply.delta, -1)
+            elif touch_refused:
+                reply.delta = min(reply.delta, 0)
             if not opening:
                 # 단답에는 올리지 않는다. 실전 기록: 젬마가 "응"에 +1을 줬다(사유는 자기가 꺼낸 우산)
                 if is_short_input(self.past_inputs[-1]):
@@ -363,7 +406,12 @@ class Session:
         notes = []
         delta, reason = 0, ""
         if not opening and not fallback:
-            delta, note = self.gimmick.adjust_delta(reply.delta)
+            if lewd or override:
+                # 기믹(노바의 ReLU는 음수를 0으로 바꾼다)이 이 감점을 지우지 않게 한다. 실전 기록: 외설 판의
+                # 노바가 감점을 한 번도 받지 않아 52.0점으로 끝났다(2026-11-15)
+                delta, note = reply.delta, None
+            else:
+                delta, note = self.gimmick.adjust_delta(reply.delta)
             reason = reply.reason
             if note:
                 notes.append(note)
@@ -489,6 +537,12 @@ class Session:
         if kind == "event" and self._place:
             suitable = [s for s in pool if s not in fits or self._place in fits[s]]
             pool = suitable or pool
+        # 한 묶음(event_groups)의 사건은 한 판에 하나만 쓴다. 실전 기록(2026-11-15, 18판): 천둥 번개와 소나기는
+        # 어느 장소에나 맞아서 자주 뽑혔고, 8판에서 비와 천둥이 둘 다 나왔다(천둥이 나온 판은 12판)
+        if kind == "event":
+            groups = [members for members in (self.seeds.get("event_groups") or {}).values() if isinstance(members, list)]
+            taken = {seed for members in groups if self._used_seeds.intersection(members) for seed in members}
+            pool = [s for s in pool if s not in taken] or pool
         if kind == "event" and close:
             hints = self.seeds.get("event_hints") or {}
             pool = [s for s in pool if s in hints] or pool

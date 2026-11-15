@@ -58,9 +58,10 @@ def load_character(char_id: str) -> dict:
 
 
 def load_seeds() -> dict:
-    """씨앗 낱말. {"entrance": [...], "event": [...], "event_places": {사건: [그 사건이 일어날 수 있는 장소]}}
+    """씨앗 낱말. {"entrance": [...], "event": [...], "event_places": {사건: [그 사건이 일어날 수 있는 장소]},
+    "event_hints": {사건: 가까워지는 순간의 힌트}, "event_groups": {묶음 이름: [사건, ...]}}
 
-    event_places에 없는 사건은 어느 장소에서나 일어날 수 있다.
+    event_places에 없는 사건은 어느 장소에서나 일어날 수 있다. event_groups의 한 묶음에서는 한 판에 사건 하나만 고른다.
     """
     return _read_json(DATA_DIR / "seeds.json")
 
