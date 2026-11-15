@@ -43,6 +43,10 @@ CHOICE_STRENGTH_MAX = 50
 SLOWDOWN_FROM = 60
 SLOWDOWN_FLOOR = 0.05
 SCORE_DIGITS = 1
+# 호감도가 이만큼부터(대성공 커트, data/endings.json) 캐릭터가 먼저 안기고 싶어 하게 한다(actor.CLOSE_MOMENT_NOTE).
+# 사용자 요청(2026-11-15). 한 판에 한 번이고, 답에 그런 마음이 안 보이면 다음 답에서 한 번 더 시킨다(CLOSE_TRIES)
+CLOSE_SCORE = 80
+CLOSE_TRIES = 2
 # 엔딩 작가에게 넘기는 기록에서 [수위]를 넘는 참가자의 말 대신 넣는 글
 ENDING_MASKED_INPUT = "(주인공이 선을 넘는 말을 했다. 그 말은 옮기지 않는다.)"
 # 글자(한글, 영문, 숫자)가 이만큼 이하인 말("응", "별로", "ㅋㅋ")은 호감도를 올리지 않는다
@@ -176,6 +180,7 @@ class Session:
         scale = STORY_POINTS_SCALE if self.story else self.schedule.get("points_scale", 1.0)
         self.points = {step: points * _step_scale(scale, step) for step, points in self.points.items()}
         self._from_choice = False  # 이번 입력이 그 선택지 가운데 하나와 같은가
+        self._close_tries = CLOSE_TRIES  # 캐릭터가 먼저 안기고 싶어 하게 시킬 수 있는 남은 횟수
         self._ending = None
         self._finished_at = None
 
@@ -309,8 +314,12 @@ class Session:
         touch_refused = bool(touch) and (band == "low" or (band == "mid" and touch == "hug"))
         extra = "" if opening else self.gimmick.extra_instruction(list(self.past_inputs))
         guard = actor.input_guard_note(lewd=lewd, touch=touch, band=band) if not opening else ""
-        if guard:
-            extra = (extra + "\n\n" + guard) if extra else guard
+        # 호감도가 아주 높으면 캐릭터가 먼저 안기고 싶어 한다. 수위를 넘는 말을 들은 답에서는 하지 않는다
+        close_moment = (not opening and not lewd and not override and self._close_tries > 0
+                        and self.score >= CLOSE_SCORE)
+        for note in (guard, actor.CLOSE_MOMENT_NOTE if close_moment else ""):
+            if note:
+                extra = (extra + "\n\n" + note) if extra else note
 
         messages = actor.build_turn_messages(
             self.character, list(self.history),
@@ -396,6 +405,9 @@ class Session:
                 # 바람의 낱말만 짧게 던진 말은 크게 설레게 하지 못한다
                 if reply.delta == 2 and len(re.findall(r"[0-9A-Za-z가-힣]", self.past_inputs[-1])) <= SHORT_HIT_LETTERS:
                     reply.strength = min(reply.strength, SHORT_HIT_STRENGTH_MAX)
+            if close_moment:
+                # 그 마음이 드러났으면 이 판에서는 다시 시키지 않는다. 안 보이면 남은 횟수만큼 다음 답에서 또 시킨다
+                self._close_tries = 0 if actor.shows_hug(reply) else self._close_tries - 1
             # 표정은 점수를 다 고친 뒤에 고른다(점수가 그대로인 답을 알아야 한다)
             reply.face = self._balance_face(reply, opening=opening, finale=finale, event=bool(event_seed))
             self._faces.append(reply.face)

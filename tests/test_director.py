@@ -1023,6 +1023,34 @@ class OffstageTest(unittest.TestCase):
                 self.assertEqual(session.reply(text)["delta"], delta)
                 self.assertIn(note, llm.system_of(1))
 
+    def test_character_wants_a_hug_when_affinity_is_very_high(self):
+        # 호감도가 CLOSE_SCORE부터는 캐릭터가 먼저 안기고 싶어 하게 시킨다. 그 마음이 답에 안 보이면 한 번 더 시킨다
+        note = "[아주 가까워짐]"
+        llm = ScriptedLlm()
+        session = Session("mistral", llm=llm)
+        session.start()
+        session.score = director.CLOSE_SCORE
+        for _ in range(3):
+            session.reply("오늘 너랑 있어서 좋았어")
+        self.assertEqual([note in llm.system_of(turn) for turn in (1, 2, 3)], [True, True, False])
+        # 안기는 장면이 나오면 그 판에서는 다시 시키지 않는다
+        llm = ScriptedLlm(turns={1: {"narration": "미스트랄이 머뭇거리다 전학생 품에 짧게 안겼다."}})
+        session = Session("mistral", llm=llm)
+        session.start()
+        session.score = 90
+        session.reply("오늘 너랑 있어서 좋았어")
+        session.reply("내일도 보자")
+        self.assertEqual([note in llm.system_of(turn) for turn in (1, 2)], [True, False])
+        # 호감도가 그보다 낮거나 수위를 넘는 말을 들은 답에서는 시키지 않는다
+        for score, text in ((director.CLOSE_SCORE - 1, "오늘 너랑 있어서 좋았어"), (95, "우리 키스할래?")):
+            with self.subTest(score=score, text=text):
+                llm = ScriptedLlm()
+                session = Session("mistral", llm=llm)
+                session.start()
+                session.score = score
+                session.reply(text)
+                self.assertNotIn(note, llm.system_of(1))
+
     def test_lewd_inputs_are_not_sent_to_the_ending_writer(self):
         llm = ScriptedLlm()
         session = Session("gemma", llm=llm)
