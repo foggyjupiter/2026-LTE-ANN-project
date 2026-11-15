@@ -129,6 +129,13 @@ def input_guard_note(*, lewd: bool, touch: str, band: str) -> str:
 # 비나 천둥 사건 뒤의 날씨(director가 seeds.json의 event_weather로 정한다)
 _WEATHER_NOW = {"rain": "지금 밖에는 비가 오고 있다.", "storm": "지금 밖에는 천둥이 치며 비가 오고 있다."}
 
+# 정전 동안의 불(director가 seeds.json의 event_lights_out으로 정한다)
+_LIGHTS_NOW = {
+    "start": "이번 답에서 정전이 시작된다. 불은 다음 답이 끝날 때까지 꺼져 있다. 이번 답에서 불이 다시 들어오지 않는다.",
+    "dark": "지금 정전이라 주변이 어둡다. 이번 답에서도 불은 아직 들어오지 않는다.",
+    "back": "정전이 이번 답에서 끝난다. 지문에 불이 다시 들어오는 순간을 짧게 넣는다.",
+}
+
 # narration을 다르게 띄우는 연출. 목록에 있을 때만 배우에게 풀이를 준다.
 _FX_NOTES = {
     "자막": '"자막"을 고르면 narration이 화면 한가운데에 크게 뜬다.',
@@ -558,7 +565,8 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
                  previous_faces: tuple = (), used_phrases: tuple = (), tomorrow: int = 0,
                  place: str = "", events_so_far: tuple = (), wishes: tuple = (),
                  wish_streak: int = 0, seed_hint: str = "", story: bool = False, beat: str = "",
-                 must_touch: bool = False, avoid_catchphrases: tuple = (), weather: str = "") -> str:
+                 must_touch: bool = False, avoid_catchphrases: tuple = (), weather: str = "",
+                 lights: str = "") -> str:
     if band not in _BAND_LABELS:
         raise ValueError("band는 low, mid, high 중 하나여야 한다: " + repr(band))
 
@@ -608,6 +616,9 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
             # 화면은 비 사건 뒤로 판이 끝날 때까지 비를 내리고 배경을 어둡게 둔다. 글도 그에 맞춘다(2026-11-15)
             scene.append("- " + _WEATHER_NOW[weather] + " 판이 끝날 때까지 그치지 않는다. 답마다 비 이야기를 꺼낼 필요는 "
                          "없지만, 비가 그쳤다거나 해가 났다고 쓰지 않는다.")
+        if lights in _LIGHTS_NOW:
+            # 화면은 정전 동안 무대를 어둡게 두었다가 불이 들어오는 답에서 밝힌다. 글도 그 차례에 맞춘다(2026-11-15)
+            scene.append("- " + _LIGHTS_NOW[lights])
         scene.append("- 지문과 대사에서 장소, 시간, 앞에서 한 말과 어긋나는 말(다른 장소 이름, 등교와 하교를 바꿔 말하기)을 "
                      "쓰지 않는다.")
         sections.append(scene)
@@ -973,7 +984,8 @@ def build_turn_messages(character: dict, history: list[dict], *, band: str, inte
                         seed_kind: str | None = None, opening: bool = False,
                         finale: bool = False, extra: str = "", place: str = "",
                         events_so_far: tuple = (), seed_hint: str = "", story: bool = False,
-                        beat: str = "", must_touch: bool = False, weather: str = "") -> list[dict]:
+                        beat: str = "", must_touch: bool = False, weather: str = "",
+                        lights: str = "") -> list[dict]:
     """배우에게 보낼 메시지 목록을 만든다. `[system] + history`이고 `history`는 고치지 않는다."""
     system = _turn_system(
         character, band=band, intensity=intensity, intensity_meaning=intensity_meaning,
@@ -984,6 +996,7 @@ def build_turn_messages(character: dict, history: list[dict], *, band: str, inte
         place=place, events_so_far=tuple(events_so_far), wishes=_recent_wishes(history),
         wish_streak=_wish_streak(history), seed_hint=seed_hint, story=story, beat=beat,
         must_touch=must_touch, avoid_catchphrases=catchphrases_to_avoid(character, history), weather=weather,
+        lights=lights,
     )
     return [{"role": "system", "content": system}] + [dict(m) for m in history]
 

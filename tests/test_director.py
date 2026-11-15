@@ -19,7 +19,7 @@ EIGHT_KEYS = {"narration", "say", "inner", "face", "fx", "delta", "reason", "cho
 HISTORY_KEYS = EIGHT_KEYS | {"wish", "strength"}  # 기록에는 화면에 안 나오는 바람과 세기도 남는다
 TURN_KEYS = EIGHT_KEYS | {
     "kind", "turn", "total_turns", "change", "strength", "score", "band", "popup",
-    "notes", "heard", "extras", "fallback", "finale", "place", "face_base", "weather",
+    "notes", "heard", "extras", "fallback", "finale", "place", "face_base", "weather", "lights_out",
 }
 ENDING_KEYS = {
     "kind", "character_id", "character_name", "band_id", "band_name", "title",
@@ -625,6 +625,29 @@ class SeedTest(unittest.TestCase):
             return
         self.fail("60판 안에 비 사건이 한 번도 없었다")
 
+    def test_lights_stay_out_until_they_come_back(self):
+        # 정전 사건 답과 그다음 답은 불이 꺼져 있고(lights_out), 그다음 답에서 불이 들어온다. 그동안 "암전" 연출은 버린다
+        for seed in range(80):
+            llm = ScriptedLlm(default={"fx": ["암전", "꽃잎"]})
+            session = Session("mistral", llm=llm, rng=random.Random(seed))
+            real = director.actor.build_turn_messages
+            with mock.patch.object(director.actor, "build_turn_messages", wraps=real) as spy:
+                outs = play(session)
+            kwargs = [call.kwargs for call in spy.call_args_list]
+            events = {turn: kwargs[turn]["seed"] for turn in (4, 7) if kwargs[turn]["seed"] == "정전"}
+            if not events:
+                continue
+            start = min(events)
+            lights = [k.get("lights", "") for k in kwargs]
+            self.assertEqual(lights[start:start + 3], ["start", "dark", "back"])
+            self.assertEqual([o["lights_out"] for o in outs[start - 1:start + 3]], [False, True, True, False])
+            self.assertNotIn("암전", outs[start]["fx"])
+            self.assertNotIn("암전", outs[start + 1]["fx"])
+            self.assertIn("정전이 이번 답에서 끝난다", llm.system_of(start + 2))
+            self.assertIn("불은 아직 들어오지 않는다", llm.system_of(start + 1))
+            return
+        self.fail("80판 안에 4, 7번째 답의 정전이 없었다")
+
     def test_weather_in_the_turn(self):
         session = Session("mistral", llm=ScriptedLlm())
         outs = play(session)
@@ -663,7 +686,10 @@ class SeedTest(unittest.TestCase):
 
 class FxTest(unittest.TestCase):
     def fx_per_turn(self, turns, count):
-        outs = play(Session("mistral", llm=ScriptedLlm(turns=turns)), count=count)
+        # 사건이 정전이면 그동안 "암전"을 버린다(test_lights_stay_out_until_they_come_back). 여기서는 그 규칙을 끈다
+        session = Session("mistral", llm=ScriptedLlm(turns=turns))
+        session.seeds = dict(session.seeds, event_lights_out={})
+        outs = play(session, count=count)
         return [o["fx"] for o in outs]
 
     def test_heavy_dropped_at_low_intensity(self):

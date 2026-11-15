@@ -178,6 +178,10 @@ class Session:
         # 날씨. 비나 천둥 사건(seeds.json의 event_weather)이 일어난 뒤로 판이 끝날 때까지 "rain" 또는 "storm"이다.
         # 화면은 이 값으로 배경을 어둡게 두고 비를 계속 내린다(사용자, 2026-11-15: 비가 오는데 배경이 밝으면 어색하다)
         self._weather = None
+        # 정전(seeds.json의 event_lights_out): 사건 답부터 적힌 답 수만큼 불이 꺼져 있고, 그다음 답에서 다시 들어온다.
+        # 화면은 그동안 무대를 어둡게 둔다(사용자, 2026-11-15: 암전 연출은 다 가려서 어색하다, 해결될 때까지 어둡게)
+        self._lights_out_left = 0     # 이번 답 뒤로 불이 더 꺼져 있을 답의 수
+        self._lights_back_next = False  # 다음 답에서 불이 다시 들어온다
         self._best = None        # (delta 절댓값, 속마음)
         self._last_choices = []  # 바로 앞 답에서 화면에 보인 선택지
         self.points = dict(POINTS)
@@ -312,6 +316,18 @@ class Session:
         fx_allowed = list(self.fx["light"])
         if intensity > 2:
             fx_allowed += self.fx["heavy"]
+        # 이번 답의 불: 정전이 시작되는 답(start), 아직 꺼져 있는 답(dark), 다시 들어오는 답(back), 아니면 빈 값
+        lights_off_for = (self.seeds.get("event_lights_out") or {}).get(seed) if seed_kind == "event" else None
+        if opening:
+            lights = ""
+        elif isinstance(lights_off_for, int) and lights_off_for > 0:
+            lights = "start"
+        elif self._lights_out_left > 0:
+            lights = "dark"
+        elif self._lights_back_next:
+            lights = "back"
+        else:
+            lights = ""
         # 방금 들은 말이 [수위]를 넘거나, 설정을 버리라거나, 닿자고 청하는 말인가. 지시문에 한 줄을 더하고
         # 점수도 아래에서 막는다(2026-11-15 실전 기록: 지시문만으로는 외설 입력 19번이 점수를 올렸다)
         said = "" if opening else self.past_inputs[-1]
@@ -348,6 +364,7 @@ class Session:
             beat=str(slot.get("beat") or "") if self.story else "",
             must_touch=must_touch,
             weather="" if opening else (self._weather or ""),
+            lights=lights,
         )
         fx_names = set(self.fx["light"]) | set(self.fx["heavy"])
         event_seed = seed if seed_kind == "event" else None
@@ -428,7 +445,8 @@ class Session:
             reply.face = self._balance_face(reply, opening=opening, finale=finale, event=bool(event_seed))
             self._faces.append(reply.face)
 
-        fx = self._filter_fx(reply.fx, intensity)
+        # 불이 꺼져 있는 동안에는 무대 전체를 덮었다가 밝아지는 "암전"을 쓰지 않는다. 화면이 어둡게 두고 있다
+        fx = self._filter_fx([n for n in reply.fx if n != "암전"] if lights in ("start", "dark") else reply.fx, intensity)
 
         # 점수. 등장과 대체 대사에서는 움직이지 않는다
         notes = []
@@ -492,6 +510,18 @@ class Session:
             weather = (self.seeds.get("event_weather") or {}).get(seed)
             if weather in WEATHERS:
                 self._weather = weather
+        # 정전의 남은 답 수를 센다. 대체 대사는 아무 일도 없던 답이라 세지 않는다
+        # 정전이 시작될 답이 대체 대사가 되면 정전은 일어나지 않은 것이다
+        lights_out = lights == "dark" or (lights == "start" and not fallback)
+        if not fallback:
+            if lights == "start":
+                self._lights_out_left = lights_off_for - 1
+                self._lights_back_next = self._lights_out_left == 0
+            elif lights == "dark":
+                self._lights_out_left -= 1
+                self._lights_back_next = self._lights_out_left == 0
+            elif lights == "back":
+                self._lights_back_next = False
         self._inners.append(eight["inner"])
         # 명대사 후보: delta 절댓값이 가장 큰 답. 같으면 뒤쪽. 대체 대사는 속마음이 없어서 뺀다
         if not opening and not fallback and (self._best is None or (abs(delta), strength) >= self._best[0]):
@@ -520,6 +550,8 @@ class Session:
             "face_base": actor.face_base(self.character, reply.face),
             # 날씨: None, "rain", "storm". 비나 천둥 사건이 있은 답부터 판이 끝날 때까지 같은 값이다
             "weather": self._weather,
+            # 정전으로 불이 꺼져 있는 답이면 True. 화면은 그동안 무대를 어둡게 둔다
+            "lights_out": lights_out,
         }
 
     def _balance_face(self, reply, *, opening, finale, event):

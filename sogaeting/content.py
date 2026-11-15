@@ -63,6 +63,7 @@ def load_seeds() -> dict:
 
     event_places에 없는 사건은 어느 장소에서나 일어날 수 있다. event_groups의 한 묶음에서는 한 판에 사건 하나만 고른다.
     event_weather({사건: "rain" 또는 "storm"})의 사건이 일어나면 그 뒤로 판이 끝날 때까지 비가 온다.
+    event_lights_out({사건: 답 수})의 사건이 일어나면 그 답부터 적힌 답 수만큼 불이 꺼져 있다가 다음 답에서 다시 들어온다.
     """
     return _read_json(DATA_DIR / "seeds.json")
 

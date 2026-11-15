@@ -171,7 +171,11 @@ class CharacterTest(unittest.TestCase):
 class OtherDataTest(unittest.TestCase):
     def test_seeds(self):
         seeds = content.load_seeds()
-        self.assertEqual(sorted(seeds), ["entrance", "event", "event_groups", "event_hints", "event_places", "event_weather"])
+        self.assertEqual(sorted(seeds), ["entrance", "event", "event_groups", "event_hints", "event_lights_out",
+                                         "event_places", "event_weather"])
+        for event, turns in seeds["event_lights_out"].items():
+            self.assertIn(event, seeds["event"])
+            self.assertTrue(isinstance(turns, int) and turns >= 1)
         # 날씨 사건은 날씨 묶음에 들어 있고, 화면이 아는 날씨만 쓴다
         self.assertEqual(sorted(seeds["event_weather"]), sorted(seeds["event_groups"]["날씨"]))
         self.assertTrue(set(seeds["event_weather"].values()) <= set(director.WEATHERS))

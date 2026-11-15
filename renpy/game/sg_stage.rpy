@@ -108,8 +108,16 @@ define sg_stage_weather_drops = 56
 ## 천둥(storm)일 때 멀리서 번쩍이는 간격(초).
 define sg_stage_weather_flash_every = 13.0
 
+## 정전. 서버가 불이 꺼져 있는 답마다 lights_out 을 보낸다. 그동안 배경은 짙게, 스탠딩은 조금 어둡게 덮는다.
+## 대사창과 글은 덮지 않는다. 화면 전체를 가렸다가 밝아지는 "암전" 연출 대신 쓴다(사용자, 2026-11-15).
+## 덮는 막의 불투명도: (배경, 스탠딩).
+define sg_stage_lights_dim = (0.62, 0.3)
+
 ## 지금 무대에 선 스탠딩의 표정. 같은 표정이 이어지면 큰 동작을 되풀이하지 않으려고 적어 둔다.
 default sg_stage_face = None
+
+## 지금 정전으로 불이 꺼져 있는지.
+default sg_stage_lights_now = False
 
 ## 지금 무대의 날씨: "", "rain", "storm". 같은 날씨가 이어지면 비를 처음부터 다시 그리지 않으려고 적어 둔다.
 default sg_stage_weather_now = ""
@@ -598,15 +606,41 @@ init -4 python:
                 return
             ## 나중에 보인 것이 스탠딩 바로 아래에 들어간다: 막 → 비 → 번쩍임 차례로 쌓인다
             behind = [ "sg_char" ] if renpy.showing("sg_char", layer="master") else [ ]
+            ## 막과 비에는 움직임을 걸지 않는다. 답마다 거는 짧은 전환(Dissolve 0.2)이 부드럽게 한다.
+            ## 시험 캡처에서 서서히 짙어지는 transform 을 건 막은 때에 따라 반만 보이거나 안 보였다(정전 막)
             renpy.show("sg_weather_dim", what=Solid(sg_fx_rgba(sg_fx_ink, sg_stage_weather_dim[kind])),
-                       at_list=[ store.sg_stage_weather_in ], layer="master", behind=behind)
-            renpy.show("sg_weather_rain", what=sg_stage_rain(),
-                       at_list=[ store.sg_stage_weather_in ], layer="master", behind=behind)
+                       layer="master", behind=behind)
+            renpy.show("sg_weather_rain", what=sg_stage_rain(), layer="master", behind=behind)
             if kind == "storm":
                 renpy.show("sg_weather_flash", what=Solid("#FFFFFF"),
                            at_list=[ store.sg_stage_weather_flash ], layer="master", behind=behind)
         except Exception:
             sg_stage_oops("sg_stage_weather")
+
+    def sg_stage_lights(out):
+        """정전이면 무대를 어둡게 덮고, 불이 들어오면 걷는다. 같은 상태가 이어지면 그대로 둔다.
+
+        배경 위(날씨보다 위), 스탠딩 아래에 짙은 막을 깔고, 스탠딩 위에 옅은 막을 한 겹 더 덮는다.
+        만화 기호(zorder 5)와 대사창은 덮지 않는다."""
+        try:
+            out = bool(out)
+            if out == store.sg_stage_lights_now:
+                return
+            store.sg_stage_lights_now = out
+            if not out:
+                for tag in ("sg_lights_bg", "sg_lights_char"):
+                    if renpy.showing(tag, layer="master"):
+                        renpy.hide(tag, layer="master")
+                return
+            behind = [ "sg_char" ] if renpy.showing("sg_char", layer="master") else [ ]
+            ## 막에는 움직임을 걸지 않는다. 답마다 거는 짧은 전환(Dissolve 0.2)이 어두워지고 밝아지는 것을 부드럽게 한다.
+            ## 시험 캡처에서 서서히 짙어지는 transform 을 건 막은 때에 따라 반만 보이거나 안 보였다
+            renpy.show("sg_lights_bg", what=Solid(sg_fx_rgba(sg_fx_dark, sg_stage_lights_dim[0])),
+                       layer="master", behind=behind)
+            renpy.show("sg_lights_char", what=Solid(sg_fx_rgba(sg_fx_dark, sg_stage_lights_dim[1])),
+                       layer="master", zorder=1)
+        except Exception:
+            sg_stage_oops("sg_stage_lights")
 
     def sg_stage_reset():
         """기호와 제목 카드를 치우고 표정 기억을 지운다. 판이 바뀔 때 부른다."""
@@ -616,6 +650,7 @@ init -4 python:
             store.sg_stage_face = None
             store.sg_stage_later = None
             store.sg_stage_weather_now = ""   # 무대를 치우면(renpy.scene) 날씨도 함께 치워진다
+            store.sg_stage_lights_now = False
         except Exception:
             sg_stage_oops("sg_stage_reset")
 
@@ -644,11 +679,6 @@ init -4 python:
 ################################################################################
 ## 3. 배경
 ################################################################################
-
-## 날씨가 바뀔 때 어두운 막과 비가 천천히 드리운다.
-transform sg_stage_weather_in:
-    alpha 0.0
-    linear 1.2 alpha 1.0
 
 ## 천둥: 멀리서 옅게 한 번 번쩍이고 사그라들기를 되풀이한다.
 transform sg_stage_weather_flash:
