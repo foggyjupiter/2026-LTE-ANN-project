@@ -667,6 +667,15 @@ class BuildTurnMessagesTest(unittest.TestCase):
         self.assertNotIn("[이번 답은 결말 장면이다]", normal)
         self.assertNotIn("choices는 빈 배열로, wish는 빈 문자열로 둔다", normal)
 
+    def test_turns_before_finale_must_have_choices(self):
+        # 실전 기록: 답 10, 11번째는 모든 판에서 모델이 choices를 비웠다. 결말이 아닌 답에는 3개를 꼭 넣으라고 적는다
+        line = "이번 답은 결말 장면이 아니다"
+        normal = system_of(intensity=5, band="high")
+        self.assertTrue(normal.endswith("choices에 주인공이 다음에 할 말 3개를 꼭 넣는다."))
+        self.assertIn(line, system_of(extra="XYZ"))
+        self.assertNotIn(line, system_of(finale=True, intensity=5, band="high"))
+        self.assertNotIn(line, system_of(opening=True, seed="옥상", seed_kind="entrance"))
+
     def test_finale_wording_follows_band(self):
         texts = {band: system_of(finale=True, band=band) for band in ("low", "mid", "high")}
         self.assertIn("틀어진 쪽으로 맺는다", texts["low"])
