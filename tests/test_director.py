@@ -885,6 +885,7 @@ class FaceTest(unittest.TestCase):
         session.reply("안녕, 반가워")
         self.assertEqual(len(llm.calls) - before, 2)             # 고쳐 쓰게 했다
         self.assertTrue(actor.wish_in_inner(content.load_character("sora")))
+        self.assertTrue(actor.wish_in_inner(content.load_character("gemma")))   # 젬마도 같은 까닭으로(2026-11-15)
         self.assertFalse(actor.wish_in_inner(content.load_character("astra")))
         reply = actor.Reply(narration="필통을 만지작거린다.", inner="졸리다.", wish="필통 예쁘다고 말해 주기")
         self.assertFalse(actor.wish_hidden(reply))                 # 다른 캐릭터는 지문에 있으면 된다
