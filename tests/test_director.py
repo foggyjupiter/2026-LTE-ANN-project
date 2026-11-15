@@ -1051,6 +1051,21 @@ class OffstageTest(unittest.TestCase):
                 session.reply(text)
                 self.assertNotIn(note, llm.system_of(1))
 
+    def test_intensity_meaning_follows_band(self):
+        # 강도는 차례를 따라 오르지만, 호감도가 낮으면 설렘 대신 실망이 커지는 뜻을 쓴다
+        by_band = content.load_schedule()["intensities_by_band"]
+        session = Session("mistral", llm=ScriptedLlm())
+        self.assertEqual(session._intensity_meaning(5, "low"), by_band["low"]["5"])
+        self.assertEqual(session._intensity_meaning(5, "mid"), by_band["mid"]["5"])
+        self.assertEqual(session._intensity_meaning(5, "high"), content.load_schedule()["intensities"]["5"])
+        self.assertEqual(session._intensity_meaning(1, "low"), content.load_schedule()["intensities"]["1"])
+        llm = ScriptedLlm()
+        session = Session("mistral", llm=llm)
+        session.start()
+        session.score = 10
+        session.reply("오늘 날씨 좋다")
+        self.assertIn("설레는 척하지 않는다", llm.system_of(1))
+
     def test_lewd_inputs_are_not_sent_to_the_ending_writer(self):
         llm = ScriptedLlm()
         session = Session("gemma", llm=llm)

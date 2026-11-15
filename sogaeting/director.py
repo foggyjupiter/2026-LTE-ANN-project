@@ -325,7 +325,7 @@ class Session:
             self.character, list(self.history),
             band=band,
             intensity=intensity,
-            intensity_meaning=self.schedule["intensities"].get(str(intensity), ""),
+            intensity_meaning=self._intensity_meaning(intensity, band),
             fx_allowed=fx_allowed,
             seed=seed,
             seed_kind=seed_kind if seed else None,
@@ -532,6 +532,14 @@ class Session:
                     and not opening and not finale and not event):
                 return "neutral"
         return face
+
+    def _intensity_meaning(self, intensity, band):
+        """뇌절 강도의 뜻. 진행표의 intensities_by_band에 그 구간의 뜻이 있으면 그것을 쓴다.
+
+        강도는 판의 차례를 따라 오르는데 기본 뜻은 설렘이 커지는 쪽이라, 호감도가 낮아도 고백에 가까운 말이 나왔다
+        (사용자, 2026-11-15)."""
+        by_band = (self.schedule.get("intensities_by_band") or {}).get(band) or {}
+        return by_band.get(str(intensity)) or self.schedule["intensities"].get(str(intensity), "")
 
     def _pick_seed(self, kind, close=False):
         """아직 안 쓴 씨앗 가운데 하나를 뽑는다. 종류가 없거나 다 썼으면 None.

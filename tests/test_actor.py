@@ -630,9 +630,29 @@ class BuildTurnMessagesTest(unittest.TestCase):
     def test_max_brain_only_at_intensity_five(self):
         character = sample_character()
         for intensity in (1, 2, 3, 4):
-            self.assertNotIn(character["max_brain"], system_of(intensity=intensity))
-        self.assertIn(character["max_brain"], system_of(intensity=5))
-        self.assertIn("뇌절 강도: 5", system_of(intensity=5))
+            self.assertNotIn(character["max_brain"], system_of(intensity=intensity, band="high"))
+        self.assertIn(character["max_brain"], system_of(intensity=5, band="high"))
+        self.assertIn("뇌절 강도: 5", system_of(intensity=5, band="high"))
+        # 마음을 가장 주체하지 못하는 모습은 고백에 가까워서 호감도가 높을 때만 간다(2026-11-15)
+        for band in ("low", "mid"):
+            self.assertNotIn(character["max_brain"], system_of(intensity=5, band=band))
+
+    def test_warmth_follows_the_band(self):
+        # 사용자(2026-11-15): 호감도가 0이어도 "오늘 재밌었는데"가 나왔다. 낮은 구간은 설레지 않게 한다
+        low = system_of(intensity=4, band="low")
+        self.assertIn("설레는 척하지 않는다", low)
+        self.assertIn("실망한 마음이 겉으로 드러난다", low)
+        self.assertNotIn("설레는 척하지 않는다", system_of(intensity=4, band="high"))
+        self.assertIn("고백에 가까운 말은 하지 않는다", system_of(intensity=4, band="mid"))
+        finale = system_of(finale=True, intensity=5, band="low")
+        self.assertIn("실망했거나 서운한 채로 헤어진다", finale)
+        self.assertNotIn("다음을 기대하는 기색", finale)
+        self.assertIn("다음 약속을 꺼내지 않고", finale)
+        self.assertNotIn("아쉬움은 다음 약속이나", finale)
+        self.assertIn("아쉬움은 다음 약속이나", system_of(finale=True, intensity=5, band="high"))
+        # 앞 답들의 다정한 기록에 끌리지 않게 끝에 한 번 더 적는다
+        self.assertIn("[잊지 말 것: 지금 호감도는 낮다]", low)
+        self.assertNotIn("[잊지 말 것: 지금 호감도는 낮다]", system_of(intensity=4, band="mid"))
 
     def test_extra_goes_last(self):
         system = system_of(extra="XYZ")
@@ -1225,6 +1245,14 @@ class EndingTest(unittest.TestCase):
         self.assertIn('" 엔딩"으로 끝나고', system)
         self.assertIn("2문장", system)
         self.assertIn("12자 이내", system)
+
+    def test_bad_ending_does_not_promise_next_time(self):
+        bad = build_ending_messages(sample_character(), [], band_name="대실패", score=3)[0]["content"]
+        self.assertIn("가까워지지 못한 쪽으로 쓴다", bad)
+        self.assertNotIn("다음을 기대하게", bad)
+        soso = build_ending_messages(sample_character(), [], band_name="애매", score=50)[0]["content"]
+        self.assertIn("다음을 기대하게", soso)
+        self.assertNotIn("가까워지지 못한 쪽으로 쓴다", soso)
 
     def test_ending_safety_rules(self):
         system = build_ending_messages(sample_character(), [], band_name="대실패", score=3)[0]["content"]
