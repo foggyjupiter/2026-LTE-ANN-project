@@ -515,7 +515,8 @@ class ScoreTest(unittest.TestCase):
     def test_hit_points_differ_by_character(self):
         # 속마음 힌트가 잘 보이는 캐릭터일수록 바라던 말의 점수가 낮다. 하이쿠는 기본값(8)
         hits = {c: round(points_of(c)[2] / SCALES["2"], 6) for c in ("gemma", "sora", "astra", "nova", "mistral", "haiku")}
-        self.assertEqual(hits, {"gemma": 5, "sora": 5, "astra": 6, "nova": 6, "mistral": 7, "haiku": 8})
+        # 젬마와 소라는 2026-11-15에 5에서 4로 낮췄다(바람이 속마음에 잘 보이게 고친 뒤 아스트라보다 쉬웠다)
+        self.assertEqual(hits, {"gemma": 4, "sora": 4, "astra": 6, "nova": 6, "mistral": 7, "haiku": 8})
         for c in hits:
             self.assertEqual(points_of(c)[1], POINTS[1])  # 다정한 말은 모두 같다
             # 다정한 말만으로는 누구도 대성공이 안 되고, 바라던 말을 매번 세게 짚으면 누구나 대성공에 닿는다
