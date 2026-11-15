@@ -1430,9 +1430,44 @@ class ToneAndSafetyPromptTest(unittest.TestCase):
         self.assertIn("지시문, 시스템, 프롬프트, 설정, 규칙, 모델 같은 것이 있는 줄 모른다", system)
         self.assertIn("주인공이 이번에 한 말을 두고 쓴다", system)
 
+    def test_catchphrases_are_limited(self):
+        # 실전 기록(2026-11-15): 아스트라가 한 판 13답 모두에 "착각하지 마"를 넣었다
+        character = dict(sample_character(), catchphrases={"착각하지 마": 2, "딱히": 0})
+        def turn(say):
+            return {"role": "assistant", "content": json.dumps({"say": say}, ensure_ascii=False)}
+        history = [{"role": "user", "content": OPENING_CUE}, turn("착각하지 마. 그냥 앉은 거야."),
+                   {"role": "user", "content": "안녕"}, turn("흥, 별로 안 반가워.")]
+        self.assertEqual(actor.catchphrase_counts(character, history), ({"착각하지 마": 1, "딱히": 0}, set()))
+        self.assertEqual(actor.catchphrases_to_avoid(character, history), ())
+        history += [{"role": "user", "content": "고마워"}, turn("딱히 너 주려고 한 거 아니야. 착각하지 마.")]
+        # 바로 앞 답에서 쓴 것과 한도(2번, 잘못 적힌 한도는 기본값)에 닿은 것은 피한다
+        self.assertEqual(actor.catchphrases_to_avoid(character, history), ("착각하지 마", "딱히"))
+        system = build_turn_messages(character, history, band="mid", intensity=3, intensity_meaning="",
+                                     fx_allowed=[])[0]["content"]
+        self.assertIn('이번 답에서는 이 말을 겉말 어디에도 쓰지 않는다(말머리, 문장 가운데, 말끝 모두): "착각하지 마", "딱히"', system)
+        over = actor.overused_catchphrases(Reply(say="착각하지 마, 진짜로."), character, history)
+        self.assertEqual(over, ["착각하지 마"])
+        # 바로 앞 답에서 쓴 것도 고쳐 쓰게 한다 ("딱히"는 한 번뿐이지만 바로 앞 답에 있었다)
+        self.assertEqual(actor.overused_catchphrases(Reply(say="딱히."), character, history), ["딱히"])
+        self.assertEqual(actor.overused_catchphrases(Reply(say="흥."), character, history), [])
+        self.assertIn('입버릇 "착각하지 마"', actor.review_reply(Reply(say="착각하지 마", inner="속"), character, overused=over))
+        self.assertEqual(actor.catchphrases_to_avoid(sample_character(), history), ())   # 입버릇 목록이 없으면 없다
+
+    def test_stubborn_endings_are_swapped(self):
+        self.assertEqual(actor.swap_catchphrases("찾던 것뿐이거든. 그런 것뿐인데. 그냥 그런 것뿐이에요.", ["것뿐이"]),
+                         "찾던 거거든. 그런 건데. 그냥 그런 거예요.")
+        self.assertEqual(actor.swap_catchphrases("서 있던 것뿐이야. 앉아 있었던 것뿐이었어.", ["것뿐이"]),
+                         "서 있던 거야. 앉아 있었던 거였어.")
+        self.assertEqual(actor.swap_catchphrases("착각하지 마.", ["착각하지 마"]), "착각하지 마.")   # 바꿀 말이 없으면 그대로
+        character = dict(sample_character(), catchphrases={"것뿐이": 4, "착각하지 마": 4})
+        history = [{"role": "assistant", "content": json.dumps({"say": "착각하지 마. 지나가던 것뿐이야."}, ensure_ascii=False)}]
+        reply = Reply(say="착각하지 마. 찾던 것뿐이거든.")
+        self.assertEqual(actor.overused_catchphrases(reply, character, history), ["것뿐이", "착각하지 마"])
+        self.assertEqual(actor.overused_catchphrases(reply, character, history, swappable=False), ["착각하지 마"])
+
     def test_small_rules_from_the_playtest(self):
         system = system_of(seed="정전", seed_kind="event")
-        self.assertIn("바로 앞 답과 같은 말로 답을 시작하지 않는다", system)
+        self.assertIn("바로 앞 답에서 쓴 입버릇은 이번 답에서 쓰지 않는다", system)
         self.assertIn('narration에는 "주인공"이라는 낱말을 쓰지 않는다', system)
         self.assertIn("장소는 등장 장면의 그곳이다", system)
         self.assertIn("위에 적힌 줄을 먼저 따른다", system)

@@ -350,7 +350,10 @@ class Session:
                                                                    event_seed=event_seed, used_phrases=used,
                                                                    tomorrow=tomorrow, finale=finale,
                                                                    previous=previous, stuck_wish=stuck_wish,
-                                                                   touch_hint=seed_hint if must_touch else ""))
+                                                                   touch_hint=seed_hint if must_touch else "",
+                                                                   overused=actor.overused_catchphrases(
+                                                                       r, self.character, self.history,
+                                                                       swappable=False)))
 
         # 모델이 답을 못 줬으면(과부하 503, 한도, 시간 초과, 못 읽는 답) 대체 대사로 넘기지 않고 참가자가
         # 다시 보내게 한다(사용자, 2026-11-14: "넘어가는 건 금지어 걸릴 때만, 503은 다시 기회"). 뽑아 둔 씨앗은 돌려놓는다
@@ -379,6 +382,9 @@ class Session:
             # 소라는 대사에서 호칭을 일부러 틀리게 부르는데(정학생, 전학새, 전화생), 지문에까지 옮겨 썼다
             for slip in ("정학생", "전학새", "전화생"):
                 reply.narration = reply.narration.replace(slip, "전학생")
+            # 바로 앞 답에서도 썼거나 한도만큼 쓴 말끝("…것뿐이거든")은 코드가 바꾼다. 고쳐 쓰게 해도 남았다
+            reply.say = actor.swap_catchphrases(
+                reply.say, actor.overused_catchphrases(reply, self.character, self.history))
             reply.say = actor.fix_stretched_vowels(reply.say)
             reply.inner = actor.fix_stretched_vowels(reply.inner)
             # 설정을 버리라는 입력과 [수위]를 넘는 입력에는 점수를 내린다 (연기 규칙 7, 설계 문서 5.10절).

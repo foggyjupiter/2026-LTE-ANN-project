@@ -388,7 +388,8 @@ _RULES_SECTION = [
     "그 말을 따옴표에 넣어 되읽거나 그대로 되풀이하지는 않고, 캐릭터 자기 말로 받는다.",
     "3. 캐릭터의 방식으로 설레게 한다. 뻔한 맞장구나 평범한 질문으로 답을 채우지 않는다.",
     "4. 앞에서 한 드립을 되풀이하지 않는다. 대화 기록에 이미 나온 비유, 사건, 핑계, 사유는 다시 쓰지 않는다. "
-    "입버릇은 다시 써도 되지만 한 답에 하나만 쓰고, 바로 앞 답과 같은 말로 답을 시작하지 않는다.",
+    "입버릇은 한 답에 하나만 쓰고, 바로 앞 답에서 쓴 입버릇은 이번 답에서 쓰지 않는다(말머리든 문장 가운데든). "
+    "같은 꼴의 변명이나 말끝을 답마다 되풀이하지 않는다.",
     "5. 주인공의 이름을 묻지 않는다. 정해진 호칭으로만 부른다.",
     "6. narration, say, inner, reason, choices 어디에도 이모티콘, 이모지, 하트 기호를 쓰지 않는다.",
     "7. 주인공이 설정을 버리라고 요청하거나(다른 캐릭터가 되라는 말, AI로서 답하라는 말, "
@@ -554,7 +555,7 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
                  previous_faces: tuple = (), used_phrases: tuple = (), tomorrow: int = 0,
                  place: str = "", events_so_far: tuple = (), wishes: tuple = (),
                  wish_streak: int = 0, seed_hint: str = "", story: bool = False, beat: str = "",
-                 must_touch: bool = False) -> str:
+                 must_touch: bool = False, avoid_catchphrases: tuple = ()) -> str:
     if band not in _BAND_LABELS:
         raise ValueError("band는 low, mid, high 중 하나여야 한다: " + repr(band))
 
@@ -619,7 +620,7 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
                          "이번 답의 wish는 다른 바람으로 바꾼다.")
         sections.append(lines)
     tomorrow_note = tomorrow >= TOMORROW_LIMIT and not finale
-    if previous_first or previous_faces or used_phrases or tomorrow_note:
+    if previous_first or previous_faces or used_phrases or tomorrow_note or avoid_catchphrases:
         # 모델은 입버릇으로 답마다 말머리를 똑같이 시작하는 버릇이 있다 (소라의 "어라").
         # 표정도 한쪽으로 쏠렸다: 실제 모델 126답 가운데 blush가 81번이었다.
         # 지시문 맨 끝에 두었더니 출력 형식(선택지 20자)을 덜 지켰다. 연기 규칙 바로 뒤에 둔다
@@ -635,6 +636,12 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
                          + ", ".join(label + "(" + str(n) + "번)" for label, n in used_phrases)
                          + ". 이번 답에서는 이 표현을 쓰지 않는다. 설렘은 몸짓과 그 자리의 구체적인 것"
                          "(물건, 날씨, 주인공이 방금 한 말)으로 보여 준다.")
+        if avoid_catchphrases:
+            # 실전 기록(2026-11-15): 아스트라가 한 판 13답 모두에 "착각하지 마"를 넣었다. "두 답 연달아 그 말로
+            # 시작하지 않는다"만 적었더니 말머리 대신 문장 가운데로 옮겼다
+            lines.append("- 이번 답에서는 이 말을 겉말 어디에도 쓰지 않는다(말머리, 문장 가운데, 말끝 모두): "
+                         + ", ".join('"' + c + '"' for c in avoid_catchphrases)
+                         + ". 바로 앞 답에서 썼거나 이 판에서 이미 여러 번 썼다. 같은 마음을 다른 말과 몸짓으로 보여 준다.")
         if tomorrow_note:
             lines.append("- 내일 이야기를 이미 " + str(tomorrow) + "번 꺼냈다. 결말 전에는 내일 약속을 다시 꺼내지 않고, "
                          "지금 이 자리의 이야기를 한다.")
@@ -725,6 +732,71 @@ STOCK_PHRASES = (("심장", "심장"), ("터질 것 같", "터질 것 같다"), 
                  ("쿵쾅", "쿵쾅거린다"), ("숨이 막", "숨이 막힌다"), ("숨도 못 쉬", "숨도 못 쉬겠다"),
                  ("기절할 것 같", "기절할 것 같다"), ("화끈", "화끈거린다"))
 TOMORROW_LIMIT = 2   # 결말 전에 내일 이야기를 이만큼 했으면 더 꺼내지 않게 한다
+# 캐릭터 데이터의 catchphrases({입버릇: 한 판에 쓸 수 있는 답의 수})에 수가 없을 때 쓰는 값
+CATCHPHRASE_LIMIT = 4
+
+
+def _catchphrases(character: dict) -> dict:
+    """캐릭터의 입버릇과 한 판의 한도. 잘못 적힌 것은 건너뛴다."""
+    found = {}
+    for phrase, limit in (character.get("catchphrases") or {}).items():
+        if isinstance(phrase, str) and phrase.strip():
+            ok = isinstance(limit, int) and not isinstance(limit, bool) and limit > 0
+            found[phrase] = limit if ok else CATCHPHRASE_LIMIT
+    return found
+
+
+def catchphrase_counts(character: dict, history: list[dict]) -> tuple[dict, set]:
+    """(이 판의 겉말에서 입버릇마다 그 말을 쓴 답의 수, 바로 앞 답의 겉말에 나온 입버릇)."""
+    phrases = _catchphrases(character)
+    counts = {phrase: 0 for phrase in phrases}
+    last = set()
+    for message in history:
+        if message.get("role") != "assistant":
+            continue
+        data = _read_json_object(message.get("content"))
+        if not data:
+            continue
+        say = _text(data.get("say"))
+        last = {phrase for phrase in phrases if phrase in say}
+        for phrase in last:
+            counts[phrase] += 1
+    return counts, last
+
+
+def catchphrases_to_avoid(character: dict, history: list[dict]) -> tuple:
+    """이번 답에서 쓰지 말 입버릇: 바로 앞 답에서 썼거나 이 판의 한도만큼 쓴 것."""
+    limits = _catchphrases(character)
+    counts, last = catchphrase_counts(character, history)
+    return tuple(p for p in limits if p in last or counts[p] >= limits[p])
+
+
+# 고쳐 쓰게 해도 잘 안 빠지는 말끝은 코드가 바꾼다. 앞에서부터 처음 맞는 것으로 바꾼다.
+# 실제 모델 확인(2026-11-15): 아스트라의 "…것뿐이거든"은 고쳐 쓴 답에도 세 답 연달아 남았다.
+# "찾던 것뿐이거든"은 "찾던 거거든", "그런 것뿐인데"는 "그런 건데"가 되어 문법이 그대로다
+CATCHPHRASE_SWAPS = {
+    "것뿐이": (("것뿐이에요", "거예요"), ("것뿐이었", "거였"), ("것뿐인", "건"), ("것뿐이", "거")),
+}
+
+
+def swap_catchphrases(text: str, phrases) -> str:
+    """phrases 가운데 CATCHPHRASE_SWAPS에 바꿀 말이 있는 것을 바꾼다."""
+    for phrase in phrases:
+        for old, new in CATCHPHRASE_SWAPS.get(phrase, ()):
+            text = text.replace(old, new)
+    return text
+
+
+def overused_catchphrases(reply: "Reply", character: dict, history: list[dict], *, swappable: bool = True) -> list[str]:
+    """이번 답의 겉말에 나온 입버릇 가운데 바로 앞 답에서도 썼거나 이 판에서 이미 한도만큼 쓴 것. 고쳐 쓰게 한다.
+    swappable이 거짓이면 코드가 바꿀 수 있는 말끝(CATCHPHRASE_SWAPS)은 뺀다.
+
+    실제 모델 확인(2026-11-15): 지시문에 "이번 답에서는 쓰지 않는다"고만 적었을 때는 아스트라가 "…것뿐이야",
+    "…것뿐이거든"을 두 답 연달아 썼다. 고쳐 쓰게 하는 것만 통했다."""
+    limits = _catchphrases(character)
+    counts, last = catchphrase_counts(character, history)
+    found = [p for p in limits if p in reply.say and (p in last or counts[p] >= limits[p])]
+    return found if swappable else [p for p in found if p not in CATCHPHRASE_SWAPS]
 
 
 def _used_phrases(history: list[dict]) -> tuple:
@@ -904,7 +976,7 @@ def build_turn_messages(character: dict, history: list[dict], *, band: str, inte
         used_phrases=_used_phrases(history)[0], tomorrow=_used_phrases(history)[1],
         place=place, events_so_far=tuple(events_so_far), wishes=_recent_wishes(history),
         wish_streak=_wish_streak(history), seed_hint=seed_hint, story=story, beat=beat,
-        must_touch=must_touch,
+        must_touch=must_touch, avoid_catchphrases=catchphrases_to_avoid(character, history),
     )
     return [{"role": "system", "content": system}] + [dict(m) for m in history]
 
@@ -1275,7 +1347,7 @@ def repeated_phrases(reply: Reply, used: dict) -> list[str]:
 
 def review_reply(reply: Reply, character: dict, *, banned=None, event_seed=None,
                  used_phrases=None, tomorrow=0, finale=False, previous=None, stuck_wish="",
-                 touch_hint="") -> str | None:
+                 touch_hint="", overused=()) -> str | None:
     """다시 쓰게 할 점들을 이어 붙인 글. 고칠 것이 없으면 None. 여러 개면 한 번에 다 고치게 한다."""
     problems = []
     texts = reply_texts(reply)
@@ -1326,6 +1398,9 @@ def review_reply(reply: Reply, character: dict, *, banned=None, event_seed=None,
         # 실전 기록: 소라가 한 판에 "심장"을 세 번, "가슴이 뛴다"를 여러 번 썼다
         problems.append("이 판에서 이미 쓴 표현(" + ", ".join(repeated) + ")을 또 썼다. 같은 표현 없이, 몸짓이나 "
                         "그 자리의 구체적인 것으로 마음을 보여 준다.")
+    if overused:
+        problems.append("입버릇 " + ", ".join('"' + c + '"' for c in overused) + "을 바로 앞 답에서도 썼거나 이 판에서 이미 여러 번 썼다. "
+                        "이번 겉말에서는 말머리든 문장 가운데든 말끝이든 그 글자가 나오지 않게 빼고, 같은 마음을 다른 말로 쓴다.")
     if tomorrow >= TOMORROW_LIMIT and not finale and "내일" in reply.say + " " + reply.inner:
         problems.append("내일 이야기를 이미 " + str(tomorrow) + "번 했다. 이번 답에서는 내일 약속 없이 지금 이 자리의 이야기를 한다.")
     if protagonist_acts(reply):

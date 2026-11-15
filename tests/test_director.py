@@ -1051,6 +1051,35 @@ class OffstageTest(unittest.TestCase):
                 session.reply(text)
                 self.assertNotIn(note, llm.system_of(1))
 
+    def test_catchphrase_over_the_limit_is_rewritten(self):
+        # 아스트라의 "착각하지 마"는 한 판에 4답까지이고, 두 답 연달아 쓰면 고쳐 쓰게 한다
+        excuses = ["우유가 남아서", "자리가 비어서", "선생님이 시켜서", "길이 같아서", "마침 지나가다가",
+                   "창문이 열려서", "종이 울려서"]
+        turns = {n: {"say": "착각하지 마. " + excuses[n] + " 그런 거야.", "inner": f"속마음 {n}"} for n in range(7)}
+        llm = ScriptedLlm(turns=turns)
+        session = Session("astra", llm=llm)
+        session.start()                      # 등장에서 1번
+        calls = []
+        for n in range(1, 5):
+            before = len(llm.calls)
+            session.reply(f"좋은 말이네, 오늘 {n}번째로 고마워")
+            calls.append(len(llm.calls) - before)
+        # 바로 앞 답에서 쓴 입버릇을 또 쓰면 답마다 한 번 고쳐 쓴다(이 가짜 모델은 고쳐도 같은 말을 낸다)
+        self.assertEqual(calls, [2, 2, 2, 2])
+        self.assertIn('"착각하지 마"', llm.system_of(2))   # 바로 앞 답에서 썼으니 쓰지 말라고 적는다
+
+    def test_stubborn_ending_is_swapped_without_a_rewrite(self):
+        # 아스트라의 "…것뿐이거든"은 고쳐 쓰게 하지 않고 코드가 "…거거든"으로 바꾼다
+        turns = {0: {"say": "지나가던 것뿐이야.", "inner": "속 0"},
+                 1: {"say": "우유가 남아서 준 것뿐이거든.", "inner": "속 1"}}
+        llm = ScriptedLlm(turns=turns)
+        session = Session("astra", llm=llm)
+        session.start()
+        before = len(llm.calls)
+        out = session.reply("좋은 말이네, 고마워")
+        self.assertEqual(out["say"], "우유가 남아서 준 거거든.")
+        self.assertEqual(len(llm.calls) - before, 1)
+
     def test_intensity_meaning_follows_band(self):
         # 강도는 차례를 따라 오르지만, 호감도가 낮으면 설렘 대신 실망이 커지는 뜻을 쓴다
         by_band = content.load_schedule()["intensities_by_band"]
