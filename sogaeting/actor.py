@@ -932,23 +932,16 @@ def looks_like_fallback(reply: Reply) -> bool:
     return say.startswith("(") and say.endswith(")") and not reply.inner.strip()
 
 
-def wish_hidden(reply: Reply, ignore=(), inner_only: bool = False) -> bool:
+def wish_hidden(reply: Reply, ignore=()) -> bool:
     """바람(wish)을 적었는데 화면에 나가는 글(지문, 겉말, 속마음)에 그 화제 낱말이 없으면 참.
 
     참가자가 볼 수 없는 바람은 짚을 수도 없다. 실전 기록: 노바가 "노바라는 이름 뜻 물어봐 주기"를
     일곱 번 적었는데 속마음에는 한 번도 비치지 않았다.
-    inner_only면 속마음만 본다(캐릭터 데이터의 wish_in_inner). 사용자(2026-11-15): 소라는 바람이 속마음에
-    직설적으로 안 나타나서 진짜 어렵다. 낱말이 지문이나 겉말에만 있으면 바람인 줄 알기 어렵다.
     """
     if not reply.wish:
         return False
-    shown = reply.inner if inner_only else " ".join([reply.narration, reply.say, reply.inner])
+    shown = " ".join([reply.narration, reply.say, reply.inner])
     return not wish_touched(shown, [reply.wish], ignore)
-
-
-def wish_in_inner(character: dict) -> bool:
-    """이 캐릭터의 바람은 속마음에 그 낱말 그대로 비쳐야 하는가(캐릭터 데이터의 wish_in_inner)."""
-    return character.get("wish_in_inner") is True
 
 
 def _recent_wishes(history: list[dict], count: int = 2) -> tuple:
@@ -1412,7 +1405,7 @@ def review_reply(reply: Reply, character: dict, *, banned=None, event_seed=None,
         # 실전 기록: 젬마가 "어두운 복도에서 내 손을 잡아 주면 좋겠다"를 다섯 답 내내 적었다
         problems.append('wish의 바람 "' + stuck_wish + '"은 앞의 두 답에서 이미 적었다. 이번 답에서는 지금 장면에서 '
                         "새 바람을 골라 wish에 적고 속마음에 흘린다.")
-    if not finale and wish_hidden(reply, name_words(character), inner_only=wish_in_inner(character)):
+    if not finale and wish_hidden(reply, name_words(character)):
         problems.append('wish에 적은 바람 "' + reply.wish + '"이 화면에 나가는 글에 비치지 않는다. 그 바람의 화제를 '
                         "가리키는 낱말을 속마음에 넣어 혼잣말로 은근히 흘린다. 말투 지침에 적힌 속마음의 길이와 꼴은 지킨다.")
     if event_seed and event_read_aloud(reply, event_seed):

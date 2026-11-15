@@ -874,23 +874,6 @@ class FaceTest(unittest.TestCase):
         # 기록에도 바뀐 표정이 남는다. 다음 답의 지시문이 앞 표정을 그대로 알려 준다
         self.assertEqual(json.loads(session.history[-1]["content"])["face"], "smile")
 
-    def test_sora_wish_must_show_in_the_inner_thought(self):
-        # 소라(wish_in_inner)는 바람의 낱말이 지문에만 있으면 안 되고 속마음에 있어야 한다. 없으면 한 번 고쳐 쓰게 한다
-        hidden = {"narration": "소라가 필통을 만지작거린다.", "inner": "졸리다.", "wish": "필통 예쁘다고 말해 주기"}
-        shown = {"inner": "필통 예쁘다고 해 주면 좋겠다.", "wish": "필통 예쁘다고 말해 주기"}
-        llm = ScriptedLlm(turns={1: hidden, 2: shown})
-        session = Session("sora", llm=llm)
-        session.start()
-        before = len(llm.calls)
-        session.reply("안녕, 반가워")
-        self.assertEqual(len(llm.calls) - before, 2)             # 고쳐 쓰게 했다
-        self.assertTrue(actor.wish_in_inner(content.load_character("sora")))
-        self.assertTrue(actor.wish_in_inner(content.load_character("gemma")))   # 젬마도 같은 까닭으로(2026-11-15)
-        self.assertFalse(actor.wish_in_inner(content.load_character("astra")))
-        reply = actor.Reply(narration="필통을 만지작거린다.", inner="졸리다.", wish="필통 예쁘다고 말해 주기")
-        self.assertFalse(actor.wish_hidden(reply))                 # 다른 캐릭터는 지문에 있으면 된다
-        self.assertTrue(actor.wish_hidden(reply, inner_only=True))
-
     def test_red_face_in_the_text_shows_blush(self):
         # 글이 얼굴이 빨개졌다고 하면 모델이 smile을 골라도, 연달아 붉어졌어도 붉어진 얼굴이다
         red = {"face": "smile", "narration": "젬마의 귀까지 새빨개졌다."}
