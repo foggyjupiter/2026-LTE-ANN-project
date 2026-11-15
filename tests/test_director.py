@@ -1325,7 +1325,7 @@ class EndingTest(unittest.TestCase):
         self.assertEqual(ending["inners"][2], "")
 
     def test_grade_follows_final_score(self):
-        cases = [(100, "대성공"), (80, "대성공"), (79.9, "성공"), (65, "성공"), (64, "애매"),
+        cases = [(100, "대성공"), (75, "대성공"), (74.9, "성공"), (65, "성공"), (64, "애매"),
                  (40, "애매"), (39, "실패"), (20, "실패"), (19, "대실패"), (0, "대실패")]
         for score, name in cases:
             with self.subTest(score=score):
