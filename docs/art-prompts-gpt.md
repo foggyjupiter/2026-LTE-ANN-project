@@ -11,7 +11,7 @@ ChatGPT 같은 대화형 그림 도구에 붙여 넣을 요청문이다. 캐릭�
 | 캐릭터 | 할 일 | 이번에 뽑을 것 | 까닭 |
 |---|---|---|---|
 | 아스트라 | 할 것 없음 | 없음 | 게임에 넣은 그림(남색 리본, 기본 여섯 장, huff, denial)을 그대로 쓴다. 2026-11-14에 받은 빨간 리본 세트는 쓰지 않기로 했다(사용자). |
-| 젬마 | 전부 다시 뽑기 | neutral, smile, blush, pout, shock, dark, hide | 2026-11-16: 땋은 머리를 버리고, 어깨를 조금 넘는 생머리(끝이 안으로 말림, 안경에 닿는 앞머리, 한쪽은 귀 뒤로 넘김)로 바꿨다. 머리는 채도를 낮춘 연한 라벤더 한 가지 색이다. 제미나이 색은 머리 전체가 아니라 X자로 꽂은 머리핀 두 개(연한 파랑, 라벤더)에만 둔다. 아스트라(짙은 남색, 높은 포니테일), 소라(흰 단발), 노바(분홍 사이드 포니테일), 하이쿠(검은 단발), 미스트랄(황금빛 웨이브)과 머리 모양과 색이 겹치지 않는다. 그 전: 연한 파랑은 아스트라, 소라와 겹쳤고, 초록은 어색했고, 밤색은 제미나이와 어울리지 않았고, 파랑에서 분홍으로 가는 그라데이션은 너무 화려했다. |
+| 젬마 | 전부 다시 뽑기 | neutral, smile, blush, pout, shock, dark, hide | 2026-11-16 확정안(별도 세션 검토): 머리는 수레국화 파랑(기본 #6F8BCF, 그림자 #566FB0, 밝은 쪽 연보라 #A7A3E6), 가슴 중간까지 오는 생머리, 한쪽 가르마 앞머리는 안경 위에서 끝남, 가르마 쪽은 귀 뒤로 넘기고 반대쪽은 어깨 앞으로 내림. 눈 보라 #9B6BD6, 얇은 은테 동그란 안경. Gemini 느낌은 귀 뒤 네 갈래 별 머리핀(#4A8BEF에서 #9B6BD6)이 맡는다. 남색 블레이저, 보라 리본 타이(빨간 타이는 아스트라와 겹침), 연보라 수첩(분홍은 노바와 겹침). 몸을 살짝 틀고 시선을 피하는 자세(정면 대칭은 증명사진 같았다), 미소는 입을 다문 작은 미소(크게 웃으면 천연 캐릭터 같았다). 그 전: 연한 파랑, 초록, 밤색 땋은 머리, 파스텔 그라데이션 땋은 머리, 라벤더 생머리를 거쳤다. 머리나 소품 설명에 green이라는 낱말을 쓰지 않는다. |
 | 소라 | 할 것 없음 | 없음 | 2026-11-14에 받은 일곱 장을 넣었다. |
 | 노바 | 할 것 없음 | 없음 | 2026-11-14에 받은 분홍 일곱 장을 넣었다. |
 | 미스트랄 | 할 것 없음 | 없음 | 2026-11-14에 받은 일곱 장을 넣었다. dark는 받은 그림의 배경이 불투명해서 사용자가 다듬은 그림을 썼다. |
@@ -100,7 +100,7 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 
 ### 젬마 (gemma)
 
-할 일: 전부 다시 뽑기. 2026-11-16: 땋은 머리를 버리고, 어깨를 조금 넘는 생머리(끝이 안으로 말림, 안경에 닿는 앞머리, 한쪽은 귀 뒤로 넘김)로 바꿨다. 머리는 채도를 낮춘 연한 라벤더 한 가지 색이다. 제미나이 색은 머리 전체가 아니라 X자로 꽂은 머리핀 두 개(연한 파랑, 라벤더)에만 둔다. 아스트라(짙은 남색, 높은 포니테일), 소라(흰 단발), 노바(분홍 사이드 포니테일), 하이쿠(검은 단발), 미스트랄(황금빛 웨이브)과 머리 모양과 색이 겹치지 않는다. 그 전: 연한 파랑은 아스트라, 소라와 겹쳤고, 초록은 어색했고, 밤색은 제미나이와 어울리지 않았고, 파랑에서 분홍으로 가는 그라데이션은 너무 화려했다.
+할 일: 전부 다시 뽑기. 2026-11-16 확정안(별도 세션 검토): 머리는 수레국화 파랑(기본 #6F8BCF, 그림자 #566FB0, 밝은 쪽 연보라 #A7A3E6), 가슴 중간까지 오는 생머리, 한쪽 가르마 앞머리는 안경 위에서 끝남, 가르마 쪽은 귀 뒤로 넘기고 반대쪽은 어깨 앞으로 내림. 눈 보라 #9B6BD6, 얇은 은테 동그란 안경. Gemini 느낌은 귀 뒤 네 갈래 별 머리핀(#4A8BEF에서 #9B6BD6)이 맡는다. 남색 블레이저, 보라 리본 타이(빨간 타이는 아스트라와 겹침), 연보라 수첩(분홍은 노바와 겹침). 몸을 살짝 틀고 시선을 피하는 자세(정면 대칭은 증명사진 같았다), 미소는 입을 다문 작은 미소(크게 웃으면 천연 캐릭터 같았다). 그 전: 연한 파랑, 초록, 밤색 땋은 머리, 파스텔 그라데이션 땋은 머리, 라벤더 생머리를 거쳤다. 머리나 소품 설명에 green이라는 낱말을 쓰지 않는다.
 
 기준 그림 (새로 뽑기). 저장할 곳: `art/raw/gemma/neutral.png`
 
@@ -108,8 +108,8 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 Draw one character sprite for a visual novel game.
 Art style: Japanese bishoujo game (galge) character art, like a heroine sprite from a moe visual novel. Large sparkling detailed eyes, small nose and mouth, glossy hair with sharp highlights, thin clean line art, soft cel shading with light gradients, bright pastel colors.
 Framing: One character only, waist-up portrait, centered, facing the viewer. The whole head and all of the hair are inside the frame, with empty space above the head.
-Character: Straight, silky hair that falls just past her shoulders, with the ends curling slightly inward. Soft, slightly long see-through bangs that brush the top of her glasses. One side of her hair is tucked behind her ear. The hair is a muted, soft lavender: one calm color with low saturation, not bright, not pink, not white or silver, and not dark navy. Gentle blue-violet eyes behind thin round glasses. Two thin hair clips crossed in an X above the tucked ear, one pale blue and one lavender. A navy school blazer worn neatly, with sleeves a little too long so only her fingertips show. She holds a small notebook against her chest with both hands. Shoulders slightly drawn in, a shy posture. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
-Expression: shy, gentle look with eyes slightly lowered and a small soft smile.
+Character: Muted, slightly grayish cornflower blue hair with soft pale lavender highlights. Straight hair to mid-chest with gently curled-in ends. Side-parted bangs end above her glasses, showing her eyebrows, and never cross the lenses. On the parted side the hair is tucked behind her ear, with a small blue-to-violet four-pointed star hairpin; the other side falls forward over her shoulder. Violet eyes, slightly lowered and glancing away, faint blush. Thin, slightly oversized round glasses with silver metal frames and only a small edge glint. A neatly buttoned navy school blazer, white blouse and violet ribbon tie; slightly long sleeves cover part of her hands. She holds a small pale lavender notebook to her chest with both hands, body turned slightly aside, head tilted a little, timid. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
+Expression: shy, quiet look with eyes slightly lowered, mouth closed, not smiling.
 Content: A high school student in a modest, fully covering school outfit. Wholesome, all-ages.
 Background: fully transparent (PNG with alpha). If a transparent background is not possible, fill the whole background with one flat pure bright green (#00FF00) chroma key color, with no gradient, shadow, floor or objects.
 No text, no watermark, no border. Portrait image, aspect ratio 2:3.
@@ -118,7 +118,7 @@ No text, no watermark, no border. Portrait image, aspect ratio 2:3.
 표정 smile (새로 뽑기). 저장할 곳: `art/raw/gemma/smile.png`
 
 ```
-Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: a bright, genuine smile with gently curved eyes. Keep the same background and the same image size.
+Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: a small, closed-mouth smile with her eyes lowered. Keep the same background and the same image size.
 ```
 
 표정 blush (새로 뽑기). 저장할 곳: `art/raw/gemma/blush.png`
@@ -148,7 +148,7 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 캐릭터만의 표정 hide (새로 뽑기). 저장할 곳: `art/raw/gemma/hide.png`
 
 ```
-Use the reference image. Keep the same character, hairstyle, outfit, colors, art style and framing exactly. Change the facial expression, and change the pose only as the new pose describes. New expression: deeply embarrassed: cheeks bright red, eyes looking up shyly. New pose: She lifts the notebook with both hands to cover the lower half of her face, so only her eyes and glasses show above it. Keep the same background and the same image size.
+Use the reference image. Keep the same character, hairstyle, outfit, colors, art style and framing exactly. Change the facial expression, and change the pose only as the new pose describes. New expression: deeply embarrassed: cheeks bright red, eyes looking up shyly. New pose: She lifts the notebook to cover the lower half of her face; only her eyes and glasses show above it. Keep the same background and the same image size.
 ```
 
 ### 소라 (sora)
