@@ -312,15 +312,15 @@ def _try_provider(p, key, messages, temperature, json_mode, timeout, slot=None):
         return None, reason
 
 
-def call_llm(messages, temperature=0.9, json_mode=False, trace=None):
+def call_llm(messages, temperature=0.9, json_mode=False, trace=None, budget=None):
     """대화 기록 전체를 보내고 답 문자열을 받는다. 모든 제공자가 실패하면 AllProvidersDown.
 
     제공자를 위에서부터 돌고, 전부 실패했는데 곧 풀리는 제공자가 있으면 기다렸다가 한 바퀴 더 돈다.
-    다 합쳐 TURN_BUDGET_SEC 안에서만 한다.
+    다 합쳐 TURN_BUDGET_SEC(budget을 주면 그 초) 안에서만 한다.
     trace에 목록을 주면 시도마다 {"provider", "model", "ok", "sec", "error"}를 덧붙인다.
     키와 요청 헤더는 담지 않는다.
     """
-    deadline = time.monotonic() + TURN_BUDGET_SEC
+    deadline = time.monotonic() + (budget if budget else TURN_BUDGET_SEC)
     gave_up = set()  # 이번 호출에서 다시 해 봐야 소용없는 키 자리 (키나 모델명 오류, 빈 응답)
 
     def usable(slot):

@@ -80,11 +80,13 @@ class ScriptedLlm:
     문자열(그대로 돌려줌), 예외(그대로 던짐) 가운데 하나다. 없는 차례는 default를 쓴다.
     """
 
-    def __init__(self, turns=None, default=None, ending=ENDING, judge=False):
+    def __init__(self, turns=None, default=None, ending=ENDING, judge=None):
         self.turns = turns or {}
         self.default = default if default is not None else {}
         self.ending = ending
-        self.judge = judge  # 바람을 짚었는지 묻는 판정(actor.judge_wish_hit)의 답. 예외면 그대로 던진다
+        # 바람을 짚었는지 묻는 판정(actor.judge_wish_hit)의 답. 참거짓이면 그대로, 예외면 그대로 던지고,
+        # None이면 읽을 수 없는 답을 준다(진행자는 낱말로만 가른다)
+        self.judge = judge
         self.calls = []
 
     def judge_calls(self):
@@ -95,7 +97,7 @@ class ScriptedLlm:
         if messages[0]["content"] == actor.WISH_JUDGE_SYSTEM:
             if isinstance(self.judge, BaseException):
                 raise self.judge
-            return json.dumps({"hit": self.judge})
+            return "판정 없음" if self.judge is None else json.dumps({"hit": self.judge})
         if "엔딩" in messages[-1]["content"]:
             answer = self.ending
         else:
@@ -546,11 +548,26 @@ class ScoreTest(unittest.TestCase):
                 self.assertIn("바람: 같이 책 보기", asked[0][1]["content"])
                 self.assertIn("주인공의 말: 옆자리로 좀 더 붙어앉을래?", asked[0][1]["content"])
 
-    def test_judge_is_not_asked_when_words_match_or_delta_is_low(self):
-        wish = {"wish": "같이 책 보기", "wish_words": ["표지"], "inner": "이 책 같이 볼 사람 있으면"}
-        session = Session("mistral", llm=ScriptedLlm(default=dict(wish, delta=2), judge=True))
-        session.start()
-        self.assertEqual(session.reply("그 책 표지 예쁘다")["delta"], 2)  # 낱말이 맞으면 묻지 않는다
+    def test_judge_waits_only_briefly(self):
+        # 실제 모델을 쓸 때 판정은 JUDGE_BUDGET_SEC까지만 기다린다
+        with mock.patch("sogaeting.director.call_llm", return_value='{"hit": true}') as called:
+            session = Session("mistral")
+            session.judge_llm([{"role": "user", "content": "x"}])
+        self.assertEqual(called.call_args.kwargs.get("budget"), director.JUDGE_BUDGET_SEC)
+        self.assertLessEqual(director.JUDGE_BUDGET_SEC, 6)
+
+    def test_judge_decides_every_plus_two(self):
+        # 2026-11-16: 낱말이 맞아도 판정이 짚지 않았다고 하면 1이다(낱말만 스친 말, 겉말로 먼저 제안한 것에 대답만 한 말)
+        wish = {"wish": "같이 책 보기", "wish_words": ["표지"], "inner": "이 책 같이 볼 사람 있으면",
+                "say": "이 책 표지 예쁘지 않아?"}
+        for judge, delta in ((False, 1), (True, 2), (None, 2)):  # None: 판정을 못 받으면 낱말로 가른다
+            with self.subTest(judge=judge):
+                session = Session("mistral", llm=ScriptedLlm(default=dict(wish, delta=2), judge=judge))
+                session.start()
+                self.assertEqual(session.reply("그 책 표지 예쁘다")["delta"], delta)
+                asked = session.llm.judge_calls()
+                self.assertEqual(len(asked), 1)
+                self.assertIn("캐릭터의 바로 앞 겉말: 이 책 표지 예쁘지 않아?", asked[0][1]["content"])
         session = Session("mistral", llm=ScriptedLlm(default=dict(wish, delta=1), judge=True))
         session.start()
         self.assertEqual(session.reply("옆자리로 좀 더 붙어앉을래?")["delta"], 1)  # 모델이 1을 줬으면 묻지 않는다
