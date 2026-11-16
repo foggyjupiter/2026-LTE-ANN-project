@@ -636,7 +636,9 @@ init -5 python:
 
         place = sg_str(turn.get("place"))
         first = view["turn"] == 0
-        if first:                  # 등장: 장소에 맞는 배경으로 바꾼다
+        # 판 중간에 장소를 옮긴 답(6번째 답)에도 place가 온다. 그때도 배경을 바꾸고 장소 제목 카드를 띄운다
+        moved = (not first) and bool(place) and place != store.sg_place
+        if first or moved:         # 등장, 또는 옮겨 간 장소: 그 장소에 맞는 배경으로 바꾼다
             store.sg_place = place
             sg_show_bg(sg_bg_key(place))
         # 지문에서 둘이 가까워진 동안 스탠딩을 조금 크게 둔다(sg_stage.rpy 의 sg_stage_char_at 이 본다)
@@ -651,10 +653,10 @@ init -5 python:
         sg_stage_call("sg_stage_glow", view["turn"], view["total"])
         # 표정과 호감도 변화에 맞는 만화 기호. 등장 턴이면 장소 제목 카드도 뜬다
         sg_stage_call("sg_stage_turn", view["face"], sg_num(turn.get("change")),
-                      first=first, fallback=view["fallback"], place=place, score=view["score"])
+                      first=first, fallback=view["fallback"], place=place, score=view["score"], moved=moved)
         # 레이어를 지정한 전환(layer="master")은 쓰지 않는다. 시험 도구가 그 전환이
         # 끝난 것을 알아채지 못해서 다음 클릭에서 멈춘다.
-        if first:
+        if first or moved:
             renpy.transition(sg_stage_trans("scene", Dissolve(0.4)))
         else:
             renpy.transition(sg_stage_trans("turn", Dissolve(0.2)))

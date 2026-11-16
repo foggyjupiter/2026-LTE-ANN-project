@@ -184,7 +184,9 @@ class Session:
         self._fallback_count = 0
         self._inners = []        # 속마음 전부 (등장 포함)
         self._faces = []         # 화면에 낸 표정 전부 (등장 포함, 대체 대사 제외)
-        self._place = ""         # 등장 장소. 판 내내 그곳이다
+        self._place = ""         # 지금 장소. 등장 장소였다가 진행표의 move 답에서 한 번 바뀐다
+        self._moved_from = ""    # 옮겨 오기 전 장소(등장 장소). 아직 안 옮겼으면 빈 문자열
+        self._move_pending = False  # 옮길 차례가 왔는데 아직 못 옮겼다(정전, 사건, 대체 대사)
         self._events = []        # 지금까지 일어난 사건 ("답 3 소나기와 우산 하나")
         # 날씨. 비나 천둥 사건(seeds.json의 event_weather)이 일어난 뒤로 판이 끝날 때까지 "rain" 또는 "storm"이다.
         # 화면은 이 값으로 배경을 어둡게 두고 비를 계속 내린다(사용자, 2026-11-15: 비가 오는데 배경이 밝으면 어색하다)
@@ -341,6 +343,14 @@ class Session:
             lights = "back"
         else:
             lights = ""
+        # 장소 옮기기: 진행표의 move 답(6번째)에서 한 번 옮긴다. 정전 중이거나 사건 답이면 다음 답으로 미룬다
+        # (친구 의견, 2026-11-16: 한 장소에서 12답은 늘어진다)
+        if slot.get("move") and not opening and not self._moved_from:
+            self._move_pending = True
+        move = None
+        if (self._move_pending and not opening and not finale and self._place and not lights
+                and seed_kind != "event"):
+            move = self._pick_move()
         # 방금 들은 말이 [수위]를 넘거나, 설정을 버리라거나, 닿자고 청하는 말인가. 지시문에 한 줄을 더하고
         # 점수도 아래에서 막는다(2026-11-15 실전 기록: 지시문만으로는 외설 입력 19번이 점수를 올렸다)
         said = "" if opening else self.past_inputs[-1]
@@ -371,7 +381,9 @@ class Session:
             opening=opening,
             finale=finale,
             extra=extra,
-            place=self._place,
+            place=move[1] if move else self._place,
+            moved_from=move[0] if move else self._moved_from,
+            move_reason=move[2] if move else "",
             events_so_far=tuple(self._events),
             seed_hint=seed_hint,
             story=self.story,
@@ -543,6 +555,15 @@ class Session:
             weather = (self.seeds.get("event_weather") or {}).get(seed)
             if weather in WEATHERS:
                 self._weather = weather
+        # 장소를 옮긴 답: 다음 답부터 새 장소다. 대체 대사가 되면 옮기지 않은 것이라 다음 답으로 미룬다.
+        # 옮겨 오면 떨어져 있던 거리와 꽃잎은 처음부터 다시 시작한다
+        moved_to = None
+        if move and not fallback:
+            old, moved_to, _ = move
+            self._moved_from, self._place, self._move_pending = old, moved_to, False
+            self._events.append(f"답 {self.turn} {old}에서 {moved_to}(으)로 옮겨 옴")
+            self._close = False
+            self._petals_left = 0
         # 정전의 남은 답 수를 센다. 대체 대사는 아무 일도 없던 답이라 세지 않는다
         # 꽃잎: 사건 답부터 적힌 답 수만큼 날린다
         petals_for = (self.seeds.get("event_petals") or {}).get(seed) if seed_kind == "event" else None
@@ -589,8 +610,8 @@ class Session:
             "extras": extras,
             "fallback": fallback,
             "finale": finale,
-            # 등장 장소. 화면이 배경을 고를 때 쓴다. 등장이 아닌 답에서는 None이다
-            "place": seed if opening and seed_kind == "entrance" else None,
+            # 장소. 화면이 배경을 고를 때 쓴다. 등장 답과 장소를 옮긴 답에만 오고, 나머지 답에서는 None이다
+            "place": seed if opening and seed_kind == "entrance" else moved_to,
             # 표정(face)이 기본 여섯 가지 가운데 어느 자리인지. 화면은 캐릭터만의 표정 그림이 없으면 이 그림을 쓰고,
             # 연출(기호, 움직임)도 이것으로 고른다
             "face_base": actor.face_base(self.character, reply.face),
@@ -653,6 +674,25 @@ class Session:
         (사용자, 2026-11-15)."""
         by_band = (self.schedule.get("intensities_by_band") or {}).get(band) or {}
         return by_band.get(str(intensity)) or self.schedule["intensities"].get(str(intensity), "")
+
+    def _pick_move(self):
+        """옮겨 갈 곳과 까닭 (지금 장소, 새 장소, 까닭). 갈 곳이 없으면 None.
+
+        새 장소는 등장 장소 목록에서 지금 장소가 아닌 곳이다. 비가 오고 있으면 실내만 고르고, 실외에 있었다면
+        비를 피해 옮긴다. 까닭은 바깥 일(종소리, 선생님, 청소 당번)이라 지문이 전학생의 행동을 지어내지 않는다.
+        """
+        outdoor = set(self.seeds.get("outdoor_places") or [])
+        places = [p for p in self.seeds.get("entrance", []) if p != self._place]
+        if self._weather:
+            places = [p for p in places if p not in outdoor]
+        if not places:
+            return None
+        reasons = list(self.seeds.get("move_reasons") or []) or ["사람이 많아져서"]
+        if self._weather and self._place in outdoor and self.seeds.get("move_reason_rain"):
+            reason = self.seeds["move_reason_rain"]
+        else:
+            reason = self.rng.choice(reasons)
+        return self._place, self.rng.choice(places), reason
 
     def _pick_seed(self, kind, close=False):
         """아직 안 쓴 씨앗 가운데 하나를 뽑는다. 종류가 없거나 다 썼으면 None.

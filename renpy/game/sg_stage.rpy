@@ -9,7 +9,7 @@
 ## 바깥에서 쓰는 것 (sg_core.rpy 의 무대 부분이 부른다. 이 파일이 없어도 게임은 돌아간다)
 ##   sg_stage_char_at(face, place)   스탠딩에 걸 transform 목록(자리, 숨쉬기, 동작)
 ##   sg_stage_bg_at()                배경에 걸 transform 목록
-##   sg_stage_turn(face, change, first, fallback, place, score)   턴에 맞는 기호와 제목 카드
+##   sg_stage_turn(face, change, first, fallback, place, score, moved)   턴에 맞는 기호와 제목 카드(옮긴 답에도)
 ##   sg_stage_ending(band_id)        엔딩 화면에 맞는 기호
 ##   sg_stage_reset()                기호와 제목 카드를 치우고 표정 기억을 지운다
 ##
@@ -567,7 +567,7 @@ init -4 python:
         """배경에 걸 transform 목록."""
         return [ store.sg_stage_bg_drift ] if sg_stage_bg_move else [ ]
 
-    def sg_stage_turn(face, change=0, first=False, fallback=False, place="", score=None):
+    def sg_stage_turn(face, change=0, first=False, fallback=False, place="", score=None, moved=False):
         """턴 하나에 맞는 기호를 띄운다. 등장 턴이면 장소 제목 카드도 띄운다.
 
         표정 기호는 표정이 바뀌는 지금 나온다. 호감도 기호(하트 여러 개, 땀방울, 세로줄)는
@@ -584,7 +584,7 @@ init -4 python:
             # 등장 턴은 스탠딩이 올라온 뒤에 기호가 나온다
             sg_stage_show_emotes(now, delay=0.6 if first else 0.15)
             renpy.hide_screen("sg_stage_title")
-            if first and place:
+            if (first or moved) and place:   # 등장과 장소를 옮긴 답에 장소 제목 카드
                 renpy.show_screen("sg_stage_title", place=sg_esc(place))
         except Exception:
             sg_stage_oops("sg_stage_turn")

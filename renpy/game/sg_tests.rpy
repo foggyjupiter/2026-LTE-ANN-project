@@ -38,6 +38,7 @@ testcase sg_flow:
     pause until screen "sg_talk"
     pause 0.8
     screenshot "flow_02_narration.png"
+    $ sg_test_first_place = sg_place
     ## 대화가 시작되면 호감도 구간의 곡으로 바뀐다 (시작은 50점이라 talk)
     assert eval (sg_audio_muted or sg_bgm_now == "talk")
     ## 새 곡은 다른 채널에서 커지고 앞 곡은 원래 채널에서 줄어든다 (두 곡이 겹치며 바뀐다)
@@ -109,7 +110,10 @@ testcase sg_flow:
     click id "sg_advance" until id "sg_input"
     click "좋아, 더 말해줘"
     pause until eval (sg_turn_no == 6)
-    pause 0.5
+    ## 6번째 답에서 장소를 옮긴다: 배경이 새 장소로 바뀌고 장소 제목 카드가 뜬다
+    pause 0.8
+    screenshot "flow_07c_moved.png"
+    assert eval (sg_place and sg_place != sg_test_first_place)
     click id "sg_advance" until id "sg_input"
     click "잘 모르겠는데"
     pause until eval (sg_turn_no == 7)

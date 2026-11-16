@@ -683,12 +683,15 @@ class SeedTest(unittest.TestCase):
     def test_events_fit_the_place(self):
         # 도서관에서 "체육 시간 짝 정하기"나 "하굣길 갈림길"처럼 그곳에서 일어날 수 없는 사건은 고르지 않는다
         fits = content.load_seeds()["event_places"]
+        # 6번째 답에서 장소를 옮기므로 7, 10번째 사건은 옮겨 간 장소에 맞아야 한다
         for seed in range(40):
             llm, kwargs = self.run_session(seed)
-            place = kwargs[0]["seed"]
             for turn in (4, 7, 10):
-                event = kwargs[turn]["seed"]
+                place, event = kwargs[turn]["place"], kwargs[turn]["seed"]
                 self.assertTrue(event not in fits or place in fits[event], (place, event))
+            self.assertEqual(kwargs[4]["place"], kwargs[0]["seed"])
+            # 6번째 답에서 옮기되, 정전이 이어지면 사건 답(7)을 건너 8번째 답으로 미룬다
+            self.assertNotEqual(kwargs[8]["place"], kwargs[0]["seed"], seed)
 
     def test_weather_lasts_after_a_rain_event(self):
         # 비나 천둥 사건이 일어난 답부터 판이 끝날 때까지 weather가 남고, 다음 답들의 지시문에 비가 그치지 않는다고 적는다
@@ -738,6 +741,48 @@ class SeedTest(unittest.TestCase):
         outs = play(Session("gemma", llm=ScriptedLlm(turns=turns)), count=5)   # 답 4는 사건 답이라 지문이 바뀐다
         self.assertEqual([o["close"] for o in outs], [False, True, True, False, False, True])
 
+    def test_place_moves_once_at_answer_six(self):
+        # 친구 의견(2026-11-16): 한 장소에서 12답은 늘어진다. 6번째 답에서 한 번 옮기고, 화면은 그 답의 place로 배경을 바꾼다
+        llm = ScriptedLlm()
+        session = Session("mistral", llm=llm, rng=random.Random(3))
+        outs = play(session)
+        first = outs[0]["place"]
+        moved = [(o["turn"], o["place"]) for o in outs[1:] if o["place"]]
+        self.assertEqual(len(moved), 1)
+        turn, new = moved[0]
+        self.assertEqual(turn, 6)
+        self.assertNotEqual(new, first)
+        self.assertIn(new, content.load_seeds()["entrance"])
+        moving = llm.system_of(6)
+        self.assertIn("[장소 옮기기]", moving)
+        self.assertIn(f"이번 답에서 둘은 {first}에서 {new}(으)로 옮겨 온다", moving)
+        self.assertIn(f"장소: {new}. 둘은 {first}에서 만났다가 이곳으로 옮겨 왔다", llm.system_of(9))
+        self.assertNotIn("[장소 옮기기]", llm.system_of(9))
+        self.assertIn("10. 장소는 지금 둘이 있는 곳이다", llm.system_of(9))
+        self.assertIn(f"답 6 {first}에서 {new}(으)로 옮겨 옴", session._events)
+
+    def test_move_goes_indoors_in_rain(self):
+        seeds = content.load_seeds()
+        for seed in range(30):
+            session = Session("mistral", llm=ScriptedLlm(), rng=random.Random(seed))
+            session.start()
+            session._place, session._weather = "옥상", "rain"
+            for text in ["하나", "둘", "셋", "넷", "다섯"]:
+                session.reply(text)
+            session._place, session._weather = "옥상", "rain"  # 사건이 장소와 날씨를 바꿨어도 옥상에서 비를 맞는 중으로 둔다
+            out = session.reply("여섯")
+            self.assertNotIn(out["place"], seeds["outdoor_places"])
+            self.assertIn(seeds["move_reason_rain"], session.llm.system_of(6))
+
+    def test_move_waits_while_lights_are_out(self):
+        session = Session("mistral", llm=ScriptedLlm(), rng=random.Random(5))
+        session.start()
+        for text in ["하나", "둘", "셋", "넷", "다섯"]:
+            session.reply(text)
+        session._lights_out_left = 1  # 6번째 답이 정전 중이면 옮기지 않고, 7번째(사건)도 건너 8번째에 옮긴다
+        outs = [session.reply(text) for text in ["여섯", "일곱", "여덟"]]
+        self.assertEqual([o["place"] is not None for o in outs], [False, False, True])
+
     def test_petals_drift_for_a_few_replies(self):
         for seed in range(80):
             session = Session("mistral", llm=ScriptedLlm(), rng=random.Random(seed))
@@ -749,7 +794,10 @@ class SeedTest(unittest.TestCase):
                 continue
             n = content.load_seeds()["event_petals"]["흩날리는 벚꽃잎"]
             on = [o["turn"] for o in outs if o["petals"]]
-            self.assertEqual(on, list(range(start[0], min(start[0] + n, TOTAL + 1))))
+            # 장소를 옮긴 답(place가 오는 답)부터는 날리지 않는다
+            moved = [o["turn"] for o in outs[1:] if o["place"]]
+            stop = min([start[0] + n, TOTAL + 1] + moved)
+            self.assertEqual(on, list(range(start[0], stop)))
             return
         self.fail("80판 안에 벚꽃잎 사건이 없었다")
 

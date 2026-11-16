@@ -193,7 +193,15 @@ class OtherDataTest(unittest.TestCase):
     def test_seeds(self):
         seeds = content.load_seeds()
         self.assertEqual(sorted(seeds), ["entrance", "event", "event_groups", "event_hints", "event_lights_out",
-                                         "event_petals", "event_places", "event_weather"])
+                                         "event_petals", "event_places", "event_weather", "move_reason_rain",
+                                         "move_reasons", "outdoor_places"])
+        # 실외 장소는 등장 장소 가운데 있고, 화면(Ren'Py)이 실외로 보는 장소와 같다
+        self.assertTrue(set(seeds["outdoor_places"]) <= set(seeds["entrance"]))
+        root = pathlib.Path(__file__).resolve().parent.parent
+        stage = (root / "renpy" / "game" / "sg_stage.rpy").read_text(encoding="utf-8")
+        found = re.search(r"define sg_stage_outdoor = \(([^)]*)\)", stage)
+        self.assertEqual(sorted(re.findall(r'"([^"]+)"', found.group(1))), sorted(seeds["outdoor_places"]))
+        self.assertTrue(seeds["move_reasons"] and all(r.strip() for r in seeds["move_reasons"]))
         for event, turns in seeds["event_lights_out"].items():
             self.assertIn(event, seeds["event"])
             self.assertTrue(isinstance(turns, int) and turns >= 1)

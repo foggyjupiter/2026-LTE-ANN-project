@@ -604,7 +604,7 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
                  place: str = "", events_so_far: tuple = (), wishes: tuple = (),
                  wish_streak: int = 0, wish_words: dict | None = None, seed_hint: str = "", story: bool = False, beat: str = "",
                  must_touch: bool = False, avoid_catchphrases: tuple = (), weather: str = "",
-                 lights: str = "") -> str:
+                 lights: str = "", moved_from: str = "", move_reason: str = "") -> str:
     if band not in _BAND_LABELS:
         raise ValueError("band는 low, mid, high 중 하나여야 한다: " + repr(band))
 
@@ -637,7 +637,9 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
         sections.append(_seed_section(str(seed), kind, seed_hint, must_touch))
 
     # 이야기 모드에서는 둘이 함께 장소를 옮겨 갈 수 있다. 장소를 묶어 두는 연기 규칙 10을 바꾼다
-    sections.append([_STORY_RULE_10 if story and line.startswith("10. ") else line for line in _RULES_SECTION])
+    # 판 중간에 장소를 옮긴 판(moved_from)도 지금 있는 곳을 따르게 한다
+    sections.append([_STORY_RULE_10 if (story or moved_from) and line.startswith("10. ") else line
+                     for line in _RULES_SECTION])
     if story:
         sections.append(_STORY_SECTION + (["- 이번 답의 이야기 단계: " + beat] if beat else []))
     if place and not opening:
@@ -645,6 +647,8 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
         # 있었는지 잊는다. 매 답 장소와 지금까지 일어난 일을 적어 준다
         scene = ["[지금 장면]",
                  ("- 처음 만난 곳: " + place + ". 둘이 함께 다른 곳으로 옮겨 갔으면 대화 기록의 지문을 따른다." if story else
+                  "- 장소: " + place + ". 둘은 " + moved_from + "에서 만났다가 이곳으로 옮겨 왔다. 지금은 이곳에 있고, "
+                  "다른 곳으로 또 옮겨 가지 않는다. " + moved_from + "에 있던 물건과 사람은 이제 여기 없다." if moved_from else
                   "- 장소: " + place + ". 둘은 처음부터 이곳에서 만나고 있다. 사건이 있어도 다른 곳으로 옮겨 가지 않는다."),
                  "- 시간: 오늘. 둘은 오늘 처음 만났고, 오늘 이 자리에서 있었던 일만 안다."]
         if events_so_far:
@@ -660,6 +664,17 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
         scene.append("- 지문과 대사에서 장소, 시간, 앞에서 한 말과 어긋나는 말(다른 장소 이름, 등교와 하교를 바꿔 말하기)을 "
                      "쓰지 않는다.")
         sections.append(scene)
+    if move_reason and moved_from and place and not opening:
+        # 진행표의 move 답(6번째)에서 장소를 한 번 옮긴다. 화면은 이 답부터 새 장소의 배경을 보인다(2026-11-16).
+        # 옮기는 까닭은 바깥 일이라, 전학생이 스스로 무엇을 했다고 지어내지 않아도 된다
+        sections.append([
+            "[장소 옮기기]",
+            "- 이번 답에서 둘은 " + moved_from + "에서 " + place + "(으)로 옮겨 온다. 까닭: " + move_reason + ".",
+            "- narration의 첫머리에 이 까닭으로 둘이 " + place + "에 오게 된 것을 짧게 쓴다. 캐릭터가 앞장서거나 둘이 함께 "
+            "옮겨 온 것은 써도 된다. 그 밖에 전학생이 한 일이나 느낀 것은 지어내지 않는다.",
+            "- say는 주인공이 방금 한 말에 대한 대답이다. 새 장소에 있을 법한 것만 꺼내고, " + moved_from
+            + "에 있던 물건을 여기 있는 것처럼 쓰지 않는다.",
+        ])
     if wishes and not opening:
         # 다정한 말만으로는 대성공이 안 되게 한다. 큰 점수(2)는 캐릭터가 속마음에 흘린 바람을 짚은 말에만 준다.
         # 실전 기록: "오늘 너 만나서 덜 긴장돼, 고마워" 같은 누구에게나 할 말에 2를 줘서 착한 각본이 늘 대성공이었다
@@ -1135,7 +1150,7 @@ def build_turn_messages(character: dict, history: list[dict], *, band: str, inte
                         finale: bool = False, extra: str = "", place: str = "",
                         events_so_far: tuple = (), seed_hint: str = "", story: bool = False,
                         beat: str = "", must_touch: bool = False, weather: str = "",
-                        lights: str = "") -> list[dict]:
+                        lights: str = "", moved_from: str = "", move_reason: str = "") -> list[dict]:
     """배우에게 보낼 메시지 목록을 만든다. `[system] + history`이고 `history`는 고치지 않는다."""
     system = _turn_system(
         character, band=band, intensity=intensity, intensity_meaning=intensity_meaning,
@@ -1147,7 +1162,7 @@ def build_turn_messages(character: dict, history: list[dict], *, band: str, inte
         wish_words=_recent_wish_words(history, _recent_wishes(history)),
         wish_streak=_wish_streak(history), seed_hint=seed_hint, story=story, beat=beat,
         must_touch=must_touch, avoid_catchphrases=catchphrases_to_avoid(character, history), weather=weather,
-        lights=lights,
+        lights=lights, moved_from=moved_from, move_reason=move_reason,
     )
     return [{"role": "system", "content": system}] + [dict(m) for m in history]
 
