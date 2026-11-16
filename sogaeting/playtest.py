@@ -16,7 +16,7 @@ import unicodedata
 
 from . import actor, content, llm, safety
 from .director import STORY_ENV, ModelUnavailable, Session
-from .fake_llm import fake_llm
+from .fake_llm import JUDGE_MARK, fake_llm
 
 DEFAULT_OUT = "results/playtest"
 DEFAULT_SEED = 1113
@@ -163,11 +163,17 @@ class Recorder:
     def __call__(self, messages):
         waited = self._wait()
         trace = []
+        system = _system_text(messages)
+        step = list(self.step) if self.step else None
+        # 바람을 짚었는지 묻는 판정 호출(actor.judge_wish_hit)은 그 답의 호출과 따로 적는다. 답의 호출 수, 고쳐 쓰기,
+        # JSON 실패를 셀 때 섞이지 않게 한다
+        if step and system.startswith(JUDGE_MARK):
+            step = ["judge"] + step[1:]
         record = {
-            "step": list(self.step) if self.step else None,
-            "attempt": len(self.calls_of(self.step)) + 1 if self.step else 1,
+            "step": step,
+            "attempt": len(self.calls_of(step)) + 1 if step else 1,
             "waited": waited,
-            "system": _system_text(messages),
+            "system": system,
         }
         started = self.clock()
         raw = None
@@ -184,7 +190,7 @@ class Recorder:
             record["provider"] = next((t["provider"] for t in reversed(trace) if t["ok"]), None)
             record["raw"] = raw
             record.setdefault("error", None)
-            record.update(self._judge(raw))
+            record.update(self._judge(raw, judge=bool(step) and step[0] == "judge"))
             self.calls.append(record)
 
     def _wait(self):
@@ -204,15 +210,17 @@ class Recorder:
                 waited += left
         return round(waited, 2)
 
-    def _judge(self, raw):
-        """원문이 JSON으로 읽혔는지, 금지어가 있는지."""
+    def _judge(self, raw, judge=False):
+        """원문이 JSON으로 읽혔는지, 금지어가 있는지. judge면 바람 판정의 답({"hit": 참거짓})으로 읽는다."""
         if raw is None:
             return {"strict_json": False, "readable": False, "banned": False}
         try:
             whole = json.loads(raw)
         except ValueError:
             whole = None
-        if self.step and self.step[0] == "ending":
+        if judge:
+            readable = isinstance((actor._read_json_object(raw) or {}).get("hit"), bool)
+        elif self.step and self.step[0] == "ending":
             readable = actor.parse_ending(raw) is not None
         else:
             readable = actor.parse_reply(raw, set()) is not None
@@ -399,6 +407,7 @@ def play_character(character_id, recorder_factory, *, seed=DEFAULT_SEED, progres
             k for k in REQUIRED_KINDS if not any(k in t["line"]["kinds"] for t in turns if t["line"])],
     }
     game["calls"] = [c for t in turns for c in t["calls"]] + ending_calls
+    game["judge_calls"] = [c for c in recorder.calls if c["step"] and c["step"][0] == "judge"]
     game["checks"] = _checks(game)
     return game
 
@@ -864,6 +873,7 @@ def write_results(games, folder, *, fake, when, pace, seed):
                       for t in g["turns"]],
             "ending": g["ending"],
             "calls": g["calls"],
+            "judge_calls": g.get("judge_calls", []),
         } for g in games],
     }, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     written.append(log)

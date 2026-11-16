@@ -451,7 +451,9 @@ class Session:
                 related = [word for wish in wishes for word in wish_words.get(wish, [])]
                 if reply.delta == 2 and not actor.wish_hit(self.past_inputs[-1], wishes, related,
                                                            actor.name_words(self.character)):
-                    reply.delta = 1
+                    # 낱말이 맞지 않아도 돌려 말했을 수 있다. 판정만 짧게 한 번 더 묻는다(친구 피드백, 2026-11-16)
+                    if not actor.judge_wish_hit(self.llm, wishes, self.past_inputs[-1]):
+                        reply.delta = 1
                 # 바람의 낱말만 짧게 던진 말은 크게 설레게 하지 못한다
                 if reply.delta == 2 and len(re.findall(r"[0-9A-Za-z가-힣]", self.past_inputs[-1])) <= SHORT_HIT_LETTERS:
                     reply.strength = min(reply.strength, SHORT_HIT_STRENGTH_MAX)

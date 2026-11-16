@@ -65,6 +65,9 @@ def _hide_offstage(text: str) -> str:
     return text
 
 
+JUDGE_MARK = "너는 소개팅 게임의 채점 보조다"  # actor.WISH_JUDGE_SYSTEM의 첫머리
+
+
 def fake_llm(messages: list[dict]) -> str:
     """차례에 맞는 JSON 문자열을 돌려준다. 엔딩 요청에는 세 칸, 그 밖에는 열 칸."""
     system = ""
@@ -80,6 +83,10 @@ def fake_llm(messages: list[dict]) -> str:
             turn += 1
         elif role == "user":
             last_user = text
+
+    # 바람을 짚었는지 묻는 판정(actor.judge_wish_hit). 가짜 모델은 늘 짚지 않았다고 답한다
+    if system.startswith(JUDGE_MARK):
+        return json.dumps({"hit": False})
 
     if _is_ending_request(system, last_user):
         return json.dumps({

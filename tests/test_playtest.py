@@ -10,7 +10,7 @@ import unittest
 from unittest import mock
 
 from sogaeting import content, llm, playtest, safety
-from sogaeting.fake_llm import fake_llm
+from sogaeting.fake_llm import JUDGE_MARK, fake_llm
 
 
 def run_main(args):
@@ -142,7 +142,10 @@ class MainTest(unittest.TestCase):
         log = json.loads((folder / "calls.json").read_text(encoding="utf-8"))
         self.assertEqual([g["id"] for g in log["games"]], ids)
         for game in log["games"]:
-            self.assertEqual(len(game["calls"]), total + 2)  # 등장 + 답 + 엔딩
+            self.assertEqual(len(game["calls"]), total + 2)  # 등장 + 답 + 엔딩. 바람 판정 호출은 따로 적는다
+            for call in game["judge_calls"]:
+                self.assertTrue(call["system"].startswith(JUDGE_MARK))
+                self.assertTrue(call["readable"])
             for call in game["calls"]:
                 self.assertEqual(
                     set(call),

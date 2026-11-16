@@ -80,14 +80,22 @@ class ScriptedLlm:
     문자열(그대로 돌려줌), 예외(그대로 던짐) 가운데 하나다. 없는 차례는 default를 쓴다.
     """
 
-    def __init__(self, turns=None, default=None, ending=ENDING):
+    def __init__(self, turns=None, default=None, ending=ENDING, judge=False):
         self.turns = turns or {}
         self.default = default if default is not None else {}
         self.ending = ending
+        self.judge = judge  # 바람을 짚었는지 묻는 판정(actor.judge_wish_hit)의 답. 예외면 그대로 던진다
         self.calls = []
+
+    def judge_calls(self):
+        return [c for c in self.calls if c[0]["content"] == actor.WISH_JUDGE_SYSTEM]
 
     def __call__(self, messages):
         self.calls.append([dict(m) for m in messages])
+        if messages[0]["content"] == actor.WISH_JUDGE_SYSTEM:
+            if isinstance(self.judge, BaseException):
+                raise self.judge
+            return json.dumps({"hit": self.judge})
         if "엔딩" in messages[-1]["content"]:
             answer = self.ending
         else:
@@ -514,6 +522,30 @@ class ScoreTest(unittest.TestCase):
         self.assertEqual(out["delta"], 2)
         out = session.reply("오늘 너 만나서 진짜 반가웠어. 고마워.")  # 다정하기만 한 말은 여전히 +1
         self.assertEqual(out["delta"], 1)
+
+    def test_judge_keeps_an_implied_hit(self):
+        # 낱말이 하나도 겹치지 않게 돌려 말한 말은 판정을 한 번 더 물어서 짚었으면 +2를 둔다
+        wish = {"delta": 2, "wish": "같이 책 보기", "wish_words": ["표지"], "inner": "이 책 같이 볼 사람 있으면"}
+        for judge, delta in ((True, 2), (False, 1), (AllProvidersDown(), 1)):
+            with self.subTest(judge=judge):
+                session = Session("mistral", llm=ScriptedLlm(default=wish, judge=judge))
+                session.start()
+                out = session.reply("옆자리로 좀 더 붙어앉을래?")
+                self.assertEqual(out["delta"], delta)
+                asked = session.llm.judge_calls()
+                self.assertEqual(len(asked), 1)
+                self.assertIn("바람: 같이 책 보기", asked[0][1]["content"])
+                self.assertIn("주인공의 말: 옆자리로 좀 더 붙어앉을래?", asked[0][1]["content"])
+
+    def test_judge_is_not_asked_when_words_match_or_delta_is_low(self):
+        wish = {"wish": "같이 책 보기", "wish_words": ["표지"], "inner": "이 책 같이 볼 사람 있으면"}
+        session = Session("mistral", llm=ScriptedLlm(default=dict(wish, delta=2), judge=True))
+        session.start()
+        self.assertEqual(session.reply("그 책 표지 예쁘다")["delta"], 2)  # 낱말이 맞으면 묻지 않는다
+        session = Session("mistral", llm=ScriptedLlm(default=dict(wish, delta=1), judge=True))
+        session.start()
+        self.assertEqual(session.reply("옆자리로 좀 더 붙어앉을래?")["delta"], 1)  # 모델이 1을 줬으면 묻지 않는다
+        self.assertEqual(session.llm.judge_calls(), [])
 
     def test_generic_related_word_is_not_a_hit(self):
         # 돌려 말할 낱말에 "학교"처럼 누구나 꺼내는 화제가 섞여 있어도 그것만으로는 +2가 아니다
@@ -1571,7 +1603,9 @@ class FakeLlmTest(unittest.TestCase):
                 outs = [session.start()] + [session.reply(text) for text in texts]
                 ending = session.finish()
                 result = session.result()
-                self.assertEqual(counted.call_count, TOTAL + 2)  # 등장 1, 답 10, 엔딩 1. 다시 요청한 적이 없다
+                # 등장 1, 답 12, 엔딩 1. 다시 요청한 적이 없다. 바람을 짚었는지 묻는 판정 호출은 따로 센다
+                acting = [c for c in counted.call_args_list if c.args[0][0]["content"] != actor.WISH_JUDGE_SYSTEM]
+                self.assertEqual(len(acting), TOTAL + 2)
                 self.assertEqual([o["turn"] for o in outs], list(range(TOTAL + 1)))
                 self.assertTrue(outs[-1]["finale"])
                 for out in outs:
