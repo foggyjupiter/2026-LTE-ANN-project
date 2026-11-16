@@ -12,6 +12,8 @@ numpy 와 ffmpeg 가 있어야 한다. 바깥에서 받아 온 소리는 하나�
 - 음높이는 다장조 5음계(도 레 미 솔 라)에서만 고른다. 여러 소리가 겹쳐도 어울린다.
 - 모든 소리의 처음과 끝을 0으로 페이드한다. 딸깍 소리가 나지 않게 하려는 것이다.
 - 길이는 0.05초에서 1.2초, 최대 진폭은 -12dB 아래로 맞춘다.
+- 되풀이해 트는 소리(LOOPS, 빗소리)는 따로 본다. 3-8초, 최대 -18dB 아래, 끝이 처음으로 끊김 없이 이어진다.
+  잡음은 주파수 띠를 FFT 로 걸러서 처음부터 끝이 처음으로 이어지는 모양이고, 크기의 출렁임도 길이 안에서 딱 맞게 돈다.
 
 소리 이름과 파일의 짝은 renpy/game/sg_audio.rpy 의 sg_sounds 에 적혀 있다.
 파일을 더하거나 빼면 그쪽도 고친다. 어긋나면 tests/test_renpy_audio.py 가 실패한다.
@@ -261,6 +263,14 @@ def fx_glitch():
     return finish(hiss * gate + blips, -16, fade_in=0.003, fade_out=0.02)
 
 
+def fx_switch():
+    """불이 들어올 때: 딸깍. 짧은 높은 잡음과 아주 작은 낮은 톡."""
+    dur = 0.12
+    tick = noise(0.02, 1500, 5000, 51) * pluck(0.02, 0.004, 0.0008)
+    tock = sine(hz("C4"), 0.06) * pluck(0.06, 0.012, 0.002)
+    return finish(mix(dur, (0.003, tick, 1.0), (0.007, tock, 0.35)), -14, fade_in=0.003, fade_out=0.03)
+
+
 def fx_whoosh():
     """집중선: 슉. 잡음의 띠가 낮은 데서 높은 데로 훑고 지나간다."""
     dur = 0.36
@@ -273,6 +283,24 @@ def fx_whoosh():
         window = np.exp(-0.5 * ((tt - when) / 0.045) ** 2)
         out += noise(dur, center * 0.7, center * 1.35, 41 + k) * window * (1.0 - 0.08 * k)
     return finish(out, -15, fade_in=0.03, fade_out=0.06)
+
+
+################################################################################
+# 되풀이해 트는 소리
+################################################################################
+
+def amb_rain():
+    """비가 오는 동안 깔리는 빗소리. 중간 띠의 쏴아 소리와 높은 띠의 자잘한 빗방울이 천천히 출렁인다.
+
+    6초를 되풀이한다. FFT 로 거른 잡음은 끝이 처음으로 이어지고, 출렁임도 6초 안에서 딱 맞게 돈다."""
+    dur = 6.0
+    tt = clock(dur)
+    sway = 0.85 + 0.15 * np.sin(2 * np.pi * 2 * tt / dur)        # 6초에 두 번 크게 출렁인다
+    patter = 0.7 + 0.3 * noise(dur, 0, 9, 61, order=2)            # 빗방울이 고르지 않게 듣는다
+    body = noise(dur, 350, 1800, 62) * sway
+    drops = noise(dur, 2200, 6500, 63) * patter
+    out = 0.75 * body + 0.4 * drops
+    return out * (10.0 ** (-20.0 / 20.0) / np.max(np.abs(out)))
 
 
 ################################################################################
@@ -300,9 +328,12 @@ SOUNDS = {
     "score_up": score_up, "score_down": score_down, "score_big_up": score_big_up,
     "score_big_down": score_big_down, "score_odd": score_odd,
     "fx_thunder": fx_thunder, "fx_thud": fx_thud, "fx_sparkle": fx_sparkle, "fx_heart": fx_heart,
-    "fx_dark": fx_dark, "fx_alert": fx_alert, "fx_glitch": fx_glitch, "fx_whoosh": fx_whoosh,
+    "fx_dark": fx_dark, "fx_alert": fx_alert, "fx_glitch": fx_glitch, "fx_whoosh": fx_whoosh, "fx_switch": fx_switch,
     "end_good": end_good, "end_calm": end_calm,
 }
+
+# 되풀이해 트는 소리. 효과음과 길이, 크기, 끝의 규칙이 다르다
+LOOPS = {"amb_rain": amb_rain}
 
 
 ################################################################################
@@ -355,12 +386,17 @@ def report(folder):
     """만든 파일을 다시 읽어 표로 찍는다. 원칙에서 벗어난 파일이 있으면 False."""
     ok = True
     print("%-20s %7s %9s %11s %9s %7s" % ("파일", "길이(초)", "최대(dB)", "처음(dB)", "끝(dB)", "바이트"))
-    for name in SOUNDS:
+    for name in list(SOUNDS) + list(LOOPS):
         path = folder / (name + ".ogg")
         m = measure(path)
-        # 길이 0.05-1.2초, 최대 -12dB 아래(손실 압축의 오차 0.5dB 까지 봐준다), 양 끝은 최대보다 30dB 넘게 작다
-        good = (0.045 <= m["seconds"] <= 1.21 and m["peak"] <= -11.5
-                and m["head"] <= m["peak"] - 30 and m["tail"] <= m["peak"] - 30)
+        if name in LOOPS:
+            # 되풀이하는 소리: 3-8초, 최대 -18dB 아래. 양 끝을 0으로 줄이지 않는다(되풀이할 때 소리가 비지 않는다)
+            good = (2.95 <= m["seconds"] <= 8.05 and m["peak"] <= -17.5
+                    and m["head"] >= m["peak"] - 30 and m["tail"] >= m["peak"] - 30)
+        else:
+            # 길이 0.05-1.2초, 최대 -12dB 아래(손실 압축의 오차 0.5dB 까지 봐준다), 양 끝은 최대보다 30dB 넘게 작다
+            good = (0.045 <= m["seconds"] <= 1.21 and m["peak"] <= -11.5
+                    and m["head"] <= m["peak"] - 30 and m["tail"] <= m["peak"] - 30)
         ok = ok and good
         print("%-20s %8.3f %9.1f %11.1f %9.1f %7d%s" % (path.name, m["seconds"], m["peak"], m["head"],
                                                         m["tail"], m["bytes"], "" if good else "  <- 확인"))
@@ -377,7 +413,7 @@ def main():
     folder = pathlib.Path(args.folder)
     if not args.check:
         folder.mkdir(parents=True, exist_ok=True)
-        for name, build in SOUNDS.items():
+        for name, build in list(SOUNDS.items()) + list(LOOPS.items()):
             write_ogg(build(), folder / (name + ".ogg"))
     sys.exit(0 if report(folder) else 1)
 

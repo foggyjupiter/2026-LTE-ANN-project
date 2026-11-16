@@ -49,6 +49,12 @@ SCORE_DIGITS = 1
 # 한 판에 한 번이고, 답에 그런 마음이 안 보이면 다음 답에서 한 번 더 시킨다(CLOSE_TRIES)
 CLOSE_SCORE = 77
 WEATHERS = ("rain", "storm")   # 화면이 아는 날씨
+# 지문에서 둘이 가까워진 것과 다시 떨어진 것. 화면은 가까워진 동안 스탠딩을 조금 크게 둔다(사용자, 2026-11-15).
+# 실제 모델 347답 가운데 가까워짐이 10%, 떨어짐이 5%였다. 한 지문에 둘 다 있으면 뒤에 나온 것을 따른다
+CLOSE_IN_RE = re.compile(r"다가앉|다가서|바짝 다가|가까이 (다가|붙|앉)|어깨에 (머리를 |고개를 )?(살짝 )?기대|기대어|기대었|기댄"
+                         r"|품에|품으로|안겼|안기|손을 (꼭 |살며시 |조심스럽게 )?(잡|맞잡|쥐|포개)|손을 맞|팔짱|어깨가 (닿|맞닿)|붙어 (앉|서)")
+CLOSE_OUT_RE = re.compile(r"떨어지|떨어졌|떨어져|물러서|물러섰|물러난|손을 (놓|빼|거두)|몸을 (떼|뺐|빼)|거리를 (두|벌)"
+                          r"|뒤로 (한 걸음|물러|몸을)")
 CLOSE_TRIES = 2
 # 엔딩 작가에게 넘기는 기록에서 [수위]를 넘는 참가자의 말 대신 넣는 글
 ENDING_MASKED_INPUT = "(주인공이 선을 넘는 말을 했다. 그 말은 옮기지 않는다.)"
@@ -183,6 +189,8 @@ class Session:
         # 화면은 그동안 무대를 어둡게 둔다(사용자, 2026-11-15: 암전 연출은 다 가려서 어색하다, 해결될 때까지 어둡게)
         self._lights_out_left = 0     # 이번 답 뒤로 불이 더 꺼져 있을 답의 수
         self._lights_back_next = False  # 다음 답에서 불이 다시 들어온다
+        self._close = False              # 지문에서 둘이 가까워진 채인가
+        self._petals_left = 0            # 꽃잎이 더 날릴 답의 수(seeds.json의 event_petals)
         self._best = None        # (delta 절댓값, 속마음)
         self._last_choices = []  # 바로 앞 답에서 화면에 보인 선택지
         self.points = dict(POINTS)
@@ -512,6 +520,19 @@ class Session:
             if weather in WEATHERS:
                 self._weather = weather
         # 정전의 남은 답 수를 센다. 대체 대사는 아무 일도 없던 답이라 세지 않는다
+        # 꽃잎: 사건 답부터 적힌 답 수만큼 날린다
+        petals_for = (self.seeds.get("event_petals") or {}).get(seed) if seed_kind == "event" else None
+        if not fallback and isinstance(petals_for, int) and petals_for > 0:
+            self._petals_left = petals_for
+        petals = self._petals_left > 0
+        if petals:
+            self._petals_left -= 1
+        # 가까워짐: 지문에 가까워진 장면이나 떨어진 장면이 있으면 바꾸고, 없으면 그대로 둔다
+        if not opening and not fallback:
+            near = [m.end() for m in CLOSE_IN_RE.finditer(reply.narration)]
+            away = [m.end() for m in CLOSE_OUT_RE.finditer(reply.narration)]
+            if near or away:
+                self._close = max(near or [-1]) > max(away or [-1])
         # 정전이 시작될 답이 대체 대사가 되면 정전은 일어나지 않은 것이다
         lights_out = lights == "dark" or (lights == "start" and not fallback)
         if not fallback:
@@ -553,6 +574,10 @@ class Session:
             "weather": self._weather,
             # 정전으로 불이 꺼져 있는 답이면 True. 화면은 그동안 무대를 어둡게 둔다
             "lights_out": lights_out,
+            # 지문에서 둘이 가까워진 채이면 True. 화면은 그동안 스탠딩을 조금 크게 둔다
+            "close": self._close,
+            # 꽃잎이 날리는 답이면 True(벚꽃잎 사건 답부터 몇 답)
+            "petals": petals,
         }
 
     def _balance_face(self, reply, *, opening, finale, event):

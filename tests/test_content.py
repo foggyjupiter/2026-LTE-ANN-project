@@ -172,7 +172,7 @@ class OtherDataTest(unittest.TestCase):
     def test_seeds(self):
         seeds = content.load_seeds()
         self.assertEqual(sorted(seeds), ["entrance", "event", "event_groups", "event_hints", "event_lights_out",
-                                         "event_places", "event_weather"])
+                                         "event_petals", "event_places", "event_weather"])
         for event, turns in seeds["event_lights_out"].items():
             self.assertIn(event, seeds["event"])
             self.assertTrue(isinstance(turns, int) and turns >= 1)
@@ -205,7 +205,7 @@ class OtherDataTest(unittest.TestCase):
             fits = [e for e in seeds["event"] if e not in seeds["event_places"] or place in seeds["event_places"][e]]
             self.assertGreaterEqual(len(fits), 4, place)
         self.assertEqual(len(seeds["entrance"]), 8)
-        self.assertEqual(len(seeds["event"]), 22)
+        self.assertEqual(len(seeds["event"]), 33)   # 2026-11-16에 11개 더함(가까워지는 사건 6, 일상 사건 5)
         for kind in ("entrance", "event"):
             self.assertEqual(len(seeds[kind]), len(set(seeds[kind])))
 

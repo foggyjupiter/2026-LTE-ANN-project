@@ -592,6 +592,37 @@ testcase sg_weather:
     exit
 
 
+## 분위기: 벚꽃잎 사건 뒤의 꽃잎, 판 후반의 늦은 오후 빛, 가까워진 동안의 스탠딩 크기.
+## 늦은 오후 빛은 비가 오면 덮지 않는다. 서버가 보내는 petals, close 와 답 번호를 그대로 무대에 건다.
+##   python3 -m sogaeting.server --fake --port 8101
+testcase sg_scene_moods:
+    pause until screen "sg_select"
+    click "아스트라"
+    pause until screen "sg_talk"
+    pause 1.0
+    screenshot "moods_far.png"
+    $ sg_stage_petals(True)
+    assert eval (renpy.showing("sg_petals", layer="master"))
+    $ sg_stage_glow(10, 12)
+    assert eval (renpy.showing("sg_glow", layer="master"))
+    $ store.sg_stage_close = True
+    $ sg_show_char(sg_char["id"], "smile")
+    assert eval (sg_stage_close_shown)
+    pause 1.5
+    screenshot "moods_close_petals_glow.png"
+    $ sg_stage_glow(3, 12)
+    assert eval (not renpy.showing("sg_glow", layer="master"))
+    $ sg_stage_weather("rain")
+    $ sg_stage_glow(10, 12)
+    assert eval (not renpy.showing("sg_glow", layer="master"))
+    $ sg_stage_petals(False)
+    assert eval (not renpy.showing("sg_petals", layer="master"))
+    $ store.sg_stage_close = False
+    $ sg_show_char(sg_char["id"], "smile")
+    assert eval (not sg_stage_close_shown)
+    exit
+
+
 ## 캐릭터만의 표정: 아스트라에게 여섯 글자를 보내면 가짜 모델이 삐침(pout) 자리의 huff 를 낸다(fake_llm 의 글자 수 규칙).
 ## huff 그림(images/sprites/astra/huff.png)이 없으면 pout 그림을 쓰고, 움직임과 기호는 pout 의 것을 쓴다.
 ##   python3 -m sogaeting.server --fake --port 8101

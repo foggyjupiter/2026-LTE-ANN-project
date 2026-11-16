@@ -96,6 +96,17 @@ init python:
             f = int((tt / it["spin"] + it["phase"]) * 16) % 16
             return it["frames"][f], x, it["y"] + it["dy"] * p
 
+        def at_petalloop(self, it, t):
+            ## 꽃잎과 같은 길을 period 초마다 되풀이한다. 떨어지고 남은 시간에는 그리지 않는다
+            import math
+            tt = (t - it["delay"]) % it["period"]
+            if tt >= it["dur"]:
+                return None
+            p = tt / it["dur"]
+            x = it["x"] + it["dx"] * p + it["sway"] * math.sin((p * it["waves"] + it["phase"]) * 2 * math.pi)
+            f = int((tt / it["spin"] + it["phase"]) * 16) % 16
+            return it["frames"][f], x, it["y"] + it["dy"] * p
+
         def at_spark(self, it, t):
             ## 커졌다 작아지기를 두 번 하며 아주 천천히 떠오른다
             tt = t - it["delay"]

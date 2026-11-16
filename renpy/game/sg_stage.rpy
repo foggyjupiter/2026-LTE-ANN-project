@@ -103,8 +103,6 @@ define sg_stage_trans_home = Fade(0.22, 0.04, 0.42, color="#f6f2fb")   # 첫 화
 ## (사용자, 2026-11-15: 비가 내리기 시작했는데 배경이 밝으면 어색하다). 서버가 답마다 weather 를 보낸다.
 ## 배경을 덮는 어두운 막의 불투명도: 날씨마다.
 define sg_stage_weather_dim = {"rain": 0.34, "storm": 0.46}
-## 뒤에서 내리는 빗줄기 수. 한 번 쏟아지는 연출(sg_fx.rpy 의 "비", 84개)보다 적게 둔다.
-define sg_stage_weather_drops = 56
 ## 천둥(storm)일 때 멀리서 번쩍이는 간격(초).
 define sg_stage_weather_flash_every = 13.0
 
@@ -113,8 +111,36 @@ define sg_stage_weather_flash_every = 13.0
 ## 덮는 막의 불투명도: (배경, 스탠딩).
 define sg_stage_lights_dim = (0.62, 0.3)
 
+## 가까워짐. 지문에서 둘이 가까워진 동안(서버의 close) 가운데 자리의 스탠딩을 이만큼 크게, 이만큼 아래로 둔다.
+## 발밑을 축으로 커지므로 얼굴이 위로 올라가지 않게 조금 내린다(사용자, 2026-11-15: 가까이 왔으면 줌인을 유지).
+## 자리 transform(sg_screens.rpy 의 sg_char_center: zoom 0.7, ypos 846)을 가까운 자리로 바꿔 끼운다.
+## 다른 transform 을 하나 더 얹으면 Ren'Py 가 앞 transform 의 zoom 을 덮어써서(시험에서 1.5배가 됐다) 이렇게 한다.
+define sg_stage_center_zoom = 0.7
+define sg_stage_center_y = 846
+define sg_stage_close_zoom = 1.06
+define sg_stage_close_drop = 30
+
+## 실외 장소. 실내에서는 비가 방 안에 쏟아지는 것처럼 보이지 않게 빗줄기를 적고 옅게 그린다.
+## 빗줄기 수는 한 번 쏟아지는 연출(sg_fx.rpy 의 "비", 84개)보다 적게 둔다.
+define sg_stage_outdoor = ("옥상", "운동장 벤치", "정문 앞")
+## 빗줄기 수와 불투명도: (실외, 실내)
+define sg_stage_rain_drops = (56, 24)
+define sg_stage_rain_alpha = (1.0, 0.55)
+
+## 벚꽃잎 사건 뒤에 은은하게 날리는 꽃잎 수. 사건 연출(56장)보다 훨씬 적게 둔다(사용자: 정신 사납지 않게).
+define sg_stage_petal_count = 8
+
+## 늦은 오후의 빛. 이 답부터 판 끝까지 배경 위에 따뜻한 색을 조금씩 짙게 덮는다. 비나 정전 동안은 덮지 않는다.
+define sg_stage_glow_from = 7
+define sg_stage_glow_color = "#FF9A52"
+define sg_stage_glow_max = 0.14
+
 ## 지금 무대에 선 스탠딩의 표정. 같은 표정이 이어지면 큰 동작을 되풀이하지 않으려고 적어 둔다.
 default sg_stage_face = None
+
+## 이번 답에서 둘이 가까워진 채인가(서버의 close)와, 스탠딩에 지금 그렇게 걸려 있는가.
+default sg_stage_close = False
+default sg_stage_close_shown = False
 
 ## 지금 정전으로 불이 꺼져 있는지.
 default sg_stage_lights_now = False
@@ -525,6 +551,13 @@ init -4 python:
             else:
                 act = getattr(store, "sg_stage_act_" + face)
             store.sg_stage_face = shown
+            ## 가까워짐: 가운데 자리일 때만 가까운 자리로 바꿔 끼운다. 다가가고 물러나는 것은 답마다 거는
+            ## 짧은 전환(Dissolve 0.2)이 부드럽게 한다. 시험에서 ease 로 움직이는 transform 은 움직이지 않을 때가 있었다
+            if place is store.sg_char_center:
+                close = bool(store.sg_stage_close) and renpy.showing("sg_char", layer="master")
+                if close:
+                    place = store.sg_stage_close_at
+                store.sg_stage_close_shown = close
             return [ place, store.sg_stage_breathe, act ]
         except Exception:
             sg_stage_oops("sg_stage_char_at")
@@ -565,15 +598,18 @@ init -4 python:
         except Exception:
             sg_stage_oops("sg_stage_ending")
 
-    def sg_stage_rain():
-        """스탠딩 뒤에서 판이 끝날 때까지 내리는 비. 빗줄기는 같은 길을 되풀이해 떨어진다."""
+    def sg_stage_rain(outdoor=True):
+        """스탠딩 뒤에서 판이 끝날 때까지 내리는 비. 빗줄기는 같은 길을 되풀이해 떨어진다.
+
+        실내면 빗줄기를 적고 옅게 그린다. 비가 온다는 것은 알게 하되 방 안에 쏟아지는 것처럼 보이지 않게 한다."""
         import random
 
         W, H = config.screen_width, config.screen_height
+        k = 0 if outdoor else 1
         near = renpy.displayable("images/fx/sg_fx_drop_near.png")
         far = renpy.displayable("images/fx/sg_fx_drop_far.png")
         items = [ ]
-        for i in range(sg_stage_weather_drops):
+        for i in range(sg_stage_rain_drops[k]):
             ## 뒤에서 내리는 비라 먼 빗줄기를 더 많이 둔다
             is_near = (i % 3 == 0)
             h = 72 if is_near else 44
@@ -587,7 +623,72 @@ init -4 python:
                 "dur": random.uniform(0.5, 0.66) if is_near else random.uniform(0.8, 1.1),
                 "delay": -random.uniform(0, 1.2),
             })
-        return SgFxSprites("drop", items, 10 ** 9)
+        d = SgFxSprites("drop", items, 10 ** 9)
+        return d if sg_stage_rain_alpha[k] >= 1.0 else Transform(d, alpha=sg_stage_rain_alpha[k])
+
+    def sg_stage_petal_drift():
+        """벚꽃잎 사건 뒤에 은은하게 날리는 꽃잎. 몇 장이 천천히 떨어지고 쉬기를 되풀이한다."""
+        import random
+
+        W, H = config.screen_width, config.screen_height
+        items = [ ]
+        for i in range(sg_stage_petal_count):
+            sheet = "ab"[i % 2]
+            size = random.choice([0, 0, 1])
+            zoom = (0.7, 0.95)[size]
+            px = 64 * zoom
+            dur = random.uniform(5.0, 7.0)
+            items.append({
+                "frames": [
+                    sg_fx_cut("petal-%s-%d-%d" % (sheet, size, j),
+                              "images/fx/sg_fx_petal_%s.png" % sheet, (j * 64, 0, 64, 64), zoom)
+                    for j in range(16)
+                ],
+                "x": random.uniform(-0.1 * W, 0.95 * W),
+                "y": -px,
+                "dx": random.uniform(0.1, 0.25) * H,
+                "dy": H + 2 * px,
+                "dur": dur,
+                "period": dur + random.uniform(1.0, 4.0),
+                "delay": -random.uniform(0, 8.0),
+                "sway": random.uniform(10, 26),
+                "waves": random.uniform(0.6, 1.2),
+                "phase": random.random(),
+                "spin": random.uniform(1.6, 2.6),
+            })
+        return SgFxSprites("petalloop", items, 10 ** 9)
+
+    def sg_stage_petals(on):
+        """벚꽃잎 사건 뒤 몇 답 동안(서버의 petals) 스탠딩 뒤에서 꽃잎이 은은하게 날린다."""
+        try:
+            on = bool(on)
+            if on == renpy.showing("sg_petals", layer="master"):
+                return
+            if not on:
+                renpy.hide("sg_petals", layer="master")
+                return
+            behind = [ "sg_char" ] if renpy.showing("sg_char", layer="master") else [ ]
+            renpy.show("sg_petals", what=sg_stage_petal_drift(), layer="master", behind=behind)
+        except Exception:
+            sg_stage_oops("sg_stage_petals")
+
+    def sg_stage_glow(turn, total):
+        """늦은 오후의 빛: sg_stage_glow_from 번째 답부터 판 끝까지 배경 위에 따뜻한 색을 조금씩 짙게 덮는다.
+
+        비가 오거나 정전이면 덮지 않는다. 답마다 짙기가 달라서 그때그때 새로 깐다."""
+        try:
+            turn, total = int(turn), max(1, int(total))
+            dark = bool(store.sg_stage_weather_now) or bool(store.sg_stage_lights_now)
+            if turn < sg_stage_glow_from or dark:
+                if renpy.showing("sg_glow", layer="master"):
+                    renpy.hide("sg_glow", layer="master")
+                return
+            span = max(1, total - sg_stage_glow_from + 1)
+            alpha = sg_stage_glow_max * min(1.0, (turn - sg_stage_glow_from + 1) / float(span))
+            behind = [ "sg_char" ] if renpy.showing("sg_char", layer="master") else [ ]
+            renpy.show("sg_glow", what=Solid(sg_fx_rgba(sg_stage_glow_color, alpha)), layer="master", behind=behind)
+        except Exception:
+            sg_stage_oops("sg_stage_glow")
 
     def sg_stage_weather(kind):
         """날씨를 무대에 건다. kind 는 "rain", "storm" 또는 빈 값이다.
@@ -602,6 +703,8 @@ init -4 python:
                 if renpy.showing(tag, layer="master"):
                     renpy.hide(tag, layer="master")
             store.sg_stage_weather_now = kind
+            ## 비가 오는 동안 빗소리를 깐다(sg_audio.rpy 의 sg_ambient)
+            sg_sound("sg_ambient", "rain" if kind else None)
             if not kind:
                 return
             ## 나중에 보인 것이 스탠딩 바로 아래에 들어간다: 막 → 비 → 번쩍임 차례로 쌓인다
@@ -610,7 +713,8 @@ init -4 python:
             ## 시험 캡처에서 서서히 짙어지는 transform 을 건 막은 때에 따라 반만 보이거나 안 보였다(정전 막)
             renpy.show("sg_weather_dim", what=Solid(sg_fx_rgba(sg_fx_ink, sg_stage_weather_dim[kind])),
                        layer="master", behind=behind)
-            renpy.show("sg_weather_rain", what=sg_stage_rain(), layer="master", behind=behind)
+            renpy.show("sg_weather_rain", what=sg_stage_rain(store.sg_place in sg_stage_outdoor),
+                       layer="master", behind=behind)
             if kind == "storm":
                 renpy.show("sg_weather_flash", what=Solid("#FFFFFF"),
                            at_list=[ store.sg_stage_weather_flash ], layer="master", behind=behind)
@@ -627,6 +731,9 @@ init -4 python:
             if out == store.sg_stage_lights_now:
                 return
             store.sg_stage_lights_now = out
+            ## 정전이면 낮게 깔리는 소리와 함께 배경음을 줄이고, 불이 들어오면 딸깍 소리와 함께 되돌린다
+            sg_sound("sg_sfx", "dark" if out else "switch")
+            sg_sound("sg_bgm_dim", out)
             if not out:
                 for tag in ("sg_lights_bg", "sg_lights_char"):
                     if renpy.showing(tag, layer="master"):
@@ -651,6 +758,10 @@ init -4 python:
             store.sg_stage_later = None
             store.sg_stage_weather_now = ""   # 무대를 치우면(renpy.scene) 날씨도 함께 치워진다
             store.sg_stage_lights_now = False
+            store.sg_stage_close = False
+            store.sg_stage_close_shown = False
+            sg_sound("sg_ambient", None)
+            sg_sound("sg_bgm_dim", False)
         except Exception:
             sg_stage_oops("sg_stage_reset")
 
@@ -679,6 +790,11 @@ init -4 python:
 ################################################################################
 ## 3. 배경
 ################################################################################
+
+## 가까워짐: 가운데 자리(sg_char_center)보다 조금 크고 조금 낮은 자리.
+transform sg_stage_close_at:
+    xpos 640 xanchor 0.5 yanchor 1.0
+    ypos sg_stage_center_y + sg_stage_close_drop zoom sg_stage_center_zoom * sg_stage_close_zoom
 
 ## 천둥: 멀리서 옅게 한 번 번쩍이고 사그라들기를 되풀이한다.
 transform sg_stage_weather_flash:

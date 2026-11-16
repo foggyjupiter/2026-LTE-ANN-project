@@ -639,11 +639,16 @@ init -5 python:
         if first:                  # 등장: 장소에 맞는 배경으로 바꾼다
             store.sg_place = place
             sg_show_bg(sg_bg_key(place))
+        # 지문에서 둘이 가까워진 동안 스탠딩을 조금 크게 둔다(sg_stage.rpy 의 sg_stage_char_at 이 본다)
+        store.sg_stage_close = turn.get("close") is True
         sg_show_char(store.sg_char["id"], view["face"], sprite=view["sprite_face"])
         # 비나 천둥 사건 뒤로는 판이 끝날 때까지 배경을 어둡게 두고 스탠딩 뒤에서 비를 내린다
         sg_stage_call("sg_stage_weather", sg_str(turn.get("weather")))
         # 정전으로 불이 꺼져 있는 동안 무대를 어둡게 둔다
         sg_stage_call("sg_stage_lights", turn.get("lights_out") is True)
+        # 벚꽃잎 사건 뒤 몇 답 동안 꽃잎이 은은하게 날리고, 판 후반에는 배경에 늦은 오후의 빛이 든다
+        sg_stage_call("sg_stage_petals", turn.get("petals") is True)
+        sg_stage_call("sg_stage_glow", view["turn"], view["total"])
         # 표정과 호감도 변화에 맞는 만화 기호. 등장 턴이면 장소 제목 카드도 뜬다
         sg_stage_call("sg_stage_turn", view["face"], sg_num(turn.get("change")),
                       first=first, fallback=view["fallback"], place=place, score=view["score"])

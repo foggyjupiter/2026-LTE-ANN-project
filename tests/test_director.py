@@ -19,7 +19,7 @@ EIGHT_KEYS = {"narration", "say", "inner", "face", "fx", "delta", "reason", "cho
 HISTORY_KEYS = EIGHT_KEYS | {"wish", "strength"}  # 기록에는 화면에 안 나오는 바람과 세기도 남는다
 TURN_KEYS = EIGHT_KEYS | {
     "kind", "turn", "total_turns", "change", "strength", "score", "band", "popup",
-    "notes", "heard", "extras", "fallback", "finale", "place", "face_base", "weather", "lights_out",
+    "notes", "heard", "extras", "fallback", "finale", "place", "face_base", "weather", "lights_out", "close", "petals",
 }
 ENDING_KEYS = {
     "kind", "character_id", "character_name", "band_id", "band_name", "title",
@@ -648,6 +648,28 @@ class SeedTest(unittest.TestCase):
             self.assertIn("불은 아직 들어오지 않는다", llm.system_of(start + 1))
             return
         self.fail("80판 안에 4, 7번째 답의 정전이 없었다")
+
+    def test_close_follows_the_narration(self):
+        # 지문에서 가까워지면 close가 켜지고, 떨어지면 꺼진다. 한 지문에 둘 다 있으면 뒤에 나온 것을 따른다
+        turns = {1: {"narration": "젬마가 전학생 옆으로 다가앉는다."}, 2: {"narration": "젬마가 수첩을 만진다."},
+                 3: {"narration": "젬마가 품에 안겼다가 화들짝 떨어졌다."}, 5: {"narration": "젬마가 손을 놓았다가 다시 손을 꼭 잡았다."}}
+        outs = play(Session("gemma", llm=ScriptedLlm(turns=turns)), count=5)   # 답 4는 사건 답이라 지문이 바뀐다
+        self.assertEqual([o["close"] for o in outs], [False, True, True, False, False, True])
+
+    def test_petals_drift_for_a_few_replies(self):
+        for seed in range(80):
+            session = Session("mistral", llm=ScriptedLlm(), rng=random.Random(seed))
+            outs = play(session)
+            events = [e.split(" ", 2) for e in session._events]
+            start = [int(n) for _, n, e in events if e == "흩날리는 벚꽃잎"]
+            if not start:
+                self.assertFalse(any(o["petals"] for o in outs))
+                continue
+            n = content.load_seeds()["event_petals"]["흩날리는 벚꽃잎"]
+            on = [o["turn"] for o in outs if o["petals"]]
+            self.assertEqual(on, list(range(start[0], min(start[0] + n, TOTAL + 1))))
+            return
+        self.fail("80판 안에 벚꽃잎 사건이 없었다")
 
     def test_weather_in_the_turn(self):
         session = Session("mistral", llm=ScriptedLlm())

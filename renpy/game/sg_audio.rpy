@@ -22,6 +22,11 @@
 ## 효과음 파일은 이미 -12dB 아래로 작게 만들어져 있다.
 define sg_sfx_volume = 0.8
 define sg_bgm_volume = 0.2
+## 빗소리(sg_ambient)의 음량. 효과음 음량에 곱한다. 켜고 끌 때 천천히 커지고 줄어드는 시간(초)
+define sg_ambient_volume = 0.55
+define sg_ambient_fade = 1.5
+## 정전 동안 배경음의 크기(평소의 몇 배)
+define sg_bgm_dim_volume = 0.35
 
 ## 호감도가 한 번에 이만큼 움직이면 큰 변화의 소리를 낸다. 서버는 바라던 말에 캐릭터마다 4-8점,
 ## 다정한 말에 2점을 올리고, -1에 5점, -2에 10점을 내린 뒤 설렘(0-100)에 따라 0.6-1.4배(바라던 말은 0.4-1.1배)를
@@ -56,6 +61,9 @@ define sg_sounds = {
     "alert": "audio/fx_alert.ogg",
     "glitch": "audio/fx_glitch.ogg",
     "whoosh": "audio/fx_whoosh.ogg",
+    "switch": "audio/fx_switch.ogg",          # 정전 뒤 불이 들어옴
+    ## 되풀이해 트는 소리
+    "rain": "audio/amb_rain.ogg",             # 비가 오는 동안 (sg_ambient)
     ## 엔딩
     "end_good": "audio/end_good.ogg",
     "end_calm": "audio/end_calm.ogg",
@@ -327,6 +335,31 @@ init 900 python:
     ## 채널은 둘이다. 한 채널에서 곡을 바꾸면 앞 곡이 다 줄어든 뒤에야 새 곡이 시작해서, 그 사이에
     ## 소리가 거의 끊긴다(2026-11-14 SDL disk 출력으로 확인: 1.5초 줄고, 거의 무음, 1.5초 커짐).
     ## 새 곡은 쉬고 있는 채널에서 커지게 하고 앞 곡은 원래 채널에서 줄여서 두 곡이 겹치며 바뀌게 한다.
+
+    ## 빗소리처럼 상황 내내 되풀이해 트는 소리. 효과음 음량(sfx 믹서)을 따른다
+    renpy.music.register_channel("sg_ambient", mixer="sfx", loop=True)
+
+    def sg_ambient(name):
+        """되풀이해 트는 소리를 바꾼다. name 이 None 이면 천천히 끈다. 같은 소리가 나오고 있으면 그대로 둔다."""
+        try:
+            if name is None:
+                renpy.music.stop(channel="sg_ambient", fadeout=sg_ambient_fade)
+                return
+            path = sg_sound_file(name)
+            if path is None:
+                return
+            renpy.music.set_volume(sg_ambient_volume, channel="sg_ambient")
+            renpy.music.play(path, channel="sg_ambient", loop=True, fadein=sg_ambient_fade, if_changed=True)
+        except Exception:
+            sg_audio_oops("sg_ambient")
+
+    def sg_bgm_dim(on):
+        """정전 동안 배경음을 줄인다. 불이 들어오면 되돌린다."""
+        try:
+            for channel in sg_bgm_channels:
+                renpy.music.set_volume(sg_bgm_dim_volume if on else 1.0, delay=0.8, channel=channel)
+        except Exception:
+            sg_audio_oops("sg_bgm_dim")
 
     sg_bgm_channels = ("sg_bgm_a", "sg_bgm_b")
     for sg_audio_channel in sg_bgm_channels:
