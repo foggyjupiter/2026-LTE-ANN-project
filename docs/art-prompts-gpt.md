@@ -11,7 +11,7 @@ ChatGPT 같은 대화형 그림 도구에 붙여 넣을 요청문이다. 캐릭�
 | 캐릭터 | 할 일 | 이번에 뽑을 것 | 까닭 |
 |---|---|---|---|
 | 아스트라 | 할 것 없음 | 없음 | 게임에 넣은 그림(남색 리본, 기본 여섯 장, huff, denial)을 그대로 쓴다. 2026-11-14에 받은 빨간 리본 세트는 쓰지 않기로 했다(사용자). |
-| 젬마 | 전부 다시 뽑기 | neutral, smile, blush, pout, shock, dark, hide | 2026-11-16: 제미나이 색(파랑에서 보라, 끝은 옅은 분홍)의 파스텔 그라데이션 땋은 머리와 네 갈래 별 머리핀으로 바꿨다(사용자: 제미나이인데 밤색은 안 어울린다). 아스트라(짙은 남색에서 보라, 높은 포니테일)와는 밝기와 머리 모양으로, 소라(흰 단발에 하늘색 끝)와는 흰색이 아닌 바탕색으로 구분한다. 그 전: 처음의 연한 파랑은 아스트라, 소라와 겹쳤고, 초록은 사용자가 별로라고 했고, 밤색과 보라 보석은 제미나이와 어울리지 않았다. |
+| 젬마 | 전부 다시 뽑기 | neutral, smile, blush, pout, shock, dark, hide | 2026-11-16: 땋은 머리를 버리고, 어깨를 조금 넘는 생머리(끝이 안으로 말림, 안경에 닿는 앞머리, 한쪽은 귀 뒤로 넘김)로 바꿨다. 머리는 채도를 낮춘 연한 라벤더 한 가지 색이다. 제미나이 색은 머리 전체가 아니라 X자로 꽂은 머리핀 두 개(연한 파랑, 라벤더)에만 둔다. 아스트라(짙은 남색, 높은 포니테일), 소라(흰 단발), 노바(분홍 사이드 포니테일), 하이쿠(검은 단발), 미스트랄(황금빛 웨이브)과 머리 모양과 색이 겹치지 않는다. 그 전: 연한 파랑은 아스트라, 소라와 겹쳤고, 초록은 어색했고, 밤색은 제미나이와 어울리지 않았고, 파랑에서 분홍으로 가는 그라데이션은 너무 화려했다. |
 | 소라 | 할 것 없음 | 없음 | 2026-11-14에 받은 일곱 장을 넣었다. |
 | 노바 | 할 것 없음 | 없음 | 2026-11-14에 받은 분홍 일곱 장을 넣었다. |
 | 미스트랄 | 할 것 없음 | 없음 | 2026-11-14에 받은 일곱 장을 넣었다. dark는 받은 그림의 배경이 불투명해서 사용자가 다듬은 그림을 썼다. |
@@ -100,7 +100,7 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 
 ### 젬마 (gemma)
 
-할 일: 전부 다시 뽑기. 2026-11-16: 제미나이 색(파랑에서 보라, 끝은 옅은 분홍)의 파스텔 그라데이션 땋은 머리와 네 갈래 별 머리핀으로 바꿨다(사용자: 제미나이인데 밤색은 안 어울린다). 아스트라(짙은 남색에서 보라, 높은 포니테일)와는 밝기와 머리 모양으로, 소라(흰 단발에 하늘색 끝)와는 흰색이 아닌 바탕색으로 구분한다. 그 전: 처음의 연한 파랑은 아스트라, 소라와 겹쳤고, 초록은 사용자가 별로라고 했고, 밤색과 보라 보석은 제미나이와 어울리지 않았다.
+할 일: 전부 다시 뽑기. 2026-11-16: 땋은 머리를 버리고, 어깨를 조금 넘는 생머리(끝이 안으로 말림, 안경에 닿는 앞머리, 한쪽은 귀 뒤로 넘김)로 바꿨다. 머리는 채도를 낮춘 연한 라벤더 한 가지 색이다. 제미나이 색은 머리 전체가 아니라 X자로 꽂은 머리핀 두 개(연한 파랑, 라벤더)에만 둔다. 아스트라(짙은 남색, 높은 포니테일), 소라(흰 단발), 노바(분홍 사이드 포니테일), 하이쿠(검은 단발), 미스트랄(황금빛 웨이브)과 머리 모양과 색이 겹치지 않는다. 그 전: 연한 파랑은 아스트라, 소라와 겹쳤고, 초록은 어색했고, 밤색은 제미나이와 어울리지 않았고, 파랑에서 분홍으로 가는 그라데이션은 너무 화려했다.
 
 기준 그림 (새로 뽑기). 저장할 곳: `art/raw/gemma/neutral.png`
 
@@ -108,7 +108,7 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 Draw one character sprite for a visual novel game.
 Art style: Japanese bishoujo game (galge) character art, like a heroine sprite from a moe visual novel. Large sparkling detailed eyes, small nose and mouth, glossy hair with sharp highlights, thin clean line art, soft cel shading with light gradients, bright pastel colors.
 Framing: One character only, waist-up portrait, centered, facing the viewer. The whole head and all of the hair are inside the frame, with empty space above the head.
-Character: Hair in two neat, loose braids, colored in a soft pastel gradient like a sparkle of starlight: periwinkle blue near the roots, flowing into lavender purple through the middle of the braids, and a faint rose-pink at the very tips. The hair is clearly colored, not white or silver, and light and gentle, not dark navy or neon. Soft lavender-violet eyes behind round glasses. A navy school blazer worn neatly. A small four-pointed sparkle-star hairpin with the same blue-to-purple gradient. She holds a small notebook against her chest with both hands. Shoulders slightly drawn in, a shy posture. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
+Character: Straight, silky hair that falls just past her shoulders, with the ends curling slightly inward. Soft, slightly long see-through bangs that brush the top of her glasses. One side of her hair is tucked behind her ear. The hair is a muted, soft lavender: one calm color with low saturation, not bright, not pink, not white or silver, and not dark navy. Gentle blue-violet eyes behind thin round glasses. Two thin hair clips crossed in an X above the tucked ear, one pale blue and one lavender. A navy school blazer worn neatly, with sleeves a little too long so only her fingertips show. She holds a small notebook against her chest with both hands. Shoulders slightly drawn in, a shy posture. School uniform: white collared shirt with a small ribbon tie, and a small emblem of three circles connected by lines on the left chest.
 Expression: shy, gentle look with eyes slightly lowered and a small soft smile.
 Content: A high school student in a modest, fully covering school outfit. Wholesome, all-ages.
 Background: fully transparent (PNG with alpha). If a transparent background is not possible, fill the whole background with one flat pure bright green (#00FF00) chroma key color, with no gradient, shadow, floor or objects.
