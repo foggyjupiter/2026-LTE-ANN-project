@@ -896,7 +896,11 @@ _WISH_JOSA_RE = re.compile(r"(이랑|으로|에서|에게|한테|까지|부터|�
 
 
 # 움직씨의 끝. 떼고 남은 뿌리가 같으면 같은 말로 본다("읽던"과 "읽을까"는 둘 다 "읽")
-_WISH_VERB_END_RE = re.compile(r"(었으면|았으면|으면|을까|을래|을게|었어|았어|었다|았다|어요|아요|던|을|어|아|고|자|기|지|네|게|면)$")
+# 2026-11-16: 말끝이 긴 꼴("읽던데", "먹었는데", "읽어볼까")은 뿌리가 안 나와서 돌려 말한 말을 놓쳤다. 보조 말끝
+# (볼까, 줄래 같은 것)과 과거(었, 았)도 떼고, 떼고 남은 것에서 한두 번 더 뗀다(_verb_root)
+_WISH_VERB_END_RE = re.compile(r"(었으면|았으면|었는데|았는데|으면|을까|을래|을게|었어|았어|었다|았다|어요|아요|는데|던데"
+                               r"|볼까|볼래|보자|줄래|줄까|던|을|어|아|고|자|기|지|네|게|면|었|았|봐|줘)$")
+_VERB_STRIP_TIMES = 3   # 말끝을 떼는 횟수의 상한("읽어볼까" → "읽어" → "읽")
 # 한 글자 뿌리 가운데 어느 말에나 나오는 것. 이것끼리 같아도 짚은 것이 아니다
 _WISH_LIGHT_ROOTS = {"가", "하", "해", "보", "봐", "오", "와", "주", "줘", "되", "돼", "있", "없", "알", "좋",
                      "싶", "말", "이", "그", "저", "나", "너", "내", "네", "또", "더", "좀", "잘", "안", "못",
@@ -925,10 +929,21 @@ def _wish_tokens(text: str) -> list[str]:
         if word in _WISH_STOPWORDS or stem in _WISH_STOPWORDS or stem.startswith(_WISH_STOP_PREFIXES):
             continue
         tokens.append(stem)
-        root = _WISH_VERB_END_RE.sub("", stem)
+        root = _verb_root(stem)
         if root and root != stem and root not in _WISH_LIGHT_ROOTS and root not in _WISH_STOPWORDS:
             tokens.append(root)
     return tokens
+
+
+def _verb_root(word: str) -> str:
+    """움직씨의 말끝을 _VERB_STRIP_TIMES번까지 떼고 남은 뿌리. 다 떼어져 비면 마지막으로 남은 것을 쓴다."""
+    root = word
+    for _ in range(_VERB_STRIP_TIMES):
+        cut = _WISH_VERB_END_RE.sub("", root)
+        if not cut or cut == root:
+            break
+        root = cut
+    return root
 
 
 def name_words(character: dict) -> set:
