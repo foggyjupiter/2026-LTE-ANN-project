@@ -144,7 +144,7 @@ RENPY_SDK=/path/to/renpy-8.5.3-sdk renpy/dev/rtest.sh sg_flow 8101
 ```
 
 - 첫째 값은 시험 이름이다. `renpy/game/` 의 `.rpy` 파일에 `testcase <이름>:` 으로 적은 것이다.
-  - `sg_flow`: 고르기부터 엔딩까지 한 판 (`game/sg_tests.rpy`)
+  - `sg_flow`: 고르기부터 엔딩까지 한 판. 6번째 답에서 장소를 옮기면 배경이 바뀌는지도 본다 (`game/sg_tests.rpy`)
   - `sg_story_pages`: 이야기 모드(실험)의 긴 대사가 여러 쪽으로 나뉘는지. 서버를 `--fake --story` 로 켠다 (`game/sg_tests.rpy`)
   - `sg_extra_face`: 캐릭터만의 표정(아스트라의 `huff`)이 오면 그 그림을, 없으면 `pout` 그림을 쓰는지 (`game/sg_tests.rpy`)
   - `sg_gimmicks`: 캐릭터 여섯 명의 고유 장치 표시 (`game/sg_tests.rpy`)
