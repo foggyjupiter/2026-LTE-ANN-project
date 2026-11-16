@@ -47,6 +47,17 @@ class CharacterTest(unittest.TestCase):
             self.assertIn("평소 얼굴은", note)
             self.assertIn("blush", note)
 
+    def test_every_character_says_how_it_takes_playful_teasing(self):
+        # 친구 피드백(2026-11-16): 장난을 무조건 깎지 않는다. 말싸움을 즐기는 캐릭터는 +1, 나머지는 0
+        from sogaeting import actor
+        deltas = {}
+        for char_id in CHARACTER_IDS:
+            playful = content.load_character(char_id)["playful"]
+            self.assertIn(playful["delta"], actor.PLAYFUL_DELTAS)
+            self.assertTrue(playful["then"].strip())
+            deltas[char_id] = playful["delta"]
+        self.assertEqual(deltas, {"astra": 1, "gemma": 0, "sora": 1, "nova": 1, "mistral": 0, "haiku": 0})
+
     def test_old_ids_still_load(self):
         # 2026-11-13에 id를 새 이름으로 바꿨다. 예전 id로 불러도 새 캐릭터가 나온다
         for old, new in content.OLD_IDS.items():

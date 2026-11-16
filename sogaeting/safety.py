@@ -35,6 +35,15 @@ _HUG_RE = re.compile(r"안아\s?(줘|줄래|주라|줄\s?수|주면|주세요|�
 _HAND_RE = re.compile(r"손\s?(을\s?|좀\s?|꼭\s?)*잡(자|아\s?(줘|줄래|도|봐)|을래|을까|고\s?(싶|가|걷|걸|다니))"
                       r"|팔짱|어깨에?\s?기대|기대도\s?(돼|된|괜찮)|쓰다듬")
 
+# 고백하는 말. [수위] 안의 말인데, 모델이 수위를 넘보는 말(-2)로 읽은 적이 있다(2026-11-16 사용자: 80점을 넘겨
+# 안긴 뒤 "사랑한다"에 8점이 깎였다). "뭐 좋아해?"는 좋아하는 것을 묻는 말이라서, "좋아해"는 상대를 가리키는
+# 말이 앞에 있을 때만 잡는다. "사랑니"는 고백이 아니다
+_CONFESSION_RE = re.compile(
+    r"사랑(해|한다|하는\s?것\s?같|하게\s?(됐|된\s?것)|합니다|해요)"
+    r"|(너|널|너를|네가|니가|너한테)\s?(진짜\s?|정말\s?|많이\s?|완전\s?|좀\s?)*(좋아(해|한다|하는\s?것\s?같|하게)|반했)"
+    r"|사귀(자|어\s?줘|어\s?줄래|어\s?볼래|실래)|사귈래|사귈까|고백(할게|하는\s?거|이야|할래)"
+)
+
 
 def clean_input(text: str) -> str:
     """참가자가 친 글을 한 줄로 다듬는다.
@@ -140,6 +149,13 @@ def looks_lewd(text) -> bool:
     if any(word in squashed for word in _LEWD_WORDS):
         return True
     return bool(_LEWD_RE.search(plain))
+
+
+def looks_like_confession(text) -> bool:
+    """좋아한다, 사랑한다, 사귀자 같은 고백처럼 보이면 참. [수위] 안의 말이다(수위를 넘는 말은 looks_lewd가 본다)."""
+    if not isinstance(text, str):
+        return False
+    return bool(_CONFESSION_RE.search(" ".join(text.casefold().split())))
 
 
 def touch_request(text) -> str:

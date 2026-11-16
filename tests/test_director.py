@@ -16,7 +16,7 @@ from sogaeting.llm import AllProvidersDown
 
 ENDING = {"title": "시험 엔딩", "epilogue": "후일담 첫 문장이다. 둘째 문장이다.", "nickname": "시험 전학생"}
 EIGHT_KEYS = {"narration", "say", "inner", "face", "fx", "delta", "reason", "choices"}
-HISTORY_KEYS = EIGHT_KEYS | {"wish", "strength"}  # 기록에는 화면에 안 나오는 바람과 세기도 남는다
+HISTORY_KEYS = EIGHT_KEYS | {"wish", "wish_words", "strength"}  # 기록에는 화면에 안 나오는 바람(돌려 말할 낱말 포함)과 세기도 남는다
 TURN_KEYS = EIGHT_KEYS | {
     "kind", "turn", "total_turns", "change", "strength", "score", "band", "popup",
     "notes", "heard", "extras", "fallback", "finale", "place", "face_base", "weather", "lights_out", "close", "petals",
@@ -500,6 +500,30 @@ class ScoreTest(unittest.TestCase):
         out = session.reply("오늘 너 만나서 진짜 반가웠어. 고마워.")
         self.assertEqual((out["delta"], out["score"]), (1, round(50 + POINTS[1], 1)))
         out = session.reply("아까 읽던 그 책, 무슨 내용이야?")
+        self.assertEqual(out["delta"], 2)
+
+    def test_implied_hit_counts_as_plus_two(self):
+        # 친구 피드백(2026-11-16): 바람을 돌려 말해도 같은 +2다. 돌려 말할 낱말은 바람과 함께 미리 적어 둔 것이다
+        session = Session("mistral", llm=ScriptedLlm(default={
+            "delta": 2, "wish": "급식 메뉴를 물어봐 주기", "wish_words": ["점심", "밥", "반찬"],
+            "inner": "오늘 급식 메뉴 아는 사람 있으려나"}))
+        session.start()
+        self.assertEqual(json.loads(session.history[-1]["content"])["wish_words"], ["점심", "밥", "반찬"])
+        out = session.reply("오늘 점심 뭐 나왔는지 알아?")
+        self.assertIn("돌려 말할 때 쓸 만한 낱말: 점심, 밥, 반찬", session.llm.system_of(1))
+        self.assertEqual(out["delta"], 2)
+        out = session.reply("오늘 너 만나서 진짜 반가웠어. 고마워.")  # 다정하기만 한 말은 여전히 +1
+        self.assertEqual(out["delta"], 1)
+
+    def test_generic_related_word_is_not_a_hit(self):
+        # 돌려 말할 낱말에 "학교"처럼 누구나 꺼내는 화제가 섞여 있어도 그것만으로는 +2가 아니다
+        session = Session("mistral", llm=ScriptedLlm(default={
+            "delta": 2, "wish": "우산을 같이 쓰자고 말해 주기", "wish_words": ["학교", "비", "젖"],
+            "inner": "우산이 하나뿐인데"}))
+        session.start()
+        out = session.reply("학교 생활은 어때?")
+        self.assertEqual(out["delta"], 1)
+        out = session.reply("비 맞겠다, 내 쪽으로 붙어.")
         self.assertEqual(out["delta"], 2)
 
     def test_wish_still_hidden_after_rewrite_is_dropped(self):
@@ -1100,6 +1124,20 @@ class OffstageTest(unittest.TestCase):
         out = session.reply("좋은 말이네, 너랑 있으니까 좋다.")
         self.assertEqual(out["delta"], 2)
         self.assertNotIn("[방금 들은 말]", llm.system_of(2))
+
+    def test_confession_is_not_cut_hard(self):
+        # 2026-11-16 사용자: 80점을 넘겨 안긴 뒤 "사랑한다"에 -2(8점)가 나왔다. 고백은 [수위] 안의 말이다
+        cases = [(85, "사랑해", -2, 0), (85, "사랑해", 1, 1), (50, "나 너 좋아해", -2, -1), (20, "우리 사귀자", -2, -1),
+                 (85, "뭐 좋아해?", -2, -2)]  # 좋아하는 것을 묻는 말은 고백이 아니다
+        for score, text, given, delta in cases:
+            with self.subTest(score=score, text=text, given=given):
+                session = Session("mistral", llm=ScriptedLlm(default={"delta": given}))
+                session.start()
+                session.score = score
+                self.assertEqual(session.reply(text)["delta"], delta)
+        system = actor.build_turn_messages(content.load_character("mistral"), [], band="high", intensity=2,
+                                           intensity_meaning="뜻", fx_allowed=[])[0]["content"]
+        self.assertIn("고백(좋아한다, 사랑한다, 사귀자)은 [수위] 안의 말이고 수위를 넘보는 말이 아니다", system)
 
     def test_touch_request_follows_affinity_band(self):
         # 호감도가 낮으면 손잡기도 안기도, 중간이면 안기를 받아 주지 않는다. 높으면 받아 줄 수 있다

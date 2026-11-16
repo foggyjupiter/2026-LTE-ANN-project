@@ -132,6 +132,7 @@ def fake_llm(messages: list[dict]) -> str:
         "reason": reason,
         "choices": list(_CHOICES),
         "wish": f"가짜 바람 {turn}번",
+        "wish_words": [f"가짜 낱말 {turn}"],
     }, ensure_ascii=False)
 
 

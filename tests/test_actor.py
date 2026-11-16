@@ -166,7 +166,7 @@ class StrengthTest(unittest.TestCase):
         system = actor._turn_system(sample_character(), band="mid", intensity=2, intensity_meaning="",
                                     fx_allowed=[], seed=None, seed_kind=None, opening=False, finale=False,
                                     extra="")
-        self.assertIn("칸은 아래 열 개다", system)
+        self.assertIn("칸은 아래 열한 개다", system)
         self.assertIn("- strength (정수):", system)
         self.assertIn('"strength": 정수', system)
         self.assertIn("열 칸", actor.REWRITE_TAIL)
@@ -682,7 +682,7 @@ class BuildTurnMessagesTest(unittest.TestCase):
         system = system_of(finale=True, intensity=5, band="high")
         self.assertIn("[이번 답은 결말 장면이다]", system)
         self.assertIn("지금 호감도 구간이 높음이므로", system)
-        self.assertIn("choices는 빈 배열로, wish는 빈 문자열로 둔다", system)
+        self.assertIn("choices는 빈 배열로, wish는 빈 문자열로, wish_words는 빈 배열로 둔다", system)
         normal = system_of(intensity=5, band="high")
         self.assertNotIn("[이번 답은 결말 장면이다]", normal)
         self.assertNotIn("choices는 빈 배열로, wish는 빈 문자열로 둔다", normal)
@@ -1075,6 +1075,46 @@ class VarietyTest(unittest.TestCase):
         self.assertFalse(actor.wish_touched("오늘 너 만나서 좀 덜 긴장돼. 고마워.", ["내일도 다시 만나서 대화하기"]))
         self.assertFalse(actor.wish_touched("이제 가 봐야겠다. 오늘 진짜 즐거웠어.", ["좋아하는 구절을 함께 읽어 보기"]))
         self.assertFalse(actor.wish_touched("그 책 좋다", []))
+
+    def test_playful_teasing_section(self):
+        character = sample_character()
+        system = build_turn_messages(character, [], band="mid", intensity=2, intensity_meaning="뜻", fx_allowed=[])[0]["content"]
+        self.assertNotIn("\n[장난을 받을 때]\n", system)  # 칸이 없으면 기준표의 "그 칸이 없으면 0"을 따른다
+        self.assertIn("깎아내리거나 상처 주는 놀림", system)
+        self.assertIn("그 칸이 없으면 0이다", system)
+        character["playful"] = {"delta": 1, "then": "받아치는 말싸움을 즐긴다"}
+        system = build_turn_messages(character, [], band="mid", intensity=2, intensity_meaning="뜻", fx_allowed=[])[0]["content"]
+        self.assertIn("\n[장난을 받을 때]\n", system)
+        self.assertIn("받아치는 말싸움을 즐긴다. 이런 말의 delta는 1이다", system)
+        character["playful"] = {"delta": 2, "then": "너무 좋아한다"}  # 장난으로 2는 줄 수 없다
+        system = build_turn_messages(character, [], band="mid", intensity=2, intensity_meaning="뜻", fx_allowed=[])[0]["content"]
+        self.assertNotIn("\n[장난을 받을 때]\n", system)
+
+    def test_wish_hit_with_related_words(self):
+        wish = ["급식 메뉴 물어봐 주기"]
+        related = ["점심", "밥", "반찬", "먹었어"]
+        self.assertTrue(actor.wish_hit("오늘 점심 뭐 나왔어?", wish, related))
+        self.assertTrue(actor.wish_hit("밥은 먹었어?", wish, related))
+        self.assertTrue(actor.wish_hit("급식 맛있었어?", wish, related))  # 바람의 낱말 그대로도 된다
+        self.assertFalse(actor.wish_hit("반가워. 여기 자주 와?", wish, related))
+        self.assertFalse(actor.wish_hit("오늘 점심 뭐 나왔어?", wish, []))  # 돌려 말할 낱말이 없으면 예전처럼
+        # 누구나 꺼내는 화제는 돌려 말할 낱말로 세지 않는다. 바람 자체의 낱말이면 센다
+        self.assertFalse(actor.wish_hit("학교 어때?", ["우산 같이 쓰기"], ["학교", "비"]))
+        self.assertTrue(actor.wish_hit("학교 구경시켜 줄래?", ["학교 안내해 주기"], []))
+
+    def test_wish_words_are_read(self):
+        read = lambda words, wish="급식 메뉴 물어봐 주기": parse_reply(raw_reply(wish=wish, wish_words=words), FX).wish_words
+        self.assertEqual(read(["점심", " 밥 ", "점심", "", 3, "여덟 글자를 넘는 긴 문장입니다"]), ["점심", "밥"])
+        self.assertEqual(read(["a", "b", "c", "d", "e", "f", "g"]), ["a", "b", "c", "d", "e", "f"])  # 여섯 개까지
+        self.assertEqual(read("점심"), [])  # 배열이 아니면 버린다
+        self.assertEqual(read(["점심"], wish=""), [])  # 바람이 없으면 낱말도 없다
+        self.assertEqual(parse_reply(raw_reply(), FX).wish_words, [])
+        history = [
+            {"role": "assistant", "content": raw_reply(wish="머리핀을 알아봐 주기", wish_words=["핀", "머리"])},
+            {"role": "assistant", "content": raw_reply(wish="읽던 책 물어봐 주기", wish_words=["소설"])},
+        ]
+        self.assertEqual(actor._recent_wish_words(history, actor._recent_wishes(history)),
+                         {"읽던 책 물어봐 주기": ["소설"], "머리핀을 알아봐 주기": ["핀", "머리"]})
 
     def test_hidden_wish_is_rewritten(self):
         character = sample_character()

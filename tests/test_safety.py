@@ -130,6 +130,17 @@ class LewdTest(unittest.TestCase):
                 self.assertFalse(safety.looks_lewd(text))
 
 
+class ConfessionTest(unittest.TestCase):
+    def test_confessions(self):
+        for text in ("사랑해", "나 너 사랑한다", "너 진짜 좋아해", "널 좋아하는 것 같아", "우리 사귀자", "너한테 반했어", "사귈래?"):
+            with self.subTest(text=text):
+                self.assertTrue(safety.looks_like_confession(text))
+        # 좋아하는 것을 묻는 말과 비슷한 낱말은 고백이 아니다
+        for text in ("뭐 좋아해?", "책 좋아해?", "좋아하는 노래 있어?", "사랑니 아파", "", None):
+            with self.subTest(text=text):
+                self.assertFalse(safety.looks_like_confession(text))
+
+
 class TouchRequestTest(unittest.TestCase):
     def test_kinds(self):
         for text, kind in (("그럼 안아 줘. 꽉.", "hug"), ("한 번만 안아 봐도 돼?", "hug"), ("포옹하자", "hug"),

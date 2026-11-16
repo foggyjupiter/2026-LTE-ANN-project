@@ -343,6 +343,7 @@ class Session:
         lewd = safety.looks_lewd(said)
         override = safety.looks_like_override(said)
         touch = "" if lewd else safety.touch_request(said)
+        confession = not lewd and safety.looks_like_confession(said)
         band = band_of(self.score)  # 이번 답을 반영하기 전 점수의 구간
         # 호감도가 낮으면 손잡기도 안기도 받아 주지 않는다. 중간이면 손잡기까지만 받아 준다
         touch_refused = bool(touch) and (band == "low" or (band == "mid" and touch == "hug"))
@@ -379,6 +380,7 @@ class Session:
         event_seed = seed if seed_kind == "event" else None
         used, tomorrow = actor._used_phrases(self.history)
         wishes = actor._recent_wishes(self.history)  # 앞 답들이 속마음에 흘린 바람 (이번 답의 +2를 가른다)
+        wish_words = actor._recent_wish_words(self.history, wishes)  # 바람과 함께 적어 둔 돌려 말할 낱말
         stuck_wish = wishes[0] if wishes and actor._wish_streak(self.history) >= 2 else ""
         previous = actor._previous_lines(self.history)
         reply = actor.ask_turn(self.llm, messages, fx_names, faces=actor.faces_for(self.character),
@@ -429,6 +431,10 @@ class Session:
                 reply.delta = min(reply.delta, -1)
             elif touch_refused:
                 reply.delta = min(reply.delta, 0)
+            # 고백은 [수위] 안의 말이다. 실전 기록(2026-11-16, 사용자): 80점을 넘겨 안긴 뒤 "사랑한다"에 -2(8점)가
+            # 나왔다. 어느 구간에서도 -1 밑으로 내리지 않고, 호감도가 높을 때는 깎지 않는다
+            if confession and not override:
+                reply.delta = max(reply.delta, 0 if band == "high" else -1)
             if not opening:
                 # 단답에는 올리지 않는다. 실전 기록: 젬마가 "응"에 +1을 줬다(사유는 자기가 꺼낸 우산)
                 if is_short_input(self.past_inputs[-1]):
@@ -439,10 +445,12 @@ class Session:
                     reply.delta = min(reply.delta, 1)
                     if reply.delta > 0:
                         reply.strength = min(reply.strength, CHOICE_STRENGTH_MAX)
-                # +2는 앞 답들이 속마음에 흘린 바람의 낱말을 참가자가 짚었을 때만 남긴다. 다정한 말만으로는
-                # 대성공이 안 되게 하려는 것이다. 실전 기록: 모델이 "반가워. 여기 자주 와?"에도 2를 줬다
-                if reply.delta == 2 and not actor.wish_touched(self.past_inputs[-1], wishes,
-                                                                actor.name_words(self.character)):
+                # +2는 앞 답들이 속마음에 흘린 바람을 참가자가 짚었을 때만 남긴다. 바람의 낱말이나, 바람과 함께
+                # 적어 둔 돌려 말할 낱말이 있어야 한다. 다정한 말만으로는 대성공이 안 되게 하려는 것이다.
+                # 실전 기록: 모델이 "반가워. 여기 자주 와?"에도 2를 줬다
+                related = [word for wish in wishes for word in wish_words.get(wish, [])]
+                if reply.delta == 2 and not actor.wish_hit(self.past_inputs[-1], wishes, related,
+                                                           actor.name_words(self.character)):
                     reply.delta = 1
                 # 바람의 낱말만 짧게 던진 말은 크게 설레게 하지 못한다
                 if reply.delta == 2 and len(re.findall(r"[0-9A-Za-z가-힣]", self.past_inputs[-1])) <= SHORT_HIT_LETTERS:
@@ -509,7 +517,8 @@ class Session:
         self._last_choices = list(shown_choices)
 
         # 기록에는 화면에 안 나오는 바람(wish)도 남긴다. 다음 답의 지시문이 그것을 읽는다
-        record = dict(eight, wish="" if fallback or finale else reply.wish, strength=strength)
+        wish = "" if fallback or finale else reply.wish
+        record = dict(eight, wish=wish, wish_words=list(reply.wish_words) if wish else [], strength=strength)
         self.history.append({"role": "assistant", "content": json.dumps(record, ensure_ascii=False)})
         # 지금 장면: 등장 장소와 실제로 일어난 사건을 적어 두고 다음 답들의 지시문에 알려 준다
         if opening and seed_kind == "entrance" and seed:

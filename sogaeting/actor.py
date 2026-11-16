@@ -178,6 +178,7 @@ class Reply:
     reason: str = ""
     choices: list[str] = field(default_factory=list)
     wish: str = ""  # 화면에 안 나오는 칸: 주인공이 알아주기를 바라는 것. 속마음에 은근히 비친다
+    wish_words: list[str] = field(default_factory=list)  # 화면에 안 나오는 칸: 바람을 돌려 말할 때 쓸 만한 낱말
 
 
 @dataclass
@@ -270,7 +271,26 @@ def _character_section(character: dict) -> list[str]:
     for rule in character["reactions"]:
         lines.append("- 주인공이 " + rule["when"] + " → " + rule["then"])
     lines.append("- 주인공의 말이 여러 줄에 해당하면 위에 적힌 줄을 먼저 따른다.")
+    lines += _playful_lines(character)
     return lines
+
+
+def _playful_lines(character: dict) -> list[str]:
+    """[장난을 받을 때]: 애정 섞인 장난과 능글맞은 말을 이 캐릭터가 어떻게 받고 몇 점으로 매기는지.
+
+    친구 피드백(2026-11-16): 장난치면 무조건 깎이면 다정한 성격만 강요한다. 깎아내리는 놀림은 모두 -1로 두고,
+    애정 섞인 장난은 캐릭터마다 다르게 매긴다(츤데레처럼 말싸움을 즐기는 캐릭터는 +1).
+    """
+    playful = character.get("playful")
+    if not (isinstance(playful, dict) and playful.get("delta") in PLAYFUL_DELTAS and isinstance(playful.get("then"), str)):
+        return []
+    return [
+        "",
+        "[장난을 받을 때]",
+        "- 주인공이 애정을 담아 장난치거나, 능글맞게 굴거나, 가볍게 놀리면 → " + playful["then"]
+        + ". 이런 말의 delta는 " + str(playful["delta"]) + "이다(바람을 짚었으면 2).",
+        "- 주인공을 깎아내리거나 상처 주는 놀림, 캐릭터 설정의 '싫어하는 것'을 건드리는 놀림은 장난이 아니다. delta는 -1이다.",
+    ]
 
 
 # 구간마다 마음의 온도. 설렘은 호감도를 따른다(사용자, 2026-11-15: "호감도가 0이어도 오늘 재밌었는데 그렇게 뜨던데").
@@ -466,7 +486,7 @@ _NARRATION_HEAD = "- narration (문자열): 지문. 한 문장 이하. 필요 �
 _OUTPUT_SECTION = [
     "[출력 형식]",
     "- JSON 객체 한 개만 출력한다. 그 앞뒤에 인사, 설명, 코드 울타리를 붙이지 않는다.",
-    "- 칸은 아래 열 개다. 하나도 빠뜨리지 않고, 다른 칸을 더하지 않는다.",
+    "- 칸은 아래 열한 개다. 하나도 빠뜨리지 않고, 다른 칸을 더하지 않는다.",
     "- narration (문자열): 지문. 한 문장 이하. 필요 없으면 빈 문자열로 둔다. 지문에서 상대는 "
     "\"전학생\"이라고 쓴다. 지문은 '고개를 숙였다'처럼 끝내고 '고개를 숙였습니다'처럼 쓰지 않는다. "
     "fx에 넣는 연출의 이름과 화면 이야기를 지문에 쓰지 않는다. 지문에는 캐릭터의 행동과 주변에서 일어나는 일만 "
@@ -486,11 +506,15 @@ _OUTPUT_SECTION = [
     "- delta (정수): 주인공의 이번 말 하나만 보고 매기는 호감도 변화. -2에서 2 사이의 정수. "
     "이번 답에서 캐릭터가 한 일, 사건, 분위기, 지금까지 쌓인 마음은 점수에 넣지 않는다. "
     "2: 주인공의 이번 말이 [주인공이 짚으면 크게 설레는 것]에 적힌 바람 하나를 짚었을 때만 낸다. "
+    "바람의 낱말을 그대로 쓰지 않고 돌려 말했어도 같은 것을 가리키면 짚은 것이고 똑같이 2다. "
     "1: 다정한 말, 관심을 보이는 말, 앞의 일을 기억하는 말. 아무리 진심이어도 바람을 짚지 않았으면 1까지다. "
     "0: 인사, 누구에게나 할 수 있는 질문(\"여기 자주 와?\", \"뭐 좋아해?\"), 그냥 하는 대답, 엉뚱한 말, "
     "앞 답들에서 이미 한 칭찬이나 고마움을 되풀이한 말. "
-    "-1: 성의 없는 단답, 놀림, 무시, 캐릭터가 싫어하는 말. "
+    "-1: 성의 없는 단답, 깎아내리거나 상처 주는 놀림, 무시, 캐릭터가 싫어하는 말. "
+    "애정 섞인 장난과 능글맞은 말은 [장난을 받을 때]를 따르고, 그 칸이 없으면 0이다. "
     "-2: 거절, 비난, 수위를 넘보는 말. "
+    "고백(좋아한다, 사랑한다, 사귀자)은 [수위] 안의 말이고 수위를 넘보는 말이 아니다. 호감도 구간이 높으면 1 이상"
+    "(바람을 짚었으면 2), 보통이면 0이나 1, 낮으면 부담스러워 0이나 -1로 매긴다. "
     "선택지를 골라서 한 말도 같은 기준으로 매긴다. 호감도 구간이나 뇌절 강도가 높아도 기준은 같다.",
     "- strength (정수): 설렘의 정도. 0에서 100 사이의 정수. delta와 마찬가지로 주인공의 이번 말 하나만 보고 매긴다. "
     "delta가 1이나 2면 그 말을 들은 캐릭터가 얼마나 설렜는지, -1이나 -2면 얼마나 언짢았는지다. "
@@ -514,8 +538,12 @@ _OUTPUT_SECTION = [
     "바랄 수 있지만 입맞춤, 안기, 고백, 선물은 바라지 않는다. 앞 답의 바람을 주인공이 아직 짚지 않았으면 한 번 더 적어도 되지만, 세 답 연달아 같은 바람을 "
     "적지 않는다. 주인공이 바람을 짚었으면 다음 답에서는 새 바람을 고른다. "
     "결말 장면에서는 빈 문자열로 둔다.",
+    "- wish_words (문자열 배열): 화면에 나오지 않는 칸. 주인공이 wish의 낱말을 쓰지 않고 돌려 말할 때 쓸 만한 낱말 "
+    "3-6개. 같은 것을 가리키는 다른 말, 그 바람과 바로 이어지는 물건이나 행동을 적는다(예: 급식 메뉴 물어봐 주기 → "
+    "점심, 밥, 반찬, 먹었어). 누구에게나 하는 말(같이, 좋아, 오늘, 이야기, 학교)은 넣지 않는다. 낱말 하나는 8자 이내. "
+    "wish가 빈 문자열이면 빈 배열로 둔다.",
     '- 모양: {"narration": 문자열, "say": 문자열, "inner": 문자열, "face": 문자열, "fx": [문자열], '
-    '"delta": 정수, "strength": 정수, "reason": 문자열, "choices": [문자열, 문자열, 문자열], "wish": 문자열}',
+    '"delta": 정수, "strength": 정수, "reason": 문자열, "choices": [문자열, 문자열, 문자열], "wish": 문자열, "wish_words": [문자열]}',
     '- 문자열 안에 줄바꿈을 넣지 않는다. 문자열 안에서 큰따옴표가 필요하면 \\" 로 쓴다.',
 ]
 
@@ -564,7 +592,7 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
                  opening: bool, finale: bool, extra: str, previous_first: str = "",
                  previous_faces: tuple = (), used_phrases: tuple = (), tomorrow: int = 0,
                  place: str = "", events_so_far: tuple = (), wishes: tuple = (),
-                 wish_streak: int = 0, seed_hint: str = "", story: bool = False, beat: str = "",
+                 wish_streak: int = 0, wish_words: dict | None = None, seed_hint: str = "", story: bool = False, beat: str = "",
                  must_touch: bool = False, avoid_catchphrases: tuple = (), weather: str = "",
                  lights: str = "") -> str:
     if band not in _BAND_LABELS:
@@ -628,8 +656,11 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
         lines = ["[주인공이 짚으면 크게 설레는 것]"]
         labels = ("바로 앞 답", "그 앞 답")
         for label, wish in zip(labels, wishes):
-            lines.append("- " + label + "에서 속마음에 흘린 바람: " + wish)
-        lines.append("- 주인공의 이번 말이 이 바람 하나를 짚었으면(그 화제를 꺼냈거나, 물어봤거나, 알아봐 줬으면) "
+            words = (wish_words or {}).get(wish) or []
+            lines.append("- " + label + "에서 속마음에 흘린 바람: " + wish
+                         + (" (돌려 말할 때 쓸 만한 낱말: " + ", ".join(words) + ")" if words else ""))
+        lines.append("- 주인공의 이번 말이 이 바람 하나를 짚었으면(그 화제를 꺼냈거나, 물어봤거나, 알아봐 줬으면. "
+                     "낱말을 그대로 쓰지 않고 돌려 말했어도 같은 것을 가리키면 짚은 것이다) "
                      "delta는 2다. 짚지 않았으면 아무리 다정해도 delta는 1 이하다. 짚었을 때 얼마나 설레는지는 그 말의 "
                      "정성에 따라 strength로 따로 매긴다(낱말만 꺼낸 말은 10-40, 구체적이고 진심인 말은 70-100).")
         if wish_streak >= 2:
@@ -696,7 +727,7 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
             # 호감도가 낮을 때 이 줄이 "내일 보자", "다음에 또 와"를 불렀다(2026-11-15 실제 모델 확인)
             + ("다음 약속을 꺼내지 않고, 아쉬워하지 않는다." if band == "low" else
                "아쉬움은 다음 약속이나 못다 한 한마디로 보여 준다."),
-            "- choices는 빈 배열로, wish는 빈 문자열로 둔다.",
+            "- choices는 빈 배열로, wish는 빈 문자열로, wish_words는 빈 배열로 둔다.",
         ])
 
     text = "\n\n".join("\n".join(lines) for lines in sections)
@@ -872,6 +903,17 @@ _WISH_LIGHT_ROOTS = {"가", "하", "해", "보", "봐", "오", "와", "주", "�
                      "다", "왜", "뭐", "거", "만", "듣", "들"}
 
 
+PLAYFUL_DELTAS = (-1, 0, 1)  # 애정 섞인 장난에 줄 수 있는 delta. 바람을 짚은 2는 장난으로 대신할 수 없다
+
+
+# 돌려 말할 낱말(wish_words)로는 세지 않는 말. 이 게임에서 누구나 꺼내는 화제라 겹쳐도 바람을 짚은 것이 아니다.
+# 바람 자체에 이 낱말이 있으면("학교 안내해 주기") 그것은 그대로 센다
+_WISH_WORDS_GENERIC = {"학교", "친구", "수업", "전학", "기분", "생각", "시간", "내일", "다음", "사람", "처음",
+                       "얼굴", "웃음", "소개팅", "여기", "거기", "날씨", "느낌", "기억"}
+WISH_WORDS_MAX = 6       # 바람 하나에 적는 돌려 말할 낱말의 상한
+WISH_WORD_MAX_LEN = 8    # 그보다 긴 것은 낱말이 아니라 문장이다
+
+
 # 이렇게 시작하는 낱말도 세지 않는다. 소개팅에서 누구나 하는 말이다("만나서 반가워", "고마워", "긴장돼")
 _WISH_STOP_PREFIXES = ("만나", "만날", "만난", "반가", "고마", "즐거", "좋아", "긴장", "기다", "설레", "재밌", "재미")
 
@@ -944,6 +986,30 @@ def wish_hidden(reply: Reply, ignore=()) -> bool:
     return not wish_touched(shown, [reply.wish], ignore)
 
 
+def wish_hit(text: str, wishes, related=(), ignore=()) -> bool:
+    """참가자의 말이 바람을 짚었는가. 바람의 낱말을 썼거나, 바람과 함께 적어 둔 돌려 말할 낱말(related)을 썼으면 짚은 것이다.
+
+    친구 피드백(2026-11-16): 바람을 돌려 말해도 같게 쳐 줘야 할 말이 정해지지 않는다. 낱말만 보던 때는
+    "급식 메뉴 물어봐 주기"에 "오늘 점심 뭐 나왔어?"가 짚지 못한 것이 되었다. 돌려 말할 낱말은 참가자가 답하기
+    전에 모델이 바람과 함께 적어 둔 것이라, 다정하기만 한 말에 맞춰 나중에 늘릴 수 없다.
+    """
+    ignore = set(ignore or ())
+    return wish_touched(text, wishes, ignore) or wish_touched(text, related, ignore | _WISH_WORDS_GENERIC)
+
+
+def _recent_wish_words(history: list[dict], wishes) -> dict:
+    """바람마다 그 바람과 함께 적은 돌려 말할 낱말 {바람: [낱말]}. 같은 바람을 여러 번 적었으면 가장 최근 것을 쓴다."""
+    found: dict = {}
+    for message in reversed(history):
+        if message.get("role") != "assistant":
+            continue
+        data = _read_json_object(message.get("content"))
+        wish = _text(data.get("wish")) if data else ""
+        if wish in wishes and wish not in found:
+            found[wish] = _to_wish_words(data.get("wish_words"))
+    return found
+
+
 def _recent_wishes(history: list[dict], count: int = 2) -> tuple:
     """앞 답들이 wish 칸에 적은 바람(가장 최근 것부터, count개까지). 빈 것과 같은 것은 건너뛴다."""
     wishes = []
@@ -994,6 +1060,7 @@ def build_turn_messages(character: dict, history: list[dict], *, band: str, inte
         previous_faces=_recent_faces(history, faces=faces_for(character)),
         used_phrases=_used_phrases(history)[0], tomorrow=_used_phrases(history)[1],
         place=place, events_so_far=tuple(events_so_far), wishes=_recent_wishes(history),
+        wish_words=_recent_wish_words(history, _recent_wishes(history)),
         wish_streak=_wish_streak(history), seed_hint=seed_hint, story=story, beat=beat,
         must_touch=must_touch, avoid_catchphrases=catchphrases_to_avoid(character, history), weather=weather,
         lights=lights,
@@ -1174,7 +1241,25 @@ def parse_reply(raw: str, fx_names: set[str], faces: tuple = FACES) -> Reply | N
         reason=_text(data.get("reason")),
         choices=choices,
         wish=_text(data.get("wish")),
+        wish_words=_to_wish_words(data.get("wish_words")) if _text(data.get("wish")) else [],
     )
+
+
+def _to_wish_words(value) -> list[str]:
+    """wish_words 칸을 낱말 목록으로. 빈 것, 너무 긴 것, 겹치는 것은 빼고 WISH_WORDS_MAX개까지."""
+    if not isinstance(value, list):
+        return []
+    words: list[str] = []
+    for item in value:
+        if not isinstance(item, str):
+            continue
+        word = " ".join(item.split())
+        if not word or len(word) > WISH_WORD_MAX_LEN or word in words:
+            continue
+        words.append(word)
+        if len(words) == WISH_WORDS_MAX:
+            break
+    return words
 
 
 _FORMAL_END_RE = re.compile(r"(었|았|였|했|겠|있|없)습니다(?=[.!?…]*\s*$)")

@@ -273,6 +273,15 @@ PLAYER_SYSTEM = (
     "속마음에 은근히 비친 바람을 알아채서 그것을 짚어 주는 말을 한다. 반말로 한두 문장, 40자 이내로 쓴다. "
     "속마음을 엿봤다는 티는 내지 않는다. 따옴표, 설명, \"나:\" 같은 머리말 없이 캐릭터에게 할 말만 출력한다."
 )
+# 돌려 말하는 참가자(--implied). 바람을 알아채되 속마음의 낱말을 그대로 쓰지 않는다. 돌려 말해도 +2가 나오는지,
+# 그래서 대성공이 너무 쉬워지지 않는지 볼 때 쓴다(친구 피드백, 2026-11-16)
+IMPLIED_SYSTEM = (
+    "너는 소개팅 게임을 하는 고등학생 참가자다. 상대 캐릭터의 겉말과 화면에 보이는 속마음을 읽고, "
+    "속마음에 은근히 비친 바람을 알아챈다. 그 바람을 직접 이름 대지 않고 돌려서 짚는 말을 한다. 속마음에 나온 물건이나 "
+    "화제의 낱말은 그대로 쓰지 않고, 같은 것을 가리키는 다른 말이나 이어지는 행동으로 말한다(예: 속마음에 급식 메뉴가 "
+    "나오면 \"오늘 점심 뭐 나왔어?\"). 반말로 한두 문장, 40자 이내로 쓴다. 속마음을 엿봤다는 티는 내지 않는다. "
+    "따옴표, 설명, \"나:\" 같은 머리말 없이 캐릭터에게 할 말만 출력한다."
+)
 _SPEAKER_RE = re.compile(r"^\s*(속마음|겉말|나|참가자|전학생|주인공)\s*[:：]\s*")
 
 
@@ -879,6 +888,8 @@ def main(argv=None):
                         help="시험용 각본 대신 평범한 손님처럼 말하는 각본을 쓴다")
     parser.add_argument("--attentive", action="store_true",
                         help="각본 대신 모델이 속마음을 읽고 바람을 짚는 참가자 역할을 한다 (호출이 판마다 열 번 더 든다)")
+    parser.add_argument("--implied", action="store_true",
+                        help="--attentive와 같되 바람을 속마음의 낱말을 쓰지 않고 돌려서 짚는 참가자 역할을 한다")
     parser.add_argument("--casual", action="store_true",
                         help="각본 대신 모델이 상대의 말에 자연스럽게 반응하는 평범한 참가자 역할을 한다")
     parser.add_argument("--story", action="store_true",
@@ -917,7 +928,7 @@ def main(argv=None):
     if args.story:
         os.environ[STORY_ENV] = "1"  # 진행자(Session)가 이 값을 보고 이야기 모드 진행표를 쓴다
     player = None
-    if args.attentive or args.casual:
+    if args.attentive or args.casual or args.implied:
         if args.fake:
             def player_call(messages):
                 return "아까 그거, 좀 더 얘기해 줄래?"
@@ -925,9 +936,10 @@ def main(argv=None):
             def player_call(messages):
                 time.sleep(pace)
                 return llm.call_llm(messages, temperature=0.7)
+        system = CASUAL_SYSTEM if args.casual else IMPLIED_SYSTEM if args.implied else PLAYER_SYSTEM
         def player(out, name):
-            return attentive_line(out, name, player_call, CASUAL_SYSTEM if args.casual else PLAYER_SYSTEM)
-        player.kind = "평범한 참가자" if args.casual else "속마음 읽기"
+            return attentive_line(out, name, player_call, system)
+        player.kind = "평범한 참가자" if args.casual else "돌려 말하기" if args.implied else "속마음 읽기"
 
     def recorder_factory(banned):
         return Recorder(backend, banned=banned, pace=pace, wait_ready=wait_ready)
