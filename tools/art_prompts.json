@@ -6,7 +6,7 @@
     "astra": {"do": "done", "note": "게임에 넣은 그림(남색 리본, 기본 여섯 장, huff, denial)을 그대로 쓴다. 2026-11-14에 받은 빨간 리본 세트는 쓰지 않기로 했다(사용자)."},
     "gemma": {"do": "done", "note": "2026-11-16에 확정안(수레국화 파랑 생머리, 은테 동그란 안경, 귀 뒤 네 갈래 별 머리핀, 보라 리본 타이, 연보라 수첩)으로 받은 일곱 장을 넣었다(사용자: 완벽함). 그 전: 연한 파랑, 초록, 밤색 땋은 머리, 파스텔 그라데이션 땋은 머리, 라벤더 생머리를 거쳤다. 머리나 소품 설명에 green이라는 낱말을 쓰지 않는다."},
     "sora": {"do": "done", "note": "2026-11-14에 받은 일곱 장을 넣었다."},
-    "nova": {"do": "done", "note": "2026-11-14에 받은 분홍 일곱 장을 넣었다."},
+    "nova": {"do": "some", "faces": ["dark"], "note": "2026-11-16: 머리, 눈, 후드, 리본이 모두 같은 진한 분홍이라 색감이 단조롭고, 표정마다 입을 크게 벌려 웃음이 어색했다(사용자). 머리는 부드러운 분홍, 눈은 진한 라즈베리, 후드는 흰색에 분홍 포인트로 바꾸고, 입을 크게 벌린 얼굴은 excited에만 남겼다. 받은 일곱 장 가운데 dark만 예전 색(분홍 후드, 진한 머리)이라 새 neutral을 첨부해 dark만 다시 뽑는다. 그때까지는 받은 dark를 쓴다."},
     "mistral": {"do": "done", "note": "2026-11-14에 받은 일곱 장을 넣었다. dark는 받은 그림의 배경이 불투명해서 사용자가 다듬은 그림을 썼다."},
     "haiku": {"do": "done", "note": "2026-11-16에 다시 받은 일곱 장 가운데 neutral, smile, blush, pout, shock을 넣었다. dark는 새 그림의 그림자가 머리 위에서 각지게 끊겨서, flushed는 예전 것과 거의 같아서 예전 것을 쓴다(사용자: 더 나은 것만 쓰기)."}
   },
@@ -88,13 +88,15 @@
     "nova": {
       "name": "노바",
       "key": "green",
-      "look": "Bright rose-pink hair in a side ponytail. Sparkling rose-pink eyes. A rose-pink zip-up hoodie with white stripes on the sleeves, worn over the white school shirt instead of a blazer. A small adhesive bandage on one cheek. She leans forward toward the viewer with both hands clasped behind her back, an energetic, playful posture.",
+      "look": "Soft, glossy rose-pink hair in a side ponytail with a pale pink scrunchie, lighter and less saturated than hot pink. Deep raspberry-rose eyes, darker than the hair, with warm highlights. A white zip-up hoodie with rose-pink sleeve stripes, drawstrings and hood lining, worn over the white school shirt instead of a blazer. A small adhesive bandage on one cheek. She leans forward toward the viewer with both hands clasped behind her back, an energetic, playful posture.",
       "faces": {
-        "neutral": "a cheerful smile with both eyes open and sparkling, mouth slightly open",
-        "smile": "a huge laughing smile, eyes closed in happy arcs, mouth wide open",
-        "pout": "sulking with puffed-out cheeks and a pouting mouth, both eyes open, eyebrows drawn together",
-        "dark": "a stiff frozen smile, the upper half of the face in shadow, eyes blank and dull without highlights, a sweat drop on the temple",
-        "excited": "fired up with excitement: sparkling star-shaped highlights in the eyes, mouth wide open in a happy cheer"
+        "neutral": "a relaxed, natural friendly smile: mouth closed or only slightly parted, cheeks lifted a little so the eyes narrow slightly, eyebrows relaxed, not a wide-open grin",
+        "smile": "a genuine happy laugh: eyes curved into soft happy arcs, mouth open in a natural medium-sized laugh showing a little of the upper teeth, not stretched wide, cheeks raised with a light blush",
+        "blush": "suddenly shy and flustered: cheeks clearly red, eyes glancing away to the side, eyebrows tilted up a little, mouth closed in a small wavering smile",
+        "pout": "a playful sulk, not real anger: cheeks puffed out a little, lips pushed into a small pout, eyebrows drawn together, eyes looking straight at the viewer",
+        "shock": "surprised: eyes wide open, eyebrows raised, mouth open in a small round o shape, a small sweat drop on the temple, face proportions natural",
+        "dark": "comically ominous: a stiff frozen smile, the upper half of the face in shadow, eyes dull without highlights, a sweat drop on the temple",
+        "excited": "fired up with excitement: star-shaped sparkles in the eyes, mouth open wide in a happy cheer (the only expression with a wide-open mouth)"
       },
       "poses": {
         "excited": "She brings one hand out from behind her back and raises a clenched fist up near her shoulder."
