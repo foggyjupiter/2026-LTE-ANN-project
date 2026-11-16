@@ -417,7 +417,11 @@ class Unit(unittest.TestCase):
             expected = {"done": [], "keep": [f for f in faces if f not in make_art.FACES], "redo": list(faces),
                         "some": [f for f in faces if f in entry.get("faces", [])]}
             self.assertEqual(drawn, expected[entry["do"]], char_id)
-        doc = make_art.gpt_doc(self.cfg)
+        # 문서 모양은 할 일이 섞인 계획으로 본다(2026-11-16에 실제 계획은 모두 done이 되었다)
+        cfg = json.loads(json.dumps(self.cfg))
+        cfg["plan"]["haiku"] = {"do": "some", "faces": ["smile", "blush", "pout", "shock", "dark"]}
+        cfg["plan"]["gemma"] = {"do": "redo"}
+        doc = make_art.gpt_doc(cfg)
         self.assertIn("## 지금 할 일", doc)
         self.assertIn("기준 그림 (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/haiku/neutral.png`", doc)
         self.assertIn("표정 smile (새로 뽑기). 저장할 곳: `art/raw/haiku/smile.png`", doc)
