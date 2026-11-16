@@ -48,6 +48,9 @@ SCORE_DIGITS = 1
 # 같은 날 대성공을 다시 80으로 올렸지만(사용자: 노력하면 75는 쉽다) 이 값은 77로 둔다
 # 한 판에 한 번이고, 답에 그런 마음이 안 보이면 다음 답에서 한 번 더 시킨다(CLOSE_TRIES)
 JUDGE_BUDGET_SEC = 5      # 바람 판정(judge_wish_hit)을 기다리는 상한. 넘으면 낱말로만 가른다
+# 판정은 짚지 않았다는데 바람의 낱말은 맞은 말의 설렘 상한. 바라던 말(+2)의 점수가 온전한 것의 절반쯤이 된다
+# (아스트라 기준 온전한 +2 약 7.5점, 이 경우 약 4.5점, +1 약 1.7점)
+SOFT_HIT_STRENGTH_MAX = 30
 CLOSE_SCORE = 77
 WEATHERS = ("rain", "storm")   # 화면이 아는 날씨
 # 지문에서 둘이 가까워진 것과 다시 떨어진 것. 화면은 가까워진 동안 스탠딩을 조금 크게 둔다(사용자, 2026-11-15).
@@ -465,17 +468,18 @@ class Session:
                 # +2는 앞 답들이 속마음에 흘린 바람을 참가자가 짚었을 때만 남긴다. 바람의 낱말이나, 바람과 함께
                 # 적어 둔 돌려 말할 낱말이 있어야 한다. 다정한 말만으로는 대성공이 안 되게 하려는 것이다.
                 # 실전 기록: 모델이 "반가워. 여기 자주 와?"에도 2를 줬다
-                # 모델이 2를 주면 판정을 한 번 더 묻는다(actor.judge_wish_hit). 돌려 말한 말은 낱말이 안 맞아도 인정하고,
-                # 바람의 낱말을 스치기만 한 말이나 캐릭터가 겉말로 먼저 제안한 것에 대답만 한 말은 1로 줄인다.
-                # 판정을 못 받으면 예전처럼 바람의 낱말과 돌려 말할 낱말로만 가른다
+                # 모델이 2를 주면 판정을 한 번 더 묻는다(actor.judge_wish_hit). 돌려 말한 말은 낱말이 안 맞아도 온전한 2다.
+                # 판정은 짚지 않았다는데 바람의 낱말이나 돌려 말할 낱말이 맞으면(낱말만 스친 말, 캐릭터가 먼저 제안한 것에
+                # 대답한 말, 판정이 놓친 말) 2로 두되 설렘을 SOFT_HIT_STRENGTH_MAX까지로 낮춰 점수를 절반쯤만 준다.
+                # 둘 다 아니면 1이다. 판정을 못 받으면 예전처럼 낱말로만 가른다(사용자, 2026-11-16: 엄격하면 별로, 중간으로)
                 if reply.delta == 2:
                     judged = actor.judge_wish_hit(self.judge_llm, wishes, self.past_inputs[-1],
                                                   actor.last_say(self.history))
-                    if judged is None:
-                        related = [word for wish in wishes for word in wish_words.get(wish, [])]
-                        judged = actor.wish_hit(self.past_inputs[-1], wishes, related,
-                                                actor.name_words(self.character))
-                    if not judged:
+                    related = [word for wish in wishes for word in wish_words.get(wish, [])]
+                    words = actor.wish_hit(self.past_inputs[-1], wishes, related, actor.name_words(self.character))
+                    if judged is False and words:
+                        reply.strength = min(reply.strength, SOFT_HIT_STRENGTH_MAX)
+                    elif not (judged or words):
                         reply.delta = 1
                 # 바람의 낱말만 짧게 던진 말은 크게 설레게 하지 못한다
                 if reply.delta == 2 and len(re.findall(r"[0-9A-Za-z가-힣]", self.past_inputs[-1])) <= SHORT_HIT_LETTERS:

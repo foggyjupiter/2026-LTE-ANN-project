@@ -564,14 +564,27 @@ class ScoreTest(unittest.TestCase):
         # 2026-11-16: 낱말이 맞아도 판정이 짚지 않았다고 하면 1이다(낱말만 스친 말, 겉말로 먼저 제안한 것에 대답만 한 말)
         wish = {"wish": "같이 책 보기", "wish_words": ["표지"], "inner": "이 책 같이 볼 사람 있으면",
                 "say": "이 책 표지 예쁘지 않아?"}
-        for judge, delta in ((False, 1), (True, 2), (None, 2)):  # None: 판정을 못 받으면 낱말로 가른다
+        # 중간안(사용자, 2026-11-16): 판정이 아니라는데 낱말이 맞으면 2로 두되 설렘을 낮춰 점수를 절반쯤만 준다
+        full = soft = None
+        for judge, delta in ((False, 2), (True, 2), (None, 2)):  # None: 판정을 못 받으면 낱말로 가른다
             with self.subTest(judge=judge):
-                session = Session("mistral", llm=ScriptedLlm(default=dict(wish, delta=2), judge=judge))
+                session = Session("mistral", llm=ScriptedLlm(default=dict(wish, delta=2, strength=90), judge=judge))
                 session.start()
-                self.assertEqual(session.reply("그 책 표지 예쁘다")["delta"], delta)
+                out = session.reply("그 책 표지 그림이 정말 예쁘다. 어디서 샀어?")  # 짧은 말의 설렘 상한에 안 걸리게 길게
+                self.assertEqual(out["delta"], delta)
+                self.assertEqual(out["strength"], director.SOFT_HIT_STRENGTH_MAX if judge is False else 90)
+                if judge is False:
+                    soft = out["change"]
+                elif judge:
+                    full = out["change"]
                 asked = session.llm.judge_calls()
                 self.assertEqual(len(asked), 1)
                 self.assertIn("캐릭터의 바로 앞 겉말: 이 책 표지 예쁘지 않아?", asked[0][1]["content"])
+        self.assertLess(soft, full)
+        self.assertGreater(soft, full / 3)
+        session = Session("mistral", llm=ScriptedLlm(default=dict(wish, delta=2), judge=False))
+        session.start()
+        self.assertEqual(session.reply("옆자리로 좀 더 붙어앉을래?")["delta"], 1)  # 판정도 아니고 낱말도 안 맞으면 1
         session = Session("mistral", llm=ScriptedLlm(default=dict(wish, delta=1), judge=True))
         session.start()
         self.assertEqual(session.reply("옆자리로 좀 더 붙어앉을래?")["delta"], 1)  # 모델이 1을 줬으면 묻지 않는다
