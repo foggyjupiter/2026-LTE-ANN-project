@@ -1102,6 +1102,17 @@ class VarietyTest(unittest.TestCase):
         self.assertFalse(actor.wish_hit("학교 어때?", ["우산 같이 쓰기"], ["학교", "비"]))
         self.assertTrue(actor.wish_hit("학교 구경시켜 줄래?", ["학교 안내해 주기"], []))
 
+    def test_move_turn_is_already_at_the_new_place(self):
+        here = Reply(narration="종이 울리고 반 학생들이 몰려와서 둘은 과학실로 자리를 옮겼다.", say="여기 조용하네.")
+        going = Reply(narration="선생님이 비켜 달라고 하자 아스트라가 소매를 잡아끌었다.", say="저기 과학실로 가자! 따라와.")
+        still = Reply(narration="둘은 과학실로 자리를 옮겼다.", say="과학실로 가자고 했잖아, 따라와.")
+        self.assertTrue(actor.moved_into(here, "과학실"))
+        self.assertFalse(actor.moved_into(going, "과학실"))
+        self.assertFalse(actor.moved_into(still, "과학실"))
+        problem = actor.review_reply(going, sample_character(), moved_to="과학실")
+        self.assertIn("과학실(으)로 옮겨 온 뒤다", problem)
+        self.assertIsNone(actor.review_reply(here, sample_character(), moved_to="과학실"))
+
     def test_last_say_and_wish_rule(self):
         history = [{"role": "assistant", "content": raw_reply(say="내일도 같이 읽을래?")},
                    {"role": "user", "content": "응"},

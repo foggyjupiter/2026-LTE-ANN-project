@@ -47,6 +47,15 @@ _EVENT_RE = re.compile(r'사건 씨앗: "([^"]+)"')
 _EXTRA_FACE_LINE_RE = re.compile(r"^  ([a-z][a-z_]+)\([^)]*?\. ([a-z]+) 자리에 쓴다\)", re.M)
 
 
+_MOVE_RE = re.compile(r"이번 답에서 둘은 (\S.*?)에서 (\S.*?)\(으\)로 옮겨 온다")
+
+
+def _move_note(system: str) -> str:
+    """장소를 옮기는 답이면 지문 첫머리에 옮겨 온 일을 적는다. 진짜 모델에게 시키는 것과 같다."""
+    match = _MOVE_RE.search(system)
+    return f"둘은 {match.group(2)}(으)로 자리를 옮겼다. " if match else ""
+
+
 def _event_note(system: str) -> str:
     """사건 씨앗이 있는 답이면 지문에 그 사건을 적는다. 진짜 모델에게 시키는 것과 같다."""
     match = _EVENT_RE.search(system)
@@ -111,7 +120,8 @@ def fake_llm(messages: list[dict]) -> str:
         moved = "±0" if delta == 0 else f"{delta:+d}"
         inner = f"가짜 속마음 {turn}번: 글자 수 {len(last_user)} → 점수 {moved}칸"
         reason = f"글자 수가 {len(last_user)}개라서"
-    narration = "가짜 모델이 등장했다." if turn == 0 else f"가짜 모델의 {turn}번째 답이다." + _event_note(system)
+    narration = ("가짜 모델이 등장했다." if turn == 0
+                 else _move_note(system) + f"가짜 모델의 {turn}번째 답이다." + _event_note(system))
     if "[이야기 모드]" in system:
         # 이야기 모드는 답이 길다. 화면이 긴 글을 여러 쪽으로 나누는지 볼 수 있게 길게 쓴다
         narration += (" 창밖으로 운동장의 함성이 멀리서 들려왔고, 복도 끝 창문으로 늦은 오후의 햇빛이 길게 들어왔다."

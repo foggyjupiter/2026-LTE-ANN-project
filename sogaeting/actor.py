@@ -670,8 +670,10 @@ def _turn_system(character: dict, *, band: str, intensity: int, intensity_meanin
         sections.append([
             "[장소 옮기기]",
             "- 이번 답에서 둘은 " + moved_from + "에서 " + place + "(으)로 옮겨 온다. 까닭: " + move_reason + ".",
-            "- narration의 첫머리에 이 까닭으로 둘이 " + place + "에 오게 된 것을 짧게 쓴다. 캐릭터가 앞장서거나 둘이 함께 "
-            "옮겨 온 것은 써도 된다. 그 밖에 전학생이 한 일이나 느낀 것은 지어내지 않는다.",
+            "- 이번 답의 장면은 이미 " + place + "에 와 있는 뒤다. 화면도 이 답부터 " + place + "의 배경을 보인다. "
+            "narration은 '" + move_reason + " 둘은 " + place + "(으)로 자리를 옮겼다'처럼 옮겨 온 일을 지난 일로 짧게 쓰고 "
+            "시작한다. '가자', '따라와'처럼 아직 가는 중인 말은 쓰지 않는다.",
+            "- 캐릭터가 앞장선 것이나 둘이 함께 옮겨 온 것은 써도 된다. 그 밖에 전학생이 한 일이나 느낀 것은 지어내지 않는다.",
             "- say는 주인공이 방금 한 말에 대한 대답이다. 새 장소에 있을 법한 것만 꺼내고, " + moved_from
             + "에 있던 물건을 여기 있는 것처럼 쓰지 않는다.",
         ])
@@ -1549,11 +1551,27 @@ def repeated_phrases(reply: Reply, used: dict) -> list[str]:
     return [label for needle, label in STOCK_PHRASES if used.get(label) and needle in text]
 
 
+def moved_into(reply: Reply, place: str) -> bool:
+    """옮겨 오는 답이 새 장소에 와 있는 장면인가: 지문에 그 장소 이름이 있고, 겉말이 그곳으로 가자고 하지 않는다."""
+    if place not in reply.narration:
+        return False
+    going = re.compile(re.escape(place) + r"\S{0,2}\s*(가자|가 보자|갈래|가야|따라와|가는)")
+    return not going.search(reply.say)
+
+
 def review_reply(reply: Reply, character: dict, *, banned=None, event_seed=None,
                  used_phrases=None, tomorrow=0, finale=False, previous=None, stuck_wish="",
-                 touch_hint="", overused=()) -> str | None:
-    """다시 쓰게 할 점들을 이어 붙인 글. 고칠 것이 없으면 None. 여러 개면 한 번에 다 고치게 한다."""
+                 touch_hint="", overused=(), moved_to="") -> str | None:
+    """다시 쓰게 할 점들을 이어 붙인 글. 고칠 것이 없으면 None. 여러 개면 한 번에 다 고치게 한다.
+
+    moved_to는 이번 답에서 옮겨 온 장소다(진행표의 move 답). 지문에 그곳에 와 있는 장면이 없거나, 겉말이 아직
+    그곳으로 가는 중처럼 말하면 고쳐 쓰게 한다. 화면은 이 답부터 새 장소의 배경을 보인다.
+    """
     problems = []
+    if moved_to and not moved_into(reply, moved_to):
+        # 실제 모델 시험(2026-11-16): 옮기는 답에서 "과학실로 가자, 따라와"라고 아직 떠나는 중처럼 썼다
+        problems.append("이번 답은 둘이 " + moved_to + "(으)로 옮겨 온 뒤다. 지문 첫머리에 둘이 " + moved_to
+                        + "(으)로 자리를 옮긴 것을 지난 일로 쓰고, 겉말에서 '가자', '따라와'처럼 아직 가는 중인 말은 쓰지 않는다.")
     texts = reply_texts(reply)
     words = offstage_words(texts)
     if words:

@@ -405,6 +405,7 @@ class Session:
                                                                    tomorrow=tomorrow, finale=finale,
                                                                    previous=previous, stuck_wish=stuck_wish,
                                                                    touch_hint=seed_hint if must_touch else "",
+                                                                   moved_to=move[1] if move else "",
                                                                    overused=actor.overused_catchphrases(
                                                                        r, self.character, self.history,
                                                                        swappable=False)))

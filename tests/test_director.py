@@ -109,6 +109,10 @@ class ScriptedLlm:
             return answer
         if answer is self.ending:
             return json.dumps(answer, ensure_ascii=False)
+        # 장소를 옮기는 답이면 진짜 모델처럼 지문에 옮겨 온 일을 쓴다. 정해 둔 지문이 있으면 그대로 둔다
+        moving = re.search(r"이번 답에서 둘은 \S.*?에서 (\S.*?)\(으\)로 옮겨 온다", messages[0]["content"])
+        if moving and "narration" not in answer:
+            answer = dict(answer, narration="둘은 " + moving.group(1) + "(으)로 자리를 옮겼다.")
         # 사건 씨앗이 있는 답이면 진짜 모델처럼 지문에 그 사건을 넣는다. 정해 둔 지문이 있으면 그대로 둔다
         event = re.search(r'사건 씨앗: "([^"]+)"', messages[0]["content"])
         if event and "narration" not in answer:
