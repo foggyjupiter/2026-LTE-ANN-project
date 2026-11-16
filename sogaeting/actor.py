@@ -225,6 +225,13 @@ def faces_for(character: dict) -> tuple:
     return FACES + tuple(extra_faces(character))
 
 
+def swap_face(face: str, character: dict) -> str:
+    """캐릭터 설정의 face_swaps({쓰지 않는 표정: 대신 쓸 표정})를 따른 표정. 대신 쓸 표정이 그 캐릭터의 표정이 아니면 그대로."""
+    swaps = character.get("face_swaps")
+    target = swaps.get(face) if isinstance(swaps, dict) else None
+    return target if target in faces_for(character) else face
+
+
 def face_base(character: dict, face: str) -> str:
     """표정이 기본 여섯 가지 가운데 어느 자리인지. 기본 표정은 그대로, 모르는 표정은 neutral."""
     if face in FACES:

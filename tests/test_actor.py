@@ -1102,6 +1102,12 @@ class VarietyTest(unittest.TestCase):
         self.assertFalse(actor.wish_hit("학교 어때?", ["우산 같이 쓰기"], ["학교", "비"]))
         self.assertTrue(actor.wish_hit("학교 구경시켜 줄래?", ["학교 안내해 주기"], []))
 
+    def test_swap_face(self):
+        character = {"face_swaps": {"dark": "pout", "smile": "nope"}}
+        self.assertEqual(actor.swap_face("dark", character), "pout")
+        self.assertEqual(actor.swap_face("smile", character), "smile")  # 없는 표정으로는 바꾸지 않는다
+        self.assertEqual(actor.swap_face("dark", {}), "dark")
+
     def test_judge_wish_hit(self):
         seen = []
         def answer(text):

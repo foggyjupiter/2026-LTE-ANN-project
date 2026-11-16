@@ -462,6 +462,9 @@ class Session:
                 self._close_tries = 0 if actor.shows_hug(reply) else self._close_tries - 1
             # 표정은 점수를 다 고친 뒤에 고른다(점수가 그대로인 답을 알아야 한다)
             reply.face = self._balance_face(reply, opening=opening, finale=finale, event=bool(event_seed))
+            # 캐릭터 설정의 face_swaps에 적힌 표정은 다른 표정으로 바꿔 보인다. 노바는 dark 그림이 예전 색으로만 있고,
+            # 호감도가 내려가지 않아 거의 안 쓰여서 다시 뽑지 않고 pout을 쓴다(사용자, 2026-11-16)
+            reply.face = actor.swap_face(reply.face, self.character)
             self._faces.append(reply.face)
 
         # 불이 꺼져 있는 동안에는 무대 전체를 덮었다가 밝아지는 "암전"을 쓰지 않는다. 화면이 어둡게 두고 있다

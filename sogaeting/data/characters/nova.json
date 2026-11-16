@@ -83,6 +83,7 @@
     }
   ],
   "face_note": "평소 얼굴은 smile이다. 싫은 소리에도 웃는다. blush는 큰소리가 뚝 끊기는 순간에만.",
+  "face_swaps": {"dark": "pout"},
   "extra_faces": {
     "excited": {
       "base": "smile",

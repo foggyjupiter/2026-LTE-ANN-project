@@ -523,6 +523,15 @@ class ScoreTest(unittest.TestCase):
         out = session.reply("오늘 너 만나서 진짜 반가웠어. 고마워.")  # 다정하기만 한 말은 여전히 +1
         self.assertEqual(out["delta"], 1)
 
+    def test_nova_shows_pout_instead_of_dark(self):
+        # 2026-11-16 사용자: 노바의 dark 그림은 예전 색으로만 있고 거의 안 쓰여서, 다시 뽑지 않고 pout을 쓴다
+        session = Session("nova", llm=ScriptedLlm(default={"face": "dark", "delta": 0}))
+        self.assertEqual(session.start()["face"], "pout")
+        self.assertEqual(session.reply("오늘 날씨 좋다")["face"], "pout")
+        session = Session("mistral", llm=ScriptedLlm(default={"face": "dark", "delta": 0}))
+        session.start()
+        self.assertEqual(session.reply("오늘 날씨 좋다")["face"], "dark")  # 다른 캐릭터는 그대로
+
     def test_judge_keeps_an_implied_hit(self):
         # 낱말이 하나도 겹치지 않게 돌려 말한 말은 판정을 한 번 더 물어서 짚었으면 +2를 둔다
         wish = {"delta": 2, "wish": "같이 책 보기", "wish_words": ["표지"], "inner": "이 책 같이 볼 사람 있으면"}

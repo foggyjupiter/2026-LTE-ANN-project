@@ -6,14 +6,14 @@ ChatGPT 같은 대화형 그림 도구에 붙여 넣을 요청문이다. 캐릭�
 
 ## 지금 할 일
 
-이번에 뽑을 그림은 1장이다. "그대로 두기"라고 적힌 그림은 이미 뽑은 것을 쓰고 다시 뽑지 않는다.
+이번에 뽑을 그림은 0장이다. "그대로 두기"라고 적힌 그림은 이미 뽑은 것을 쓰고 다시 뽑지 않는다.
 
 | 캐릭터 | 할 일 | 이번에 뽑을 것 | 까닭 |
 |---|---|---|---|
 | 아스트라 | 할 것 없음 | 없음 | 게임에 넣은 그림(남색 리본, 기본 여섯 장, huff, denial)을 그대로 쓴다. 2026-11-14에 받은 빨간 리본 세트는 쓰지 않기로 했다(사용자). |
 | 젬마 | 할 것 없음 | 없음 | 2026-11-16에 확정안(수레국화 파랑 생머리, 은테 동그란 안경, 귀 뒤 네 갈래 별 머리핀, 보라 리본 타이, 연보라 수첩)으로 받은 일곱 장을 넣었다(사용자: 완벽함). 그 전: 연한 파랑, 초록, 밤색 땋은 머리, 파스텔 그라데이션 땋은 머리, 라벤더 생머리를 거쳤다. 머리나 소품 설명에 green이라는 낱말을 쓰지 않는다. |
 | 소라 | 할 것 없음 | 없음 | 2026-11-14에 받은 일곱 장을 넣었다. |
-| 노바 | 적힌 표정만 다시 뽑기 | dark | 2026-11-16: 머리, 눈, 후드, 리본이 모두 같은 진한 분홍이라 색감이 단조롭고, 표정마다 입을 크게 벌려 웃음이 어색했다(사용자). 머리는 부드러운 분홍, 눈은 진한 라즈베리, 후드는 흰색에 분홍 포인트로 바꾸고, 입을 크게 벌린 얼굴은 excited에만 남겼다. 받은 일곱 장 가운데 dark만 예전 색(분홍 후드, 진한 머리)이라 새 neutral을 첨부해 dark만 다시 뽑는다. 그때까지는 받은 dark를 쓴다. |
+| 노바 | 할 것 없음 | 없음 | 2026-11-16: 머리, 눈, 후드, 리본이 모두 같은 진한 분홍이라 색감이 단조롭고, 표정마다 입을 크게 벌려 웃음이 어색했다(사용자). 머리는 부드러운 분홍, 눈은 진한 라즈베리, 후드는 흰색에 분홍 포인트로 바꾸고, 입을 크게 벌린 얼굴은 excited에만 남겼다. 받은 일곱 장 가운데 dark만 예전 색(분홍 후드, 진한 머리)이다. 노바는 호감도가 내려가지 않아 dark가 거의 안 나와서(실제 모델 4판 54답에 0번) 다시 뽑지 않고, 게임에서는 dark 대신 pout을 보인다(캐릭터 설정 face_swaps, 사용자). |
 | 미스트랄 | 할 것 없음 | 없음 | 2026-11-14에 받은 일곱 장을 넣었다. dark는 받은 그림의 배경이 불투명해서 사용자가 다듬은 그림을 썼다. |
 | 하이쿠 | 할 것 없음 | 없음 | 2026-11-16에 다시 받은 일곱 장 가운데 neutral, smile, blush, pout, shock을 넣었다. dark는 새 그림의 그림자가 머리 위에서 각지게 끊겨서, flushed는 예전 것과 거의 같아서 예전 것을 쓴다(사용자: 더 나은 것만 쓰기). |
 
@@ -206,7 +206,7 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 
 ### 노바 (nova)
 
-할 일: 적힌 표정만 다시 뽑기. 2026-11-16: 머리, 눈, 후드, 리본이 모두 같은 진한 분홍이라 색감이 단조롭고, 표정마다 입을 크게 벌려 웃음이 어색했다(사용자). 머리는 부드러운 분홍, 눈은 진한 라즈베리, 후드는 흰색에 분홍 포인트로 바꾸고, 입을 크게 벌린 얼굴은 excited에만 남겼다. 받은 일곱 장 가운데 dark만 예전 색(분홍 후드, 진한 머리)이라 새 neutral을 첨부해 dark만 다시 뽑는다. 그때까지는 받은 dark를 쓴다.
+할 일: 할 것 없음. 2026-11-16: 머리, 눈, 후드, 리본이 모두 같은 진한 분홍이라 색감이 단조롭고, 표정마다 입을 크게 벌려 웃음이 어색했다(사용자). 머리는 부드러운 분홍, 눈은 진한 라즈베리, 후드는 흰색에 분홍 포인트로 바꾸고, 입을 크게 벌린 얼굴은 excited에만 남겼다. 받은 일곱 장 가운데 dark만 예전 색(분홍 후드, 진한 머리)이다. 노바는 호감도가 내려가지 않아 dark가 거의 안 나와서(실제 모델 4판 54답에 0번) 다시 뽑지 않고, 게임에서는 dark 대신 pout을 보인다(캐릭터 설정 face_swaps, 사용자).
 
 기준 그림 (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/nova/neutral.png`
 
@@ -245,7 +245,7 @@ Use the reference image. Keep the same character, hairstyle, outfit, colors, art
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: surprised: eyes wide open, eyebrows raised, mouth open in a small round o shape, a small sweat drop on the temple, face proportions natural. Keep the same background and the same image size.
 ```
 
-표정 dark (새로 뽑기). 저장할 곳: `art/raw/nova/dark.png`
+표정 dark (그대로 두기, 다시 뽑지 않는다). 저장할 곳: `art/raw/nova/dark.png`
 
 ```
 Use the reference image. Keep the same character, hairstyle, outfit, colors, art style, pose and framing exactly. Change only the facial expression. New expression: comically ominous: a stiff frozen smile, the upper half of the face in shadow, eyes dull without highlights, a sweat drop on the temple. Keep the same background and the same image size.

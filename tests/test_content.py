@@ -58,6 +58,16 @@ class CharacterTest(unittest.TestCase):
             deltas[char_id] = playful["delta"]
         self.assertEqual(deltas, {"astra": 1, "gemma": 0, "sora": 1, "nova": 1, "mistral": 0, "haiku": 0})
 
+    def test_face_swaps_point_to_real_faces(self):
+        from sogaeting import actor
+        for char_id in CHARACTER_IDS:
+            character = content.load_character(char_id)
+            for face, target in (character.get("face_swaps") or {}).items():
+                with self.subTest(character=char_id, face=face):
+                    self.assertIn(face, actor.faces_for(character))
+                    self.assertIn(target, actor.faces_for(character))
+        self.assertEqual(content.load_character("nova")["face_swaps"], {"dark": "pout"})
+
     def test_old_ids_still_load(self):
         # 2026-11-13에 id를 새 이름으로 바꿨다. 예전 id로 불러도 새 캐릭터가 나온다
         for old, new in content.OLD_IDS.items():
