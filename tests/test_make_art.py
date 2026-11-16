@@ -437,7 +437,7 @@ class Unit(unittest.TestCase):
 
     def test_chroma_key_is_not_the_hair_color(self):
         # 머리나 소품이 분홍, 보라 계열이면 green, 초록 계열이면 magenta 배경으로 받아야 지울 때 같이 지워지지 않는다.
-        # 젬마는 밤색 머리에 보라 머리핀과 눈, 노바는 분홍 머리다
+        # 젬마는 파랑에서 보라, 분홍으로 이어지는 머리, 노바는 분홍 머리다
         self.assertEqual(self.cfg["characters"]["gemma"]["key"], "green")
         self.assertEqual(self.cfg["characters"]["nova"]["key"], "green")
 
